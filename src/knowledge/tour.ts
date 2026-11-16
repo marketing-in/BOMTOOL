@@ -29,7 +29,7 @@ export const TOUR: TourChapter[] = [
         key: "home",
         title: "Home",
         who: "Everyone",
-        what: "The day at a glance: a ring per line for clear-to-build, each BoM with its own board and a bar of its ten steps, and the alerts that need attention.",
+        what: "The day at a glance: a ring per line for clear-to-build, each BoM with its own board and a bar of its steps, and the alerts that need attention.",
         tryIt: ["Press “Next” on a BoM to go straight to the step it is waiting on", "Switch the currency in the top bar: INR, USD, EUR"],
         href: "/",
         menu: "Overview → Home",

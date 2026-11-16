@@ -518,6 +518,32 @@ async function main() {
     { code: "MC-48V", line: "L1", status: "KITTING" as const, start: 3, days: 2, ctb: 82 },
     { code: "LD-60", line: "L3", status: "PLANNED" as const, start: 7, days: 1, ctb: 64 },
   ];
+  // Sample history: finished lots with their real start and finish, so line fit can compare (labelled sample data).
+  const done = [
+    { code: "MC-48V", line: "L1", start: -30, hours: 30 },
+    { code: "GW-200", line: "L2", start: -21, hours: 52 },
+    { code: "LD-60", line: "L2", start: -12, hours: 20 },
+  ];
+  for (const [i, w] of done.entries()) {
+    const r = revisionIds.find((x) => x.code === w.code)!;
+    const startedAt = new Date(NOW.getTime() + w.start * DAY);
+    await db.workOrder.create({
+      data: {
+        number: `WO-2026-${String(90 + i).padStart(4, "0")}`,
+        projectId: r.projectId,
+        bomRevisionId: r.revisionId,
+        lineId: lineId.get(w.line),
+        buildQty: r.buildQty,
+        status: "DONE",
+        clearToBuildPct: 100,
+        plannedStart: startedAt,
+        plannedEnd: new Date(startedAt.getTime() + w.hours * 3_600_000),
+        startedAt,
+        finishedAt: new Date(startedAt.getTime() + w.hours * 3_600_000),
+        notes: "Sample history (seed data)",
+      },
+    });
+  }
   for (const [i, w] of wo.entries()) {
     const r = revisionIds.find((x) => x.code === w.code)!;
     await db.workOrder.create({
@@ -531,6 +557,7 @@ async function main() {
         clearToBuildPct: w.ctb,
         plannedStart: new Date(NOW.getTime() + w.start * DAY),
         plannedEnd: new Date(NOW.getTime() + (w.start + w.days) * DAY),
+        startedAt: w.status === "IN_PROGRESS" ? new Date(NOW.getTime() + w.start * DAY) : null,
       },
     });
   }

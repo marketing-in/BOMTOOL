@@ -51,7 +51,7 @@ export function ScoreLegend({ className }: { className?: string }) {
   );
 }
 
-/** The ten steps as one segmented bar, and the next step to take as a link. */
+/** The steps as one segmented bar, and the next step to take as a link. */
 function StepBar({ id, progress, className }: { id: string; progress: NonNullable<BomCardData["progress"]>; className?: string }) {
   const { steps, done, look, next } = progress;
   return (
@@ -81,7 +81,7 @@ function StepBar({ id, progress, className }: { id: string; progress: NonNullabl
 
 /**
  * One BoM revision as a card (Phase 26), the same on the BoM list and on Home: the board itself drawn from the
- * Gerbers, how far the job has got through its ten steps and what comes next, the five scores as small bars, and
+ * Gerbers, how far the job has got through its steps and what comes next, the five scores as small bars, and
  * what needs a look. The title is the link to the BoM; "Next" goes straight to the step to do.
  */
 export function BomCard({ b, compact }: { b: BomCardData; /** One slim row: the board, the name and the progress — for Home. */ compact?: boolean }) {

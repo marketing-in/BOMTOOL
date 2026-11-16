@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { GATES, readSignoffs } from "@/lib/feasibility/gates";
 import { stepStates, type StepFacts } from "@/lib/bom/workflow";
 import { matchFootprints, matchNote, type FootprintMatch } from "@/lib/board/footprint-match";
+import { findMismatches, mismatchNote, type Mismatches } from "@/lib/bom/mismatch";
 
 /** The BoM against the board: every designator's package against the footprint placed under it. */
 /**
@@ -28,6 +29,15 @@ export const footprintMatchFor = cache(async (revisionId: string): Promise<Footp
   );
 });
 
+/** Every mismatch in the product: the BoM against the board and against itself (Part 1, step 4). */
+export const mismatchesFor = cache(async (revisionId: string): Promise<Mismatches> => {
+  const [match, lines] = await Promise.all([
+    footprintMatchFor(revisionId),
+    db.bomLine.findMany({ where: { revisionId }, orderBy: { lineNo: "asc" }, select: { lineNo: true, refDes: true, qtyPerBoard: true, rawMpn: true, dnp: true, issues: true, part: { select: { mpn: true } } } }),
+  ]);
+  return findMismatches(match, lines.map((l) => ({ lineNo: l.lineNo, refDes: l.refDes, qtyPerBoard: l.qtyPerBoard, mpn: l.part?.mpn ?? l.rawMpn, dnp: l.dnp, issues: l.issues })));
+});
+
 /**
  * How far one BoM revision has got through its process — a handful of small queries, cheap enough for the strip on
  * every page of the BoM. Null when the revision does not exist.
@@ -44,6 +54,7 @@ export const workflowFor = cache(async (revisionId: string) => {
     footprintMatchFor(revisionId),
   ]);
   if (!rev) return null;
+  const mm = rev.status === "DRAFT" ? null : await mismatchesFor(revisionId);
   const draft = drafts.find((d) => d.status === "DRAFT");
   const facts: StepFacts = {
     mapped: rev.status !== "DRAFT",
@@ -52,6 +63,7 @@ export const workflowFor = cache(async (revisionId: string) => {
     gerbers: rev.board?.source === "gerber",
     placements: rev._count.placements,
     match: rev.status === "DRAFT" ? null : { level: match.level, hasBoard: match.hasBoard, note: matchNote(match) },
+    mismatch: mm ? { level: mm.level, total: mm.total, note: mismatchNote(mm) } : null,
     review: review ? { passed: review.status === "PASSED", signed: new Set(readSignoffs(review.signoffs).map((s) => s.gate)).size, gates: GATES.length } : null,
     draft: { board: !!draft?.board, box: !!draft?.box, issued: drafts.some((d) => d.status === "ISSUED") },
   };

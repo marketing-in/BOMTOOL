@@ -10,7 +10,7 @@ export const metadata = { title: "BoMs" };
 
 /**
  * Every customer BoM, newest first (Phase 26: picture first): a card each with the board itself, how far the job has
- * got through its ten steps, the five scores and what needs a look.
+ * got through its steps, the five scores and what needs a look.
  */
 export default async function BomsPage({ searchParams }: { searchParams: Promise<{ q?: string; stage?: string }> }) {
   const [all, filters] = await Promise.all([bomCards(), searchParams]);

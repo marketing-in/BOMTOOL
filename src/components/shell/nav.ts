@@ -22,9 +22,13 @@ import type { Permission } from "@/lib/rbac";
 
 /** `permission` hides the item from roles that don't have it; `also` lists other paths that belong to it. */
 export type NavItem = { href: string; label: string; icon: LucideIcon; phase?: number; permission?: Permission; also?: string[] };
-export type NavGroup = { label: string; items: NavItem[] };
+/** `n` numbers the four parts of the app (1 BoM · 2 Engineering · 3 Supply · 4 Factory); the overview and admin have none. */
+export type NavGroup = { label: string; n?: number; items: NavItem[] };
 
-/** `phase` marks modules that are still placeholders; shown as a quiet hint in the sidebar. */
+/**
+ * The app in four parts, in the order a customer's product goes through it: the BoM (files, compare, mismatches,
+ * line fit, board, estimate, quote), engineering, supply (our stock first, then the market), and the factory.
+ */
 export const NAV: NavGroup[] = [
   {
     label: "Overview",
@@ -34,25 +38,15 @@ export const NAV: NavGroup[] = [
     ],
   },
   {
-    label: "Sourcing",
+    label: "BoM",
+    n: 1,
     items: [
-      { href: "/boms", label: "BoMs", icon: FileSpreadsheet },
-      { href: "/parts", label: "Parts catalogue", icon: Cpu },
-      { href: "/sourcing", label: "Sourcing & RFQ", icon: ShoppingCart },
-    ],
-  },
-  {
-    label: "Factory",
-    items: [
-      { href: "/operations", label: "Operations", icon: Gauge },
-      { href: "/operations/work-orders", label: "Work orders", icon: ClipboardList },
-      { href: "/operations/schedule", label: "Schedule", icon: CalendarRange },
-      { href: "/operations/lines", label: "Lines", icon: Factory },
-      { href: "/inventory", label: "Inventory", icon: Warehouse },
+      { href: "/boms", label: "BoMs", icon: FileSpreadsheet, also: ["/boms/new"] },
     ],
   },
   {
     label: "Engineering",
+    n: 2,
     items: [
       { href: "/viewer", label: "PCB / PCBA viewer", icon: Boxes },
       { href: "/reverse", label: "Reverse engineering", icon: Microscope },
@@ -60,6 +54,25 @@ export const NAV: NavGroup[] = [
       { href: "/knowledge/dictionary", label: "Component dictionary", icon: LibraryBig, also: ["/knowledge/circuits"] },
       { href: "/knowledge", label: "Knowledge", icon: BookOpen },
       { href: "/compliance", label: "Compliance", icon: ShieldCheck },
+    ],
+  },
+  {
+    label: "Supply",
+    n: 3,
+    items: [
+      { href: "/parts", label: "Parts catalogue", icon: Cpu },
+      { href: "/sourcing", label: "Sourcing & RFQ", icon: ShoppingCart },
+      { href: "/inventory", label: "Inventory", icon: Warehouse },
+    ],
+  },
+  {
+    label: "Factory",
+    n: 4,
+    items: [
+      { href: "/operations", label: "Operations", icon: Gauge },
+      { href: "/operations/work-orders", label: "Work orders", icon: ClipboardList },
+      { href: "/operations/schedule", label: "Schedule", icon: CalendarRange },
+      { href: "/operations/lines", label: "Lines & machines", icon: Factory },
     ],
   },
   {

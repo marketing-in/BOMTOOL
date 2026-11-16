@@ -58,7 +58,17 @@ export async function scheduleWo(id: string, input: { lineId: string | null; pla
 
 export async function setWoStatus(id: string, status: WorkOrderStatus): Promise<Result> {
   const user = await requireUser("workorder.write");
-  await db.workOrder.update({ where: { id }, data: { status } });
+  // Stamp the real start and finish once, so finished orders give the line's measured running time.
+  const wo = await db.workOrder.findUnique({ where: { id }, select: { startedAt: true, finishedAt: true } });
+  const now = new Date();
+  await db.workOrder.update({
+    where: { id },
+    data: {
+      status,
+      ...(status === "IN_PROGRESS" && !wo?.startedAt ? { startedAt: now } : {}),
+      ...(status === "DONE" ? { finishedAt: wo?.finishedAt ?? now, startedAt: wo?.startedAt ?? undefined } : {}),
+    },
+  });
   await db.auditLog.create({ data: { userId: user.id, action: `wo.${status.toLowerCase()}`, entity: "WorkOrder", entityId: id } });
   revalidatePath("/operations", "layout");
   return { message: `Status: ${status.toLowerCase().replace("_", " ")}` };

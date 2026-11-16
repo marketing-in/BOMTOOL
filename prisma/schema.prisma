@@ -825,6 +825,9 @@ model WorkOrder {
   clearToBuildPct Int?
   plannedStart    DateTime?
   plannedEnd      DateTime?
+  /// Stamped when the order goes to IN_PROGRESS / DONE: the line's real running time for later estimates.
+  startedAt       DateTime?
+  finishedAt      DateTime?
   dueDate         DateTime?
   notes           String?
   createdById     String?

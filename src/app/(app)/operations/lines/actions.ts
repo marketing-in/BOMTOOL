@@ -126,14 +126,27 @@ const machineInput = z.object({
   type: z.enum(MACHINE_TYPES),
   vendor: z.string().trim().min(1, "Who makes it?").max(80),
   model: z.string().trim().min(1, "Which model?").max(120),
+  /** Year built or bought; kept with the machine's specs. */
+  year: z.number().int().min(1970, "Year looks too early").max(2100, "Year looks wrong").nullable().optional(),
 });
+
+/** A look-up needs the make, and the model or the year (the AI can work out the model from brand and year). */
+const lookupInput = z
+  .object({ type: z.enum(MACHINE_TYPES), vendor: z.string().trim().min(1, "Who makes it?").max(80), model: z.string().trim().max(120), year: z.number().int().min(1970).max(2100).nullable().optional() })
+  .refine((x) => x.model.length > 0 || !!x.year, { message: "Give the model, or the year so the AI can work out the model." });
+const yearExtra = (extra: Record<string, unknown>, year: number | null | undefined) => {
+  const { year: _old, ...rest } = extra;
+  void _old;
+  return year ? { ...rest, year } : rest;
+};
 
 export async function addMachine(lineId: string, input: z.input<typeof machineInput>): Promise<Result & { id?: string }> {
   const user = await requireUser("lines.write");
   const p = machineInput.safeParse(input);
   if (!p.success) return { error: p.error.issues[0]?.message };
   const last = await db.machine.aggregate({ where: { lineId }, _max: { position: true } });
-  const m = await db.machine.create({ data: { lineId, ...p.data, type: p.data.type as Prisma.MachineCreateInput["type"], position: (last._max.position ?? 0) + 1 } });
+  const { year, ...data } = p.data;
+  const m = await db.machine.create({ data: { lineId, ...data, type: data.type as Prisma.MachineCreateInput["type"], position: (last._max.position ?? 0) + 1, ...(year ? { specs: { year } } : {}) } });
   await audit(user.id, "machine.create", "Machine", m.id);
   refresh();
   return { message: `${p.data.vendor} ${p.data.model} added`, id: m.id };
@@ -178,7 +191,7 @@ export async function saveMachine(id: string, input: { machine: z.input<typeof m
   const source: SpecSource = { ...src.data, at: new Date().toISOString() };
   await db.machine.update({
     where: { id },
-    data: { ...m.data, type: m.data.type as Prisma.MachineUpdateInput["type"], specs: writeSpecs(m.data.type, s.data, source, extra) as Prisma.InputJsonValue },
+    data: { vendor: m.data.vendor, model: m.data.model, type: m.data.type as Prisma.MachineUpdateInput["type"], specs: writeSpecs(m.data.type, s.data, source, yearExtra(extra, m.data.year)) as Prisma.InputJsonValue },
   });
   await audit(user.id, "machine.update", "Machine", id);
   refresh();
@@ -228,9 +241,9 @@ const g = globalThis as unknown as { __emsLookupBuckets?: Map<string, TokenBucke
 export type LookupState = { result?: LookupResult; mode?: "claude" | "mock"; model?: string | null; error?: string };
 
 /** Finds a machine's limits for the form to fill in. Nothing is saved: the user reviews them and presses Save. */
-export async function lookupMachineLimits(input: z.input<typeof machineInput>): Promise<LookupState> {
+export async function lookupMachineLimits(input: z.input<typeof lookupInput>): Promise<LookupState> {
   const user = await requireUser("lines.write");
-  const p = machineInput.safeParse(input);
+  const p = lookupInput.safeParse(input);
   if (!p.success) return { error: p.error.issues[0]?.message };
   g.__emsLookupBuckets ??= new Map();
   let b = g.__emsLookupBuckets.get(user.id);

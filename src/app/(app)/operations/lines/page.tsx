@@ -115,7 +115,8 @@ export default async function LinesPage() {
               {/* The board's path through the line, left to right. */}
               <ol className="flex items-stretch gap-2 overflow-x-auto px-4 py-4" aria-label={`Machines on ${line.code}, in flow order`}>
                 {line.machines.map((m, i) => {
-                  const { specs, source } = readSpecs(m.specs);
+                  const { specs, source, extra } = readSpecs(m.specs);
+                  const year = typeof extra.year === "number" ? extra.year : null;
                   const cover = specCoverage(m.type, specs);
                   const tag = source ? SOURCE_TAG[source.by] : null;
                   const label = `${m.vendor} ${m.model}`;
@@ -123,7 +124,7 @@ export default async function LinesPage() {
                     <li key={m.id} className="flex shrink-0 items-center gap-2">
                       <div className="flex w-48 flex-col rounded-md border bg-background">
                         <MachineDialog
-                          machine={{ id: m.id, type: m.type, vendor: m.vendor, model: m.model, specs, source }}
+                          machine={{ id: m.id, type: m.type, vendor: m.vendor, model: m.model, year, specs, source }}
                           editable={editable}
                           trigger={
                             <button type="button" className="flex-1 rounded-t-md px-3 pt-2 pb-1.5 text-left outline-none transition-colors duration-150 hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring" aria-label={`${label}: open its limits`}>
@@ -132,7 +133,7 @@ export default async function LinesPage() {
                                 <span className="num text-[10px] text-muted-foreground">{m.position}</span>
                               </div>
                               <div className="mt-0.5 truncate text-[11px] text-muted-foreground" title={label}>{m.vendor}</div>
-                              <div className="truncate text-[11px] text-muted-foreground" title={label}>{m.model}</div>
+                              <div className="truncate text-[11px] text-muted-foreground" title={label}>{m.model}{year ? ` · ${year}` : ""}</div>
                               {cover.of ? (
                                 <div className="mt-1.5 flex items-center gap-1.5 text-[11px]">
                                   <RiskDot level={cover.have === cover.of ? "green" : cover.have ? "amber" : "grey"} />

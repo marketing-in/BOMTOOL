@@ -9,7 +9,8 @@ import { CHIP_ORDER, SPEC_FIELDS, kindOf, specsFromLimits, type MachineSpecs } f
  * src/server/assistant/machine-lookup.ts.
  */
 
-export type LookupInput = { type: string; vendor: string; model: string };
+/** The model may be blank when only the brand and the year are known: the AI then names the likely model. */
+export type LookupInput = { type: string; vendor: string; model: string; year?: number | null };
 
 const size = z.object({ lengthMm: z.number().positive().max(3000), widthMm: z.number().positive().max(3000) }).nullable();
 const mm = (max: number) => z.number().positive().max(max).nullable();
@@ -100,7 +101,12 @@ export function lookupPrompt(input: LookupInput): string {
   const entry = kind.dict ? dictEntry(kind.dict) : undefined;
   const wanted = kind.fields.map((k) => `- ${SPEC_FIELDS[k].label}${SPEC_FIELDS[k].unit ? ` (${SPEC_FIELDS[k].unit})` : ""}: ${SPEC_FIELDS[k].help}`).join("\n");
   const known = entry ? `\n\nWhat our knowledge base says matters for a ${entry.name.toLowerCase()}:\n${entry.specs.map((s) => `- ${s.name}: ${s.meaning}${s.typical ? ` (typical ${s.typical})` : ""}`).join("\n")}` : "";
-  return `Machine: ${input.vendor} ${input.model}\nKind: ${kind.label}\n\nFind these limits:\n${wanted || "- none in particular: record what the machine is and its board size if stated"}${known}`;
+  const model = input.model.trim();
+  const year = input.year ? ` (bought or built around ${input.year})` : "";
+  const which = model
+    ? `Machine: ${input.vendor} ${model}${year}\nKind: ${kind.label}${input.year ? `\nModels change between years: prefer the datasheet of the version sold around ${input.year}, and say in notes if limits differ by version.` : ""}`
+    : `Machine: a ${kind.label.toLowerCase()} made by ${input.vendor}${year}; the model is not known.\nKind: ${kind.label}\nFirst work out which ${input.vendor} ${kind.label.toLowerCase()} models were sold around ${input.year ?? "that time"}; record the most likely one as the model, list the other candidates in notes, and set confidence no higher than medium.`;
+  return `${which}\n\nFind these limits:\n${wanted || "- none in particular: record what the machine is and its board size if stated"}${known}`;
 }
 
 /** Limits from a lookup, in the shape stored on a machine (only the fields that kind of machine has). */
@@ -137,8 +143,8 @@ export function typicalLookup(input: LookupInput): LookupResult {
   return {
     found: false,
     make: input.vendor,
-    model: input.model,
-    summary: `Typical limits for a ${kind.label.toLowerCase()}, not for the ${input.vendor} ${input.model} itself. Confirm each one against the maker's datasheet before relying on it.`,
+    model: input.model || `${kind.label}${input.year ? ` (${input.year})` : ""}`,
+    summary: `Typical limits for a ${kind.label.toLowerCase()}, not for the ${input.vendor} ${input.model || "machine"}${input.year ? ` of ${input.year}` : ""} itself. Confirm each one against the maker's datasheet before relying on it.`,
     confidence: "low",
     limits: {
       maxBoardMm: asSize(t.maxBoardMm),

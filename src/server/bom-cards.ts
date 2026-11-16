@@ -25,13 +25,13 @@ export type BomCardData = {
   risk: number;
   /** Lines with an issue or waiting for a review. */
   issues: number;
-  /** The ten steps with how far each has got and the step to take next; null for older cards (not worked out). */
+  /** The steps with how far each has got and the step to take next; null for older cards (not worked out). */
   progress: ReturnType<typeof stepProgress> | null;
   board: BoardThumb | null;
 };
 
 /**
- * What a BoM card shows (Phase 26), newest first: the revision's own figures, where it stands in its ten steps and
+ * What a BoM card shows (Phase 26), newest first: the revision's own figures, where it stands in its steps and
  * its board for the picture. One query for the list, then a handful of small ones per card.
  */
 export async function bomCards(limit?: number): Promise<BomCardData[]> {

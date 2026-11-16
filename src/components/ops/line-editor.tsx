@@ -238,9 +238,9 @@ const MACHINE_OPTIONS = Object.entries(MACHINE_KINDS).map(([value, k]) => ({ val
 export function AddMachineDialog({ lineId, lineCode }: { lineId: string; lineCode: string }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
-  const [d, setD] = useState({ type: "PICK_AND_PLACE", vendor: "", model: "" });
+  const [d, setD] = useState({ type: "PICK_AND_PLACE", vendor: "", model: "", year: "" });
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (o) setD({ type: "PICK_AND_PLACE", vendor: "", model: "" }); }}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (o) setD({ type: "PICK_AND_PLACE", vendor: "", model: "", year: "" }); }}>
       <DialogTrigger asChild>
         <button type="button" className="flex h-full min-h-24 w-44 shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-dashed text-sm text-muted-foreground outline-none transition-colors duration-150 hover:border-primary/50 hover:text-primary focus-visible:ring-2 focus-visible:ring-ring">
           <Plus className="size-4" aria-hidden /> Add machine
@@ -256,7 +256,7 @@ export function AddMachineDialog({ lineId, lineCode }: { lineId: string; lineCod
           onSubmit={(e) => {
             e.preventDefault();
             start(async () => {
-              if (done(await addMachine(lineId, d))) setOpen(false);
+              if (done(await addMachine(lineId, { type: d.type, vendor: d.vendor, model: d.model, year: toYear(d.year) }))) setOpen(false);
             });
           }}
         >
@@ -266,7 +266,7 @@ export function AddMachineDialog({ lineId, lineCode }: { lineId: string; lineCod
               {MACHINE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-[1fr_1fr_6rem]">
             <div>
               <label className={labelCls} htmlFor="m-vendor">Make</label>
               <input id="m-vendor" className={field} value={d.vendor} onChange={(e) => setD((x) => ({ ...x, vendor: e.target.value }))} placeholder="Yamaha" required maxLength={80} />
@@ -274,6 +274,10 @@ export function AddMachineDialog({ lineId, lineCode }: { lineId: string; lineCod
             <div>
               <label className={labelCls} htmlFor="m-model">Model</label>
               <input id="m-model" className={field} value={d.model} onChange={(e) => setD((x) => ({ ...x, model: e.target.value }))} placeholder="YRM20" required maxLength={120} />
+            </div>
+            <div>
+              <label className={labelCls} htmlFor="m-year">Year</label>
+              <input id="m-year" className={field} inputMode="numeric" value={d.year} onChange={(e) => setD((x) => ({ ...x, year: e.target.value.replace(/\D/g, "").slice(0, 4) }))} placeholder="2019" />
             </div>
           </div>
           <DialogFooter>
@@ -344,13 +348,16 @@ function fromDraft(keys: SpecKey[], d: Draft): MachineSpecs {
 
 const SOURCE_LABEL: Record<SpecSource["by"], string> = { manual: "Typed in", claude: "Looked up by AI", typical: "Typical for this kind" };
 
-export type MachineDraft = { id: string; type: string; vendor: string; model: string; specs: MachineSpecs; source: SpecSource | null };
+export type MachineDraft = { id: string; type: string; vendor: string; model: string; year: number | null; specs: MachineSpecs; source: SpecSource | null };
+
+/** A four-digit year from the field, or null. */
+const toYear = (v: string): number | null => (/^(19[7-9]\d|20\d\d|2100)$/.test(v.trim()) ? Number(v.trim()) : null);
 
 export function MachineDialog({ machine, editable, trigger }: { machine: MachineDraft; editable: boolean; trigger: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [looking, startLook] = useTransition();
-  const [m, setM] = useState({ type: machine.type, vendor: machine.vendor, model: machine.model });
+  const [m, setM] = useState({ type: machine.type, vendor: machine.vendor, model: machine.model, year: machine.year ? String(machine.year) : "" });
   const [d, setD] = useState<Draft>(toDraft(machine.specs));
   const [source, setSource] = useState<Omit<SpecSource, "at"> | null>(machine.source);
   const [found, setFound] = useState<{ result: LookupResult; mode: "claude" | "mock" } | null>(null);
@@ -358,7 +365,7 @@ export function MachineDialog({ machine, editable, trigger }: { machine: Machine
   const kind = kindOf(m.type);
 
   const reset = () => {
-    setM({ type: machine.type, vendor: machine.vendor, model: machine.model });
+    setM({ type: machine.type, vendor: machine.vendor, model: machine.model, year: machine.year ? String(machine.year) : "" });
     setD(toDraft(machine.specs));
     setSource(machine.source);
     setFound(null);
@@ -373,11 +380,13 @@ export function MachineDialog({ machine, editable, trigger }: { machine: Machine
   const lookUp = () => {
     setLookErr(null);
     startLook(async () => {
-      const r = await lookupMachineLimits(m);
+      const r = await lookupMachineLimits({ type: m.type, vendor: m.vendor, model: m.model, year: toYear(m.year) });
       if (r.error || !r.result) {
         setLookErr(r.error ?? "Nothing came back.");
         return;
       }
+      // Brand and year only: take the model the AI worked out, for the user to confirm before saving.
+      if (!m.model.trim() && r.result.model) setM((x) => ({ ...x, model: r.result!.model }));
       setFound({ result: r.result, mode: r.mode ?? "mock" });
       setD(toDraft(specsFromLimits(m.type, r.result.limits)));
       setSource({ by: r.mode === "claude" ? "claude" : "typical", confidence: r.result.confidence, notes: [r.result.summary, r.result.notes].filter(Boolean).join(" ").slice(0, 600), sources: r.result.sources });
@@ -398,11 +407,11 @@ export function MachineDialog({ machine, editable, trigger }: { machine: Machine
             e.preventDefault();
             const specs = fromDraft(kind.fields, d);
             start(async () => {
-              if (done(await saveMachine(machine.id, { machine: m, specs, source: source ?? { by: "manual" } }))) setOpen(false);
+              if (done(await saveMachine(machine.id, { machine: { type: m.type, vendor: m.vendor, model: m.model, year: toYear(m.year) }, specs, source: source ?? { by: "manual" } }))) setOpen(false);
             });
           }}
         >
-          <fieldset disabled={!editable} className="grid gap-4 sm:grid-cols-3">
+          <fieldset disabled={!editable} className="grid gap-4 sm:grid-cols-[1fr_1fr_1fr_6rem]">
             <div>
               <label className={labelCls} htmlFor="md-type">Kind</label>
               <select id="md-type" className={field} value={m.type} onChange={(e) => setM((x) => ({ ...x, type: e.target.value }))}>
@@ -415,7 +424,11 @@ export function MachineDialog({ machine, editable, trigger }: { machine: Machine
             </div>
             <div>
               <label className={labelCls} htmlFor="md-model">Model</label>
-              <input id="md-model" className={field} value={m.model} onChange={(e) => setM((x) => ({ ...x, model: e.target.value }))} required maxLength={120} />
+              <input id="md-model" className={field} value={m.model} onChange={(e) => setM((x) => ({ ...x, model: e.target.value }))} required={!looking} maxLength={120} placeholder="Leave blank: AI finds it from brand + year" />
+            </div>
+            <div>
+              <label className={labelCls} htmlFor="md-year">Year</label>
+              <input id="md-year" className={field} inputMode="numeric" value={m.year} onChange={(e) => setM((x) => ({ ...x, year: e.target.value.replace(/\D/g, "").slice(0, 4) }))} placeholder="2019" />
             </div>
           </fieldset>
 
@@ -427,7 +440,7 @@ export function MachineDialog({ machine, editable, trigger }: { machine: Machine
                   <div className="text-xs text-muted-foreground">{source ? SOURCE_LABEL[source.by] : "Not set yet"}{source?.confidence ? ` · ${source.confidence} confidence` : ""}</div>
                 </div>
                 {editable ? (
-                  <Button type="button" variant="outline" className="h-10" onClick={lookUp} disabled={looking || !m.vendor.trim() || !m.model.trim()}>
+                  <Button type="button" variant="outline" className="h-10" onClick={lookUp} disabled={looking || !m.vendor.trim() || (!m.model.trim() && !toYear(m.year))}>
                     {looking ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Sparkles className="size-4 text-primary" aria-hidden />}
                     {looking ? "Looking it up…" : "Look up with AI"}
                   </Button>

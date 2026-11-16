@@ -1,10 +1,11 @@
 /**
- * One BoM's process, in order (Phase 20, 24): the files, whether BoM and board agree, whether we can build it, the bare board, the components, the
- * box, the price, then production. The same numbered strip is on every page of the BoM, with Back / Next from the
- * same list. Pure.
+ * One BoM's process, in order (Part 1 of the four-part app): the BoM and its Gerbers, the two compared, every
+ * mismatch in one list, which line and machines can build it and how long, the bare board, the estimate, then the
+ * components, box, quote and production. The same numbered strip is on every page of the BoM, with Back / Next from
+ * the same list. Pure.
  */
 
-export type StepKey = "bom" | "gerbers" | "match" | "feasibility" | "board" | "parts" | "box" | "quote" | "route" | "line";
+export type StepKey = "bom" | "gerbers" | "match" | "mismatch" | "lines" | "board" | "feasibility" | "parts" | "box" | "quote" | "route" | "line";
 export type ViewKey = "analysis" | "supply" | "reverse" | "viewer";
 
 export type Step = { key: StepKey; n: number; label: string; path: string; /** Other pages that belong to this step. */ also?: string[] };
@@ -13,14 +14,16 @@ export type View = { key: ViewKey; label: string; path: string };
 export const WORKFLOW: Step[] = [
   { key: "bom", n: 1, label: "BoM", path: "", also: ["/map", "/diff", "/quote"] },
   { key: "gerbers", n: 2, label: "Gerbers", path: "/board" },
-  { key: "match", n: 3, label: "Footprint match", path: "/match" },
-  { key: "feasibility", n: 4, label: "Can we build it?", path: "/feasibility" },
-  { key: "board", n: 5, label: "Bare board", path: "/build/board" },
-  { key: "parts", n: 6, label: "Components", path: "/build/parts" },
-  { key: "box", n: 7, label: "Box", path: "/build/box" },
-  { key: "quote", n: 8, label: "Quote", path: "/build/quote", also: ["/build/print"] },
-  { key: "route", n: 9, label: "Process route", path: "/route" },
-  { key: "line", n: 10, label: "SMT line", path: "/line" },
+  { key: "match", n: 3, label: "Compare", path: "/match" },
+  { key: "mismatch", n: 4, label: "Mismatches", path: "/mismatch" },
+  { key: "lines", n: 5, label: "Line fit", path: "/lines" },
+  { key: "board", n: 6, label: "Bare board", path: "/build/board" },
+  { key: "feasibility", n: 7, label: "Estimate", path: "/feasibility" },
+  { key: "parts", n: 8, label: "Components", path: "/build/parts" },
+  { key: "box", n: 9, label: "Box", path: "/build/box" },
+  { key: "quote", n: 10, label: "Quote", path: "/build/quote", also: ["/build/print"] },
+  { key: "route", n: 11, label: "Process route", path: "/route" },
+  { key: "line", n: 12, label: "SMT line", path: "/line" },
 ];
 
 /** Views of the same BoM that are not steps of the process. */
@@ -62,6 +65,8 @@ export type StepFacts = {
   placements: number;
   /** BoM against board (src/lib/board/footprint-match.ts). */
   match: { level: "green" | "amber" | "red"; hasBoard: boolean; note: string } | null;
+  /** Every mismatch, BoM against board and against itself (src/lib/bom/mismatch.ts). */
+  mismatch: { level: "green" | "amber" | "red"; total: number; note: string } | null;
   review: { passed: boolean; signed: number; gates: number } | null;
   draft: { board: boolean; box: boolean; issued: boolean } | null;
 };
@@ -88,6 +93,8 @@ export function stepStates(f: StepFacts): Record<StepKey, StepState> {
         ? { state: "attention", note: `Centroid file (${plural(f.placements, "placement")}) but no Gerbers — board size from the project spec` }
         : { state: "todo", note: "No Gerbers yet — the board is drawn from the project spec" },
     match: !f.match ? null : !f.match.hasBoard ? { state: "todo", note: f.match.note } : { state: f.match.level === "green" ? "done" : "attention", note: f.match.note },
+    mismatch: !f.mismatch ? null : { state: f.mismatch.total ? "attention" : "done", note: f.mismatch.note },
+    lines: null,
     feasibility: f.review?.passed
       ? { state: "done", note: "Every gate signed" }
       : f.review && f.review.signed
@@ -107,7 +114,7 @@ export function stepStates(f: StepFacts): Record<StepKey, StepState> {
 export type StepProgress = { key: StepKey; n: number; label: string; path: string; state: "done" | "attention" | "todo" | "unknown"; note: string | null };
 
 /**
- * A BoM's ten steps in order with how far each has got, how many are done or need a look, and the step to take
+ * A BoM's steps in order with how far each has got, how many are done or need a look, and the step to take
  * next: the first one that needs attention or has not been started. Steps the data cannot judge are "unknown" and
  * never the next step.
  */
