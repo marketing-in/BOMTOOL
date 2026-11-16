@@ -1,0 +1,446 @@
+import type { Article } from "./types";
+
+/**
+ * Board design for the SMT line, and running the line (Phase 24): footprints and why BoM and Gerbers must agree,
+ * fiducials and panels, placement rules, defects and their causes, design for test, setup and changeover.
+ */
+export const DESIGN_FOR_ASSEMBLY_ARTICLES: Article[] = [
+  {
+    slug: "bom-gerber-footprint-match",
+    domain: "PROCESS",
+    title: "Checking the BoM against the Gerbers",
+    summary: "Why every designator's package in the BoM must be the footprint on the board, what the footprint match compares, and how to clear each kind of mismatch before the machine check.",
+    tags: ["footprint", "BoM", "Gerber", "pick and place", "centroid", "designator", "mismatch", "NPI", "data check"],
+    version: 1,
+    related: ["footprints-land-patterns", "pcb-design-data", "dfm-dfa-checklist", "smt-line"],
+    standards: [
+      { code: "IPC-2581 / ODB++", title: "Design data exchange that carries BoM, footprints and placements together" },
+      { code: "IPC-7351", title: "Land pattern naming and geometry" },
+    ],
+    sections: [
+      {
+        type: "text",
+        heading: "Why it is the first check",
+        paragraphs: [
+          "The BoM says what to buy; the Gerbers and the pick-and-place file say where it goes and on what pads. They come out of the same CAD project but are exported separately — often at different times, and sometimes by different people. When they disagree, the line finds out at the worst moment: a reel of 0603 resistors in front of 0805 pads, or a QFN-32 for a QFN-48 land.",
+          "A footprint mismatch is not a quality risk, it is a stop. So the BoM and the board are compared before anything else: only when they agree is it worth asking whether our machines can place, solder and inspect the product.",
+        ],
+      },
+      {
+        type: "steps",
+        heading: "What the footprint match does",
+        steps: [
+          { title: "Reads the BoM", detail: "Every line's designators (C1–C8, U3) and its package: the Package column as uploaded, or the package of the part matched to the line." },
+          { title: "Reads the board", detail: "The footprint under each designator, from the pick-and-place file, the Gerber component layer, or the designators on X2 pads." },
+          { title: "Compares names by meaning", detail: "C_0603_1608Metric, RESC1608X55N and 0603 are the same chip; LQFP-48 and TQFP-48_7x7mm are the same land; SOIC-8 and TSSOP-8 are not." },
+          { title: "Sorts every designator", detail: "Match · do not match · check by eye · in the BoM but not on the board · on the board but not in the BoM. Do-not-populate lines are left out." },
+        ],
+      },
+      {
+        type: "table",
+        heading: "Clearing each result",
+        columns: ["Result", "Usual cause", "What to do"],
+        rows: [
+          ["Do not match", "BoM revision behind the layout, or an alternate with another package", "Confirm with the designer which is right; fix the BoM line or get new Gerbers. Never 'make it fit' on the line."],
+          ["Not on the board", "Part removed from the layout but left in the BoM; or a mechanical part with a designator", "Remove the line, mark it DNP, or confirm it is fitted by hand (heatsink, label)."],
+          ["Not in the BoM", "Part added in layout, BoM not regenerated; test points and fiducials exported as parts", "Add the line, or confirm it is a fiducial/test point and exclude it from the placement file."],
+          ["Check by eye", "The BoM has no Package column, or the footprint has a custom library name", "Open the datasheet's land pattern beside the Gerber pads; add the package to the BoM so the next revision checks itself."],
+        ],
+      },
+      {
+        type: "list",
+        heading: "Ask the customer for",
+        tone: "tip",
+        items: [
+          "BoM, Gerbers (RS-274X or X2), drill and pick-and-place from the same CAD revision, exported the same day.",
+          "A Package or Footprint column in the BoM — it is one click in every CAD tool.",
+          "IPC-2581 or ODB++ if they can: one file carries all of it and cannot go out of step.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "footprints-land-patterns",
+    domain: "PCB",
+    title: "Footprints and land patterns",
+    summary: "How a land pattern is built from the part's dimensions (toe, heel, side fillets), IPC-7351 density levels and names, and the footprint mistakes that cause tombstones, bridges and open joints.",
+    tags: ["footprint", "land pattern", "IPC-7351", "pad", "courtyard", "solder mask", "paste aperture", "thermal pad", "density level"],
+    version: 1,
+    related: ["bom-gerber-footprint-match", "smt-placement-spacing", "solder-paste-stencil", "pcb-dfm"],
+    standards: [
+      { code: "IPC-7351", title: "Generic requirements for surface mount design and land pattern standard" },
+      { code: "IPC-7093", title: "Design and assembly process implementation for bottom termination components" },
+      { code: "IPC-7095", title: "Design and assembly process implementation for BGAs" },
+    ],
+    sections: [
+      {
+        type: "text",
+        heading: "What a footprint is",
+        paragraphs: [
+          "A footprint (land pattern) is the copper, solder-mask opening, paste aperture, silkscreen and courtyard for one package. The copper pads are larger than the part's terminals by a calculated amount, so that solder forms a fillet at the toe, heel and sides — the fillet is what carries the mechanical load and what AOI inspects.",
+          "The same package can have several valid footprints. IPC-7351 defines three density levels: A (most, largest pads — hand soldering, rework, harsh environments), B (nominal — the default for most products), C (least — dense handheld products; narrower process window).",
+        ],
+      },
+      {
+        type: "facts",
+        heading: "Reading an IPC-7351 name",
+        items: [
+          { label: "RESC1608X55N", value: "Chip resistor, body 1.6 × 0.8 mm (0603 imperial), 0.55 mm high, nominal density" },
+          { label: "CAPC2012X100N", value: "Chip capacitor, 2.0 × 1.2 mm (0805), 1.0 mm high" },
+          { label: "SOIC127P600X175-8N", value: "SOIC, 1.27 mm pitch, 6.0 mm lead span, 1.75 mm high, 8 pins" },
+          { label: "QFN50P700X700X90-49N", value: "QFN, 0.5 mm pitch, 7 × 7 mm body, 0.9 mm high, 48 pins + thermal pad" },
+          { label: "Metric vs imperial", value: "0603 imperial = 1608 metric; 0402 = 1005; 0201 = 0603 metric. A bare '0603' is ambiguous — say which." },
+        ],
+      },
+      {
+        type: "table",
+        heading: "Footprint faults and what they do on the line",
+        columns: ["Fault", "Defect", "Rule"],
+        rows: [
+          ["Chip pads too long or unequal copper on the two pads", "Tombstoning — one pad wets first and pulls the part upright", "Equal pad size; equal copper and trace width leaving both pads; thermal relief on planes"],
+          ["Pads too close under a chip", "Solder beads squeezed out at the side of the part", "Keep the IPC gap; reduce the paste aperture (home-plate) for 0603 and smaller"],
+          ["No solder-mask dam between fine-pitch pads", "Bridging", "Mask dam ≥ 0.1 mm where the fab can hold it; otherwise reduce aperture width by 10–15 %"],
+          ["QFN thermal pad with one large paste aperture", "Part floats and tilts; open perimeter joints; voids", "Window-pane the aperture to 50–80 % coverage; via-in-pad plugged or tented"],
+          ["Vias in or touching pads, untented", "Solder wicks down the via: starved joint", "Move the via out and neck the trace, or plug and cap it"],
+          ["BGA pads defined by mask on some balls and copper on others", "Uneven collapse, head-in-pillow", "One definition for the whole array (NSMD is the usual choice)"],
+          ["Courtyards overlapping", "Nozzle or neighbour collision, no room for rework", "Respect the courtyard; more for tall parts and connectors"],
+          ["Pin 1 / polarity mark hidden under the part or missing", "Reversed parts that AOI cannot catch", "Mark visible after placement, same convention on the whole board"],
+        ],
+      },
+      {
+        type: "list",
+        heading: "Before releasing a footprint",
+        tone: "tip",
+        items: [
+          "Build it from the dimension table in the datasheet, not from another library's part of the same name.",
+          "Check the recommended land pattern in the datasheet against the IPC calculation; note where they differ and why.",
+          "Print the layer at 1:1 and lay the real part on it for connectors, modules and anything mechanical.",
+          "Put the IPC name or the package name in the footprint's name, so the BoM-to-board check can read it.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "fiducials-panelization",
+    domain: "PCB",
+    title: "Fiducials, tooling holes and panels",
+    summary: "What the machines need on a board to find and hold it: global and local fiducials, clearance at the conveyor edges, tooling holes, and V-score versus tab-routed panels.",
+    tags: ["fiducial", "panel", "panelization", "V-score", "tab route", "mouse bites", "tooling hole", "edge clearance", "depaneling", "conveyor"],
+    version: 1,
+    related: ["smt-placement-spacing", "pcb-dfm", "smt-line", "post-assembly-processes"],
+    standards: [
+      { code: "IPC-7351", title: "Fiducial size and clearance recommendations" },
+      { code: "IPC-2221", title: "Generic standard on printed board design" },
+      { code: "SMEMA 3.1", title: "Fiducial mark standard" },
+    ],
+    sections: [
+      {
+        type: "text",
+        heading: "Why the machines need them",
+        paragraphs: [
+          "The printer, the placers and the AOI do not find the board by its edge — the outline is routed to ±0.1–0.2 mm, far coarser than a 0.4 mm pitch part needs. They find copper: fiducials, etched in the same step as the pads, so their position relative to the pads is exact.",
+          "A board without fiducials can still be built using pads or vias as marks, but every program then needs hand teaching and the placement accuracy is worse.",
+        ],
+      },
+      {
+        type: "facts",
+        heading: "Fiducial rules",
+        items: [
+          { label: "Shape and size", value: "Solid copper circle, 1.0 mm diameter (1.0–1.5 mm), same finish as the pads" },
+          { label: "Clear area", value: "Solder-mask opening 2× to 3× the diameter, with no copper, silk or traces inside" },
+          { label: "Global (board)", value: "Three per side, in an L, as far apart as possible, ≥ 5 mm from the board edge; not symmetrical, so a rotated board is caught" },
+          { label: "Local", value: "Two, diagonal, beside every part of 0.5 mm pitch or finer and every BGA" },
+          { label: "Panel", value: "Three on the panel frame as well, so a bad board in the panel can be skipped" },
+        ],
+      },
+      {
+        type: "table",
+        heading: "What the conveyor and tooling need",
+        columns: ["Feature", "Rule", "Why"],
+        rows: [
+          ["Edge clearance", "No parts within 5 mm of the two long edges (3 mm absolute minimum)", "The conveyor rails and edge clamps grip there"],
+          ["Break-off rails", "5–10 mm frame on the long edges when parts must sit closer", "Gives the conveyor its edge, carries fiducials and tooling holes"],
+          ["Tooling holes", "Two or three, 3.0–4.0 mm, non-plated, in the frame", "Fixtures for wave, test, depaneling and press-fit register on them"],
+          ["Smallest board", "Below about 50 × 50 mm, panelise", "The machines cannot transport or support it alone"],
+          ["Board support", "Keep a few part-free spots on the bottom of a double-sided board", "Support pins hold it flat during printing and placement"],
+        ],
+      },
+      {
+        type: "table",
+        heading: "V-score or tab-routed panels",
+        columns: ["", "V-score", "Tab-route with mouse bites"],
+        rows: [
+          ["Board shape", "Rectangles, straight lines edge to edge", "Any outline"],
+          ["Gap between boards", "None — best panel yield", "2.0–2.5 mm router path"],
+          ["Edge finish", "Slightly rough along the whole edge", "Smooth, with small nubs at the tabs"],
+          ["Keep parts back", "≥ 1 mm for chips, ≥ 3 mm for tall parts and MLCCs parallel to the score", "≥ 3 mm from a tab; no MLCCs or BGAs beside one"],
+          ["Separation", "Pizza-cutter blade or by hand in a jig — bends the board", "Router or laser — no stress; or break by hand — stress at the tabs"],
+          ["Thin boards (< 1.0 mm)", "Sag in reflow; avoid", "Better; add support tabs"],
+        ],
+        note: "Ceramic capacitors crack when the board bends at separation. Place them at least 5 mm from a break line, or turn them so their long side is parallel to it.",
+      },
+    ],
+  },
+  {
+    slug: "smt-placement-spacing",
+    domain: "PCBA",
+    title: "Component placement and spacing for SMT",
+    summary: "Board-design rules that decide whether a layout runs cleanly on the line: spacing by package, orientation, which side to put parts on, thermal balance in reflow and keep-outs for wave, test and rework.",
+    tags: ["DFA", "placement", "spacing", "orientation", "double-sided", "shadowing", "thermal balance", "keep-out", "rework", "layout"],
+    version: 1,
+    related: ["footprints-land-patterns", "fiducials-panelization", "dfm-dfa-checklist", "reflow-profile", "smt-defects-causes"],
+    standards: [
+      { code: "IPC-2221", title: "Generic standard on printed board design" },
+      { code: "IPC-7351", title: "Courtyard and spacing guidance" },
+      { code: "IPC-A-610", title: "Acceptability of electronic assemblies" },
+    ],
+    sections: [
+      {
+        type: "table",
+        heading: "Minimum spacing, pad edge to pad edge",
+        columns: ["Between", "Comfortable", "Minimum", "Why"],
+        rows: [
+          ["Chip to chip (0402–1206)", "0.5 mm", "0.3 mm", "Paste bridging, nozzle clearance"],
+          ["0201 to 0201", "0.3 mm", "0.2 mm", "Needs type 4/5 paste and a thin stencil"],
+          ["Chip to IC lead", "0.6 mm", "0.4 mm", "AOI must see the IC's heel fillet"],
+          ["Anything to a BGA body", "3 mm", "2 mm", "Rework nozzle and underfill access"],
+          ["Small part beside a tall part", "≥ the tall part's height", "Half its height", "Shadowing in reflow and from the AOI camera"],
+          ["SMT pad to through-hole pad", "2 mm", "1.3 mm", "Selective-solder nozzle wets a ring around the joint"],
+          ["Part to board edge / V-score", "5 mm", "3 mm (1 mm chips)", "Conveyor grip, depanel stress"],
+        ],
+        note: "These are our line's working figures. Tighter is possible on L1 with review; say so at quote time.",
+      },
+      {
+        type: "list",
+        heading: "Orientation",
+        items: [
+          "Keep polarised parts (diodes, tantalums, electrolytics, ICs) in one or two orientations across the board — inspection and rework are faster and reversed parts stand out.",
+          "On a board that goes over a wave, put chips with their long axis across the direction of travel and SOICs along it, with solder-thief pads at the trailing end.",
+          "Turn MLCCs so their long side is parallel to the nearest break line, connector or screw: bending then stresses the short dimension.",
+          "Leave pin 1 and polarity marks visible with the part in place.",
+        ],
+      },
+      {
+        type: "text",
+        heading: "Which side",
+        paragraphs: [
+          "One-sided SMT is one pass through the line. Two-sided is two passes, and the first side is reflowed again upside down — parts stay on by surface tension alone. The rule of thumb: a part hangs on if its weight per pad area is under about 30 g per square inch (0.05 g/mm²). Chips, SOT, SOIC and small QFNs are fine; large inductors, electrolytics, connectors, BGAs and heavy QFPs belong on the second (top) side.",
+          "If only a few passives are on the bottom, ask whether they can move: a single-sided board saves a stencil, a program, a changeover and a reflow cycle on every build.",
+        ],
+      },
+      {
+        type: "list",
+        heading: "Thermal balance in reflow",
+        tone: "risk",
+        items: [
+          "A small chip between a ground plane and a thin trace heats unevenly: one end melts first and it tombstones. Use thermal reliefs on plane connections and equal trace widths into both pads.",
+          "Heavy copper and large parts (inductors, shields, connectors) lag the profile; small parts beside them overheat. Group heavy parts, and keep heat-sensitive parts (electrolytics, crystals, LEDs, plastic connectors) away from them.",
+          "Balance copper across the board and between layers: unbalanced boards bow in the oven and open BGA corners.",
+          "Shields: use a two-piece frame and lid, or leave inspection holes — AOI and rework cannot reach under a soldered can.",
+        ],
+      },
+      {
+        type: "list",
+        heading: "Keep-outs to plan from the start",
+        tone: "tip",
+        items: [
+          "3 mm around press-fit connectors for the support tool on the other side.",
+          "A ring free of tall parts around every through-hole joint that will be selectively soldered.",
+          "Conformal-coating keep-outs drawn on a layer: connectors, switches, test points, sensor openings.",
+          "Room for a probe on every test point (see Design for test), and for a soldering iron beside connectors that will be reworked.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "smt-defects-causes",
+    domain: "PCBA",
+    title: "SMT defects: what they look like and where they come from",
+    summary: "Tombstones, bridges, opens, solder balls, voids, head-in-pillow, graping and misplacement — the station that causes each, the design or process reason, and the fix.",
+    tags: ["defect", "tombstone", "bridging", "solder balls", "voids", "head-in-pillow", "graping", "open joint", "troubleshooting", "root cause", "AOI"],
+    version: 1,
+    related: ["solder-paste-stencil", "reflow-profile", "inspection-spi-aoi-xray", "footprints-land-patterns", "smt-placement-spacing"],
+    standards: [
+      { code: "IPC-A-610", title: "Acceptability of electronic assemblies" },
+      { code: "IPC-7912", title: "Calculation of DPMO and manufacturing indices for assemblies" },
+      { code: "J-STD-001", title: "Requirements for soldered electrical and electronic assemblies" },
+    ],
+    sections: [
+      {
+        type: "text",
+        heading: "Start at the printer",
+        paragraphs: [
+          "Most solder defects are decided before a part is placed: too much, too little or misplaced paste. When a defect appears at AOI, look at the SPI data for that pad first, then the placement, then the profile. Changing the oven to cure a printing problem is the most common wasted hour on a line.",
+        ],
+      },
+      {
+        type: "table",
+        heading: "Defect, cause, fix",
+        columns: ["Defect", "Looks like", "Usual causes", "Fix"],
+        rows: [
+          ["Tombstone", "Chip standing on one end", "Unequal pad heating or paste; part placed off-centre; pads too long; nitrogen making wetting too fast", "Equal copper on both pads; check print offset and placement; slower ramp through liquidus"],
+          ["Bridge", "Solder joining two leads", "Too much paste, slumped paste, misaligned print, no mask dam, lead coplanarity", "Reduce aperture width; clean the stencil underside more often; check paste age and room humidity"],
+          ["Open / insufficient", "No fillet, lead not wetted", "Clogged aperture, poor area ratio, lifted lead, oxidised pad or part, via stealing solder", "Area ratio ≥ 0.66; shorter wipe interval; check finish shelf life; move or plug the via"],
+          ["Solder balls / beads", "Small spheres beside chips or on the mask", "Paste squeezed under the part; moisture in paste; ramp too fast", "Home-plate or reduced apertures; let paste reach room temperature sealed; slow the preheat"],
+          ["Voids", "Bubbles in the joint on X-ray", "Trapped flux volatiles under BGA or thermal pads; via-in-pad; short soak", "Window-pane apertures; longer soak; low-voiding paste; vacuum reflow for power parts"],
+          ["Head-in-pillow", "BGA ball sits on the paste without merging (X-ray, often intermittent)", "Board or package warpage lifting the ball during reflow; oxidised balls; flux exhausted", "Lower peak / shorter time above liquidus; more paste at corners; check MSL handling; nitrogen"],
+          ["Graping", "Lumpy, unmelted powder on small joints", "Small deposits oxidise in a long hot profile; type 5 paste in air", "Shorter soak; larger aperture where possible; nitrogen"],
+          ["Misplaced / skewed", "Part off its pads", "Wrong pick height, worn nozzle, bad vision data, board not supported, part floating on excess paste", "Nozzle and feeder maintenance; support pins; verify part data"],
+          ["Wrong part / polarity", "Correct joint, wrong value or reversed", "Feeder loaded wrong; reel mislabelled; rotation in the program", "Barcode setup verification; first-article LCR check; fix library rotation at its source"],
+          ["Cold / disturbed joint", "Dull, grainy, cracked", "Too low peak; vibration at the oven exit while solder is pasty", "Profile with a thermocouple on the heaviest joint; check conveyor and cooling"],
+          ["Cracked MLCC", "Hairline crack, later a short", "Board bending at depanel, test fixture, screws or connectors; placement force", "Move and turn capacitors; router depaneling; fixture support; soft-termination parts"],
+        ],
+      },
+      {
+        type: "steps",
+        heading: "Finding the root cause",
+        steps: [
+          { title: "Pin it down", detail: "Which designators, which side, every board or some? One location points at design or program; random points at material or machine." },
+          { title: "Walk the data upstream", detail: "AOI image → placement offset → SPI volume and offset for the same pad → stencil aperture → footprint." },
+          { title: "Change one thing", detail: "And run enough boards to see it. Record the change with the product's program so it survives the next changeover." },
+          { title: "Feed it back to the design", detail: "A defect fixed on the line every build is a footprint or layout change waiting to be made." },
+        ],
+      },
+    ],
+  },
+  {
+    slug: "design-for-test",
+    domain: "PCBA",
+    title: "Design for test",
+    summary: "What the board needs so it can be tested on our ICT, flying probe and functional testers: test-point size and spacing, net access, programming headers, boundary scan and what to leave uncoated.",
+    tags: ["DFT", "test point", "ICT", "flying probe", "boundary scan", "JTAG", "programming", "functional test", "coverage", "fixture"],
+    version: 1,
+    related: ["test-strategy", "smt-placement-spacing", "dfm-dfa-checklist", "post-assembly-processes"],
+    standards: [
+      { code: "IPC-2221", title: "Test-point design guidance" },
+      { code: "IEEE 1149.1", title: "Boundary scan (JTAG)" },
+      { code: "IPC-9252", title: "Requirements for electrical testing of unpopulated printed boards" },
+    ],
+    sections: [
+      {
+        type: "text",
+        heading: "Test is designed in, not added",
+        paragraphs: [
+          "A board with no access to its nets can only be tested by powering it and seeing whether it works. That finds that something is wrong, not what — and every failure becomes an hour with a schematic. Test points cost nothing in copper and turn most assembly defects into a named designator on a screen.",
+        ],
+      },
+      {
+        type: "facts",
+        heading: "Test-point rules",
+        items: [
+          { label: "Pad size", value: "1.0 mm round preferred; 0.8 mm minimum for ICT; 0.5 mm works on the flying probe only" },
+          { label: "Spacing", value: "2.54 mm centre to centre preferred (100-mil probes); 1.27 mm minimum (50-mil probes, fragile and costly)" },
+          { label: "Side", value: "All on one side — normally the bottom — or the fixture doubles in cost" },
+          { label: "Clearance", value: "≥ 1 mm from part bodies up to 2 mm tall; ≥ 3 mm from tall parts; ≥ 3 mm from the board edge" },
+          { label: "Finish and mask", value: "Open in the solder mask, same finish as the pads; never under silkscreen or coating" },
+          { label: "Tooling holes", value: "Two non-plated 3–4 mm holes on a diagonal for the fixture pins" },
+        ],
+      },
+      {
+        type: "list",
+        heading: "Nets that need a point",
+        items: [
+          "Every power rail and ground (several grounds, spread out).",
+          "Every net that leaves an IC and does not reach a connector or a large through-hole pad.",
+          "Programming and debug lines: SWD/JTAG, UART, reset, boot-mode pins.",
+          "Enable, reset and clock nets — so the tester can hold devices off or still while it measures around them.",
+          "Do not probe component leads or vias in pads: the probe can hold an open joint closed, and it damages the joint.",
+        ],
+      },
+      {
+        type: "table",
+        heading: "Which test on our lines",
+        columns: ["Test", "Where", "Needs from the design", "Finds"],
+        rows: [
+          ["Flying probe", "L3 — Takaya", "Test points or exposed pads ≥ 0.5 mm; no fixture", "Opens, shorts, values, polarity. Slow per board: NPI and small lots"],
+          ["In-circuit test (ICT)", "L3 — Keysight", "One-side test points at ≥ 1.27 mm; tooling holes; a fixture per product", "The same, in seconds a board: production"],
+          ["Boundary scan", "On the FCT station", "JTAG chain brought to a header, compliance pins accessible", "Opens and shorts under BGAs without probes"],
+          ["Programming", "L4 — FCT fixtures", "Tag-Connect or header footprint; power and reset accessible", "Loads firmware and serial number"],
+          ["Functional test", "L4", "Connectors reachable in a fixture; a test mode in the firmware; the customer's test spec", "That the product does its job"],
+        ],
+      },
+      {
+        type: "list",
+        heading: "Common misses",
+        tone: "risk",
+        items: [
+          "Test points added after routing, under a connector or a shield.",
+          "Conformal coating over the test points: test before coating, or mask them.",
+          "No way to hold the MCU in reset — its outputs fight the tester.",
+          "Programming header left out to save space, so every board is programmed through pogo pins nobody designed a fixture for.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "smt-line-setup-changeover",
+    domain: "PROCESS",
+    title: "Setting up and changing over an SMT line",
+    summary: "What happens between two products on a line — kitting, feeder setup, stencil and program load, verification, first article — how long each takes and how to cut it, with the figures that describe a line's real output.",
+    tags: ["changeover", "setup", "SMED", "feeder", "kitting", "first article", "line balancing", "OEE", "takt", "high-mix"],
+    version: 1,
+    related: ["smt-line", "pick-and-place", "msl-handling", "smt-defects-causes"],
+    standards: [
+      { code: "IPC-9850", title: "Surface mount placement equipment characterization" },
+      { code: "IPC-1782", title: "Manufacturing and supply chain traceability of electronic products" },
+      { code: "IPC-7912", title: "DPMO and manufacturing indices" },
+    ],
+    sections: [
+      {
+        type: "text",
+        heading: "Changeover is the capacity of a high-mix line",
+        paragraphs: [
+          "A placer rated at 78,000 components an hour places nothing while its feeders are being changed. On a line that builds several products a shift, changeover time — not machine speed — sets what leaves the building. Thirty minutes saved per changeover, four times a day, is two hours of production.",
+        ],
+      },
+      {
+        type: "steps",
+        heading: "A changeover, step by step",
+        steps: [
+          { title: "Kit offline", detail: "Reels, trays and the stencil for the next job are picked, counted, MSL-checked and loaded on spare feeder carts while the current job runs." },
+          { title: "Last board out", detail: "Clear the line; unload unique feeders; leave common parts (0.1 µF, 10 k) in their slots." },
+          { title: "Swap carts, stencil, supports", detail: "Roll in the pre-loaded carts; change the stencil and squeegees; set board-support pins from the product's template; set conveyor width on every machine." },
+          { title: "Load programs", detail: "Printer, SPI, placers, oven recipe, AOI — by product barcode, all from the same released revision." },
+          { title: "Verify the setup", detail: "Scan every feeder against the program: right part, right slot. The MES blocks the start until all match." },
+          { title: "First article", detail: "One board printed, inspected at SPI, placed, checked against the BoM and drawing (values with an LCR meter, polarity by eye), reflowed, inspected. Signed off before the lot runs." },
+        ],
+      },
+      {
+        type: "table",
+        heading: "Where the time goes, and how to cut it",
+        columns: ["Activity", "Typical", "With good practice", "How"],
+        rows: [
+          ["Feeder change", "30–60 min", "5–10 min", "Offline kitting on spare carts; a fixed common-parts bank that never moves"],
+          ["Stencil and printer", "10–15 min", "5 min", "Stencil pre-cleaned and staged; support template per product"],
+          ["Program and oven", "10–30 min", "5–10 min", "Group products that share a reflow profile; the oven is the slowest thing to change"],
+          ["Setup verification", "10–20 min", "3–5 min", "Barcode scanning with smart feeders instead of a paper check"],
+          ["First article", "20–40 min", "10–15 min", "First-article inspection station with the BoM and placement overlaid"],
+        ],
+        note: "Sequence the day's jobs by family: same profile, same board width, shared feeders. The schedule page groups work orders this way.",
+      },
+      {
+        type: "facts",
+        heading: "The figures that describe a line",
+        items: [
+          { label: "Rated CPH", value: "The machine's IPC-9850 speed on an ideal board. Real boards run at 60–80 % of it" },
+          { label: "Takt time", value: "Available time ÷ boards needed. The pace the line must keep" },
+          { label: "Bottleneck", value: "The slowest station sets the line — usually the fine-pitch placer or, on small boards, the printer cycle" },
+          { label: "OEE", value: "Availability × performance × quality. 60 % is good for high-mix; 85 % is world class for high-volume" },
+          { label: "First-pass yield", value: "Boards passing AOI and test with no rework. Falls with joint count: 99.99 % per joint is 90 % on a 1,000-joint board" },
+          { label: "DPMO", value: "Defects per million opportunities (joints + parts + placements). Compares products of different size fairly" },
+        ],
+      },
+      {
+        type: "list",
+        heading: "Line balancing",
+        tone: "tip",
+        items: [
+          "Split placements so the chip shooter and the fine-pitch placer finish a board in about the same time; move mid-size parts between them to balance.",
+          "On a two-placer line, put the highest-count part numbers on the fastest head and nearest the board.",
+          "Panelise small boards so the printer and conveyors handle fewer, larger panels.",
+          "Run one-sided boards on the faster line; keep the fine-pitch line for the products that need it.",
+        ],
+      },
+    ],
+  },
+];

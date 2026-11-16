@@ -1,0 +1,38 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ems-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "env": { "NEXT_TELEMETRY_DISABLED": "1" },
+      "port": 3000
+    },
+    {
+      "name": "ems-prod-check",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/next/dist/bin/next", "start", "-p", "3200"],
+      "env": { "NEXT_DIST_DIR": ".next-prod", "SCHEDULER": "off", "NEXTAUTH_URL": "http://localhost:3200", "NEXT_TELEMETRY_DISABLED": "1" },
+      "port": 3200
+    },
+    {
+      "name": "ems-dev-check",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/next/dist/bin/next", "dev", "--turbopack", "-p", "3300"],
+      "env": { "NEXT_DIST_DIR": ".next-check", "SCHEDULER": "off", "NEXTAUTH_URL": "http://localhost:3300", "NEXT_TELEMETRY_DISABLED": "1", "DIGIKEY_DAILY_LIMIT": "0", "MOUSER_DAILY_LIMIT": "0", "NEXAR_DAILY_LIMIT": "0" },
+      "port": 3300
+    },
+    {
+      "name": "ems-e2e-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "scripts/e2e-dev.ts", "3300"],
+      "port": 3300
+    },
+    {
+      "name": "ems-e2e-prod",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "scripts/e2e-dev.ts", "3100", "--prod"],
+      "port": 3100
+    }
+  ]
+}

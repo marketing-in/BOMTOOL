@@ -1,0 +1,75 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ems
+      POSTGRES_PASSWORD: ems
+      POSTGRES_DB: ems
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ems"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.11
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-dev-master-key-change-me}
+      MEILI_NO_ANALYTICS: "true"
+    ports:
+      - "7700:7700"
+    volumes:
+      - meili:/meili_data
+
+  app:
+    build: .
+    command: sh -c "npx prisma migrate deploy && SEED_ONLY_IF_EMPTY=1 npx prisma db seed && npm run dev -- -H 0.0.0.0"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://ems:ems@postgres:5432/ems?schema=public
+      REDIS_URL: redis://redis:6379
+      MEILI_HOST: http://meilisearch:7700
+      JOBS_MODE: bullmq
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      meilisearch:
+        condition: service_started
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+
+  # Price refresh / FX jobs (BullMQ). Scales independently of the web app.
+  worker:
+    build: .
+    command: sh -c "npx prisma migrate deploy && npm run worker"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://ems:ems@postgres:5432/ems?schema=public
+      REDIS_URL: redis://redis:6379
+      JOBS_MODE: bullmq
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+      - ./scripts:/app/scripts
+
+volumes:
+  pgdata:
+  meili:

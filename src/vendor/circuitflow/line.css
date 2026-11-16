@@ -1,0 +1,122 @@
+/* circuitflow line-view styles, scoped under .cf-scope (extracted from its style.css). */
+/* Their variables, mapped to this app's theme tokens so light and dark both work. */
+.cf-scope {
+  --accent: var(--primary);
+  --accent-hover: #9c4413;
+  --accent-soft: rgba(180,80,26,.1);
+  --blue: #3b5bab;
+  --border: rgba(28,27,24,.15);
+  --green: var(--risk-green);
+  --hair: var(--border);
+  --ink: 28,27,24;
+  --mono: var(--font-geist-mono), ui-monospace, monospace;
+  --on-accent: #fff;
+  --r: 6px;
+  --r-sm: 4px;
+  --red: var(--risk-red);
+  --shade: 28,27,24;
+  --shadow-1: 0 1px 0 rgba(28,27,24,.04);
+  --stage: #e9e8e2;
+  --surface: var(--card);
+  --surface-2: var(--muted);
+  --t2: var(--muted-foreground);
+  --t3: var(--muted-foreground);
+  --text: var(--foreground);
+  --warning: var(--risk-amber);
+}
+.cf-scope .icon-button{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:var(--r);color:var(--t2)}
+.cf-scope .icon-button svg{width:17px;height:17px}
+.cf-scope .icon-button:hover{background:rgba(var(--ink),.07);color:var(--text)}
+.cf-scope .icon-button:active{background:rgba(var(--ink),.11)}
+.cf-scope .button{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--border);background:var(--surface);padding:0 12px;min-height:32px;border-radius:var(--r);font-size:13px;font-weight:500;white-space:nowrap;color:var(--text);box-shadow:var(--shadow-1)}
+.cf-scope .button svg{width:15px;height:15px;color:var(--t2)}
+.cf-scope .button:hover{background:var(--surface-2);border-color:rgba(var(--ink),.26)}
+.cf-scope .button:active{background:rgba(var(--ink),.08)}
+.cf-scope .button.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.cf-scope .button.primary svg{color:inherit}
+.cf-scope .button.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.cf-scope .button.primary:active{filter:brightness(.94)}
+.cf-scope .button.small{padding:0 9px;font-size:12.5px;min-height:28px}
+.cf-scope .button.full{width:100%}
+.cf-scope .segmented,.cf-scope .filter-tabs{display:inline-flex;padding:2px;gap:2px;background:rgba(var(--ink),.06);border:1px solid var(--hair);border-radius:var(--r)}
+.cf-scope .segmented button,.cf-scope .filter-tabs button{display:flex;gap:6px;align-items:center;justify-content:center;height:26px;min-width:40px;border-radius:var(--r-sm);padding:0 10px;font-size:12.5px;font-weight:500;color:var(--t2);white-space:nowrap}
+.cf-scope .segmented button:hover,.cf-scope .filter-tabs button:hover{color:var(--text)}
+.cf-scope .segmented button.active,.cf-scope .segmented button[aria-pressed="true"],.cf-scope .filter-tabs button.active{background:var(--surface);color:var(--text);box-shadow:0 0 0 1px var(--hair),0 1px 2px rgba(var(--shade),.08)}
+.cf-scope,.cf-scope,.cf-scope{background:rgba(var(--ink),.13)}
+.cf-scope .subtle-tag{display:inline-flex;align-items:center;gap:4px;padding:0 5px;line-height:18px;background:rgba(var(--ink),.06);border-radius:var(--r-sm);font:500 11px var(--mono);color:var(--t2);white-space:nowrap}
+.cf-scope .numeric{font-variant-numeric:tabular-nums;font-family:var(--mono);color:var(--text);font-size:12.5px}
+.cf-scope .muted{color:var(--t3);font-size:12.5px}
+.cf-scope .empty .button{margin-top:16px}
+.cf-scope .board-view{position:relative;height:520px;min-width:0;background-color:var(--stage);
+ background-image:linear-gradient(rgba(var(--ink),.055) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--ink),.055) 1px,transparent 1px);background-size:24px 24px;background-position:-1px -1px;overflow:hidden}
+.cf-scope .board-view.compact{width:68%;height:100%;margin-left:-8%;background-color:transparent;background-image:none}
+.cf-scope .board-bottom .segmented{pointer-events:auto;background:var(--surface);box-shadow:var(--shadow-1)}
+.cf-scope .board-placeholder{height:250px;display:grid;place-items:center;color:var(--t2);font-size:13px}
+.cf-scope .small-copy{font-size:12.5px!important;color:var(--t2)}
+@keyframes dlg-in{from{opacity:0;transform:translateY(6px) scale(.985)}}
+.cf-scope .stock-edit .button{height:34px}
+@keyframes cmp-pulse{50%{opacity:.3}}
+.cf-scope .ai-suggestion .subtle-tag svg{color:var(--blue)}
+.cf-scope .board-view.is-full,.cf-scope .board-view:fullscreen{width:100vw;height:100vh;max-height:none;border-radius:0;background-color:var(--stage)}
+.cf-scope .board-view:-webkit-full-screen{width:100vw;height:100vh;background-color:var(--stage)}
+.cf-scope .board-view.is-full .board-tools{top:16px;right:16px}
+.cf-scope .board-view.is-full .layer-legend{top:56px}
+@media(max-width:767px){.cf-scope .heading-actions .button{flex:1;min-height:40px}.cf-scope .alert-card .button{width:100%}.cf-scope .board-view{height:380px}.cf-scope .stock-edit .button{width:100%}.cf-scope .button,.cf-scope .icon-button{min-height:36px}.cf-scope .board-view.compact{width:100%;height:250px;margin-left:0}}
+.cf-scope .ov-preview .board-view.compact{width:100%;height:100%;margin-left:0}
+.cf-scope .market-table td.numeric{text-align:right}
+.cf-scope .factory{display:flex;flex-direction:column;min-width:0}
+.cf-scope .factory-bar{display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid var(--hair);flex-wrap:wrap;min-height:46px}
+.cf-scope .factory-bar h3{font-size:14px}
+.cf-scope .factory-field{flex-direction:row;align-items:center;gap:6px;font-size:12.5px;color:var(--t2);font-weight:500}
+.cf-scope .factory-field select,.cf-scope .factory-field input{height:28px;min-height:28px;padding:0 6px;font-size:13px}
+.cf-scope .factory-field input{width:60px}
+.cf-scope .factory-scrub,.cf-scope .factory-inner-bar input[type=range]{flex:1;min-width:100px;padding:0;border:0;background:none;box-shadow:none;height:24px;min-height:24px}
+.cf-scope .factory-time{font:500 12px var(--mono);color:var(--t2);white-space:nowrap;font-variant-numeric:tabular-nums}
+.cf-scope .factory-view{height:460px;border-bottom:1px solid var(--hair)}
+.cf-scope .factory-host{width:100%;height:100%}
+.cf-scope .factory-step{position:absolute;left:12px;top:12px;max-width:calc(100% - 24px);font-size:12.5px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--r);padding:4px 9px;box-shadow:var(--shadow-1);pointer-events:none}
+.cf-scope .factory-step b{font:600 12px var(--mono);margin-right:4px}
+.cf-scope .factory-hint{position:absolute;left:12px;bottom:10px;font-size:12px;color:var(--t3);pointer-events:none}
+.cf-scope .factory-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin:0;border-bottom:1px solid var(--hair)}
+.cf-scope .factory-stats>div{padding:10px 16px;border-left:1px solid var(--hair);min-width:0}
+.cf-scope .factory-stats>div:first-child{border-left:0}
+.cf-scope .factory-stats dt{font-size:12px;color:var(--t3)}
+.cf-scope .factory-stats dd{margin:2px 0 0;font:500 16px var(--mono);white-space:nowrap;font-variant-numeric:tabular-nums}
+.cf-scope .factory-stats dd small{font:400 12px 'IBM Plex Sans',sans-serif;color:var(--t3)}
+.cf-scope .factory-stations{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.cf-scope .factory-stations li{border-left:1px solid var(--hair);min-width:0}
+.cf-scope .factory-stations li:first-child{border-left:0}
+.cf-scope .factory-stations button{display:grid;grid-template-columns:auto 1fr;gap:2px 7px;align-items:center;width:100%;padding:10px 12px;text-align:left;border-top:2px solid transparent}
+.cf-scope .factory-stations button:hover{background:var(--surface-2)}
+.cf-scope .factory-stations li.bottleneck button{border-top-color:var(--accent)}
+.cf-scope .factory-stations i{width:8px;height:8px;border-radius:50%;background:var(--warning)}
+.cf-scope .factory-stations li.run i{background:var(--green)}
+.cf-scope .factory-stations li.fail i{background:var(--red)}
+.cf-scope .factory-stations strong{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cf-scope .factory-stations span,.cf-scope .factory-stations small{grid-column:2;font-size:12px;color:var(--t3)}
+.cf-scope .factory-stations span{color:var(--text)}
+.cf-scope .factory-note{padding:8px 16px;margin:0;border-top:1px solid var(--hair);font-size:12.5px}
+.cf-scope .factory-inner-bar{display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid var(--hair)}
+.cf-scope .factory-columns{display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr)}
+.cf-scope .factory-steps{list-style:none;margin:0;padding:6px 0;border-right:1px solid var(--hair)}
+.cf-scope .factory-steps button{display:grid;grid-template-columns:52px 1fr;gap:8px;width:100%;text-align:left;padding:6px 16px;font-size:13px;color:var(--t2);border-left:2px solid transparent}
+.cf-scope .factory-steps button:hover{background:var(--surface-2);color:var(--text)}
+.cf-scope .factory-steps li.now button{color:var(--text);font-weight:600;border-left-color:var(--accent);background:var(--accent-soft)}
+.cf-scope .factory-steps li.done button{color:var(--t3)}
+.cf-scope .factory-steps .numeric{font-size:12px;color:var(--t3);font-weight:400}
+.cf-scope .factory-data{padding:12px 16px;min-width:0}
+@media(max-width:1024px){.cf-scope .factory-stations{grid-template-columns:repeat(4,minmax(0,1fr))}.cf-scope .factory-stations li:nth-child(5){border-left:0}.cf-scope .factory-stations li:nth-child(n+5){border-top:1px solid var(--hair)}.cf-scope .factory-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.cf-scope .factory-stats>div:nth-child(4){border-left:0}.cf-scope .factory-stats>div:nth-child(n+4){border-top:1px solid var(--hair)}}
+@media(max-width:767px){.cf-scope .factory-view{height:340px}.cf-scope .factory-bar{padding:8px 12px}.cf-scope .factory-columns{grid-template-columns:1fr}.cf-scope .factory-steps{border-right:0;border-bottom:1px solid var(--hair)}.cf-scope .factory-stations{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-scope .factory-stations li{border-left:0!important;border-top:1px solid var(--hair)}.cf-scope .factory-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-scope .factory-stats>div{border-left:0!important;border-top:1px solid var(--hair)}}
+.cf-scope {
+  --accent-text: var(--primary);
+  --rule: var(--border);
+}
+/* Dark theme: circuitflow's raw ink/stage colours flipped to read on dark surfaces. */
+.dark .cf-scope {
+  --ink: 236,235,229;
+  --shade: 0,0,0;
+  --stage: #1c1e22;
+  --border: rgba(236,235,229,.16);
+  --accent-soft: rgba(217,130,74,.16);
+  --shadow-1: 0 1px 0 rgba(0,0,0,.3);
+}

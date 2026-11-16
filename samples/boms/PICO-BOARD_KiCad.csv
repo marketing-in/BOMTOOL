@@ -1,0 +1,8 @@
+Reference;Value;Footprint;Qty;DNP;MPN;Manufacturer
+"C1,C2,C3";100n;Capacitor_SMD:C_0603_1608Metric;3;;CL10B104KB8NNNC;Samsung
+C4;22p;Capacitor_SMD:C_0603_1608Metric;1;;CL10C220JB8NNNC;Samsung
+"R1,R2";10k;Resistor_SMD:R_0603_1608Metric;2;;;
+R3;1k;Resistor_SMD:R_0603_1608Metric;1;DNP;;
+U1;RP2040;Package_DFN_QFN:QFN-56-1EP_7x7mm_P0.4mm;1;;RP2040;Raspberry Pi
+U2;W25Q128JV;Package_SO:SOIC-8_5.23x5.23mm_P1.27mm;1;;W25Q128JVSIQ;Winbond
+D1;LED;LED_SMD:LED_0603_1608Metric;1;;LTST-C191KGKT;LiteOn

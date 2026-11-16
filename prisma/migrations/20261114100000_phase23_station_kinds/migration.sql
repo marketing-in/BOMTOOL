@@ -1,0 +1,7 @@
+-- Phase 23: stations for masking, final inspection, programming, burn-in, marking and dispatch.
+ALTER TYPE "MachineType" ADD VALUE IF NOT EXISTS 'MASKING_STATION';
+ALTER TYPE "MachineType" ADD VALUE IF NOT EXISTS 'INSPECTION_STATION';
+ALTER TYPE "MachineType" ADD VALUE IF NOT EXISTS 'PROGRAMMER';
+ALTER TYPE "MachineType" ADD VALUE IF NOT EXISTS 'BURN_IN';
+ALTER TYPE "MachineType" ADD VALUE IF NOT EXISTS 'LASER_MARKER';
+ALTER TYPE "MachineType" ADD VALUE IF NOT EXISTS 'DISPATCH';

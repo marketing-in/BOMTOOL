@@ -1,0 +1,326 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-risk-green: var(--risk-green);
+  --color-risk-amber: var(--risk-amber);
+  --color-risk-red: var(--risk-red);
+  --color-risk-grey: var(--risk-grey);
+  --color-risk-green-soft: var(--risk-green-soft);
+  --color-risk-amber-soft: var(--risk-amber-soft);
+  --color-risk-red-soft: var(--risk-red-soft);
+  --color-cover-1: var(--cover-1);
+  --color-cover-2: var(--cover-2);
+  --color-cover-3: var(--cover-3);
+  --color-cover-4: var(--cover-4);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-open-sans);
+  --font-display: var(--font-open-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
+
+:root {
+  /* ThinkSemi: navy shell, white working surfaces, cobalt actions and yellow selection. */
+  --radius: 0.75rem;
+  --background: #f2f5fa;
+  --foreground: #172b46;
+  --card: #ffffff;
+  --card-foreground: #172b46;
+  --popover: #ffffff;
+  --popover-foreground: #172b46;
+  --primary: #0649ab;
+  --primary-foreground: #ffffff;
+  --secondary: #e9eff8;
+  --secondary-foreground: #172b46;
+  --muted: #edf1f7;
+  --muted-foreground: #53647b;
+  --accent: #e7effc;
+  --accent-foreground: #172b46;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: #dce3ed;
+  --input: #b9c7da;
+  --ring: rgb(2 62 153 / 45%);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  /* The sidebar and the BoM band are the site's royal-blue panel; its yellow marks the current item. */
+  --sidebar: #102c50;
+  --sidebar-foreground: #e4edfc;
+  --sidebar-primary: #ffd21f;
+  --sidebar-primary-foreground: #06142b;
+  --sidebar-accent: #214673;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 16%);
+  --sidebar-ring: #ffd21f;
+  --brand-from: #102c50;
+  --brand-to: #102c50;
+  --brand-accent: #ffd21f;
+  --primary-bright: #0649ab;
+  --page-glow: transparent;
+  --viewer-bg: #eef2f7;
+  --viewer-grid: rgb(30 58 100 / 7%);
+  --viewer-grid-major: rgb(30 58 100 / 12%);
+
+  /* Directory sections: PCB uses risk-green, components the primary; board types teal, boxes slate. */
+  --dir-blue: #0e7490;
+  --dir-slate: #55637a;
+  --risk-green: #117452;
+  --risk-amber: #946000;
+  --risk-red: #bb303b;
+  --risk-grey: oklch(0.65 0.01 250);
+  --risk-green-soft: oklch(0.95 0.04 155);
+  --risk-amber-soft: oklch(0.96 0.05 85);
+  --risk-red-soft: oklch(0.95 0.035 27);
+
+  /* Supply coverage, an ordered ramp of the brand hue: our stock (strongest) → distributors → marketplace. */
+  --cover-1: #062c73;
+  --cover-2: #1a5fd0;
+  --cover-3: #5b93e6;
+  --cover-4: #a9c6f2;
+  /* Cost groups on the quote (bare board → margin): the validated categorical order, light steps. */
+  --cost-1: #2a78d6;
+  --cost-2: #eb6834;
+  --cost-3: #1baf7a;
+  --cost-4: #eda100;
+  --cost-5: #e87ba4;
+  --cost-6: #008300;
+  --cost-7: #6250d6;
+  --cost-8: #e34948;
+}
+
+.dark {
+  --background: #0d1726;
+  --foreground: #e8eef8;
+  --card: #142338;
+  --card-foreground: #e8eef8;
+  --popover: #192b43;
+  --popover-foreground: #e8eef8;
+  --primary: #6aa5ff;
+  --primary-foreground: #06142b;
+  --secondary: #18263d;
+  --secondary-foreground: #e8eef8;
+  --muted: #18263d;
+  --muted-foreground: #b0bfd2;
+  --accent: #1c2e4a;
+  --accent-foreground: #e8eef8;
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: #2d3f58;
+  --input: #2c3f5c;
+  --ring: rgb(106 165 255 / 55%);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: #0e233e;
+  --sidebar-foreground: #e4edfc;
+  --sidebar-primary: #ffd21f;
+  --sidebar-primary-foreground: #06142b;
+  --sidebar-accent: rgb(255 255 255 / 12%);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 12%);
+  --sidebar-ring: #ffd21f;
+  --brand-from: #0e233e;
+  --brand-to: #0e233e;
+  --brand-accent: #ffd21f;
+  --primary-bright: #8fbcff;
+  --page-glow: rgb(32 142 253 / 16%);
+  --viewer-bg: #0d1726;
+  --viewer-grid: rgb(150 180 230 / 6%);
+  --viewer-grid-major: rgb(150 180 230 / 11%);
+
+  --dir-blue: #5cc3da;
+  --dir-slate: #9fb0c8;
+  --risk-green: oklch(0.72 0.14 155);
+  --risk-amber: oklch(0.8 0.14 80);
+  --risk-red: oklch(0.68 0.18 25);
+  --risk-grey: oklch(0.6 0.01 250);
+  --risk-green-soft: oklch(0.3 0.05 155);
+  --risk-amber-soft: oklch(0.32 0.05 80);
+  --risk-red-soft: oklch(0.3 0.06 25);
+
+  /* Same ramp, its own steps for the dark card surface (strongest is lightest). */
+  --cover-1: #d3e3fb;
+  --cover-2: #7fb0f5;
+  --cover-3: #3b7be0;
+  --cover-4: #1f4fa3;
+  --cost-1: #3987e5;
+  --cost-2: #d95926;
+  --cost-3: #199e70;
+  --cost-4: #c98500;
+  --cost-5: #d55181;
+  --cost-6: #008300;
+  --cost-7: #9085e9;
+  --cost-8: #e66767;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  /* A step larger than the browser default: easier to read and to tap on the factory-floor tablet. */
+  html {
+    font-size: 100%;
+  }
+  body {
+    @apply bg-background text-foreground;
+    line-height: 1.6;
+    text-rendering: optimizeLegibility;
+  }
+  /* Working surfaces use a single border instead of stacked elevation. */
+  .bg-card.border {
+    box-shadow: none;
+  }
+  .dark .bg-card.border {
+    box-shadow: none;
+  }
+  /* One face throughout, as on the client site: Open Sans, heavier for headings. */
+  h1, h2, h3 {
+    font-family: var(--font-display), var(--font-sans);
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+  /* A horizontal scroll box must contain its absolutely positioned children (sr-only table headers),
+     or they escape it and widen the whole page on a phone. Base layer: positioning utilities still win. */
+  .overflow-x-auto {
+    position: relative;
+  }
+}
+@layer utilities {
+  /* MPNs, quantities and money: mono, tabular, never wrapped mid-number */
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  /* The royal-blue panel: sidebar, BoM band. */
+  .bg-brand-panel {
+    background-color: var(--sidebar);
+  }
+  /* A row that scrolls sideways without showing a scrollbar (the BoM menu on a tablet). */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  /* The 3D viewer's engineering canvas: a fine grid with a heavier line every fifth. */
+  .viewer-grid {
+    background-color: var(--viewer-bg);
+    background-image:
+      linear-gradient(var(--viewer-grid-major) 1px, transparent 1px),
+      linear-gradient(90deg, var(--viewer-grid-major) 1px, transparent 1px),
+      linear-gradient(var(--viewer-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--viewer-grid) 1px, transparent 1px);
+    background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+    background-position: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* AOI scan line in the PCB cross-section player */
+@keyframes scan {
+  from { transform: translateX(0); }
+  to { transform: translateX(556px); }
+}
+
+@layer base {
+  ::selection { background: var(--primary); color: var(--primary-foreground); }
+  :focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+  input, textarea { caret-color: var(--primary); }
+  button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+  button:not(:disabled), summary, select { cursor: pointer; }
+  * { scrollbar-width: thin; scrollbar-color: var(--input) transparent; }
+  a { text-underline-offset: 4px; }
+}
+
+@layer components {
+  .workspace-main { min-width: 0; }
+  .workspace-main > * { min-width: 0; }
+  /* A grid item may not shrink below its content by default: one wide table would widen the whole page on a phone. */
+  .workspace-main :where(.grid > *) { min-width: 0; }
+  .workspace-main :where(table) { border-collapse: collapse; }
+  .workspace-main :where(thead) { background: var(--muted); }
+  .workspace-main :where(th) { color: var(--muted-foreground); font-size: 0.75rem; font-weight: 650; line-height: 1.5; }
+  .workspace-main :where(td) { font-variant-numeric: tabular-nums; }
+  .workspace-main :where(tbody tr) { transition: background-color 140ms ease-out; }
+  .workspace-main :where(tbody tr:hover) { background-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+  .workspace-main :where(input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea) { background-color: var(--card); }
+  .workspace-main :where(select) { max-width: 100%; }
+  .workspace-main :where(p) { overflow-wrap: break-word; }
+  .page-heading { font-size: 2rem; line-height: 1.2; font-weight: 700; letter-spacing: -0.035em; }
+  .section-heading { font-size: 1rem; font-weight: 650; letter-spacing: -0.02em; }
+  .readiness-fill { transition: width 450ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .module-tabs { display:flex; gap:0.25rem; overflow-x:auto; border-bottom:1px solid var(--border); margin-bottom:1.5rem; }
+  .module-tab { display:inline-flex; flex-shrink:0; align-items:center; gap:0.5rem; min-height:2.75rem; padding:0.5rem 1rem; border-bottom:2px solid transparent; color:var(--muted-foreground); font-size:0.875rem; }
+  .module-tab:hover { color:var(--foreground); background:var(--accent); }
+  .module-tab[aria-current] { color:var(--primary); border-color:var(--primary); font-weight:650; }
+  .login-signal { background:var(--sidebar); color:var(--sidebar-foreground); }
+  .login-step { display:flex; align-items:center; gap:1rem; padding:1.25rem 0; border-bottom:1px solid var(--sidebar-border); }
+  .login-step:last-child { border:0; }
+  .login-step svg { color:var(--brand-accent); }
+}
+
+@media (max-width: 639px) {
+  .page-heading { font-size:1.625rem; }
+  .workspace-main :where(input, select, textarea) { font-size:1rem; }
+  .workspace-main :where([role=radio], button:not([data-size=icon-xs]):not([data-size=icon-sm])) { min-height:2.5rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .readiness-fill { transition:none; }
+}
+
+  .dashboard-figures > div { border:0; border-radius:0; background:transparent; }
+  .dashboard-figures > div + div { border-left:1px solid var(--border); }
+  .dashboard-figures > div:nth-child(3) { border-left:0; }
+  @media (min-width:1024px) { .dashboard-figures > div:nth-child(3) { border-left:1px solid var(--border); } }
+  @media (max-width:1023px) { .dashboard-figures > div:nth-child(n+3) { border-top:1px solid var(--border); } }
+

@@ -1,0 +1,1079 @@
+// EMS Sourcing Intelligence Platform — data model.
+// Money: Decimal + ISO currency code. Quantities: Int. Timestamps: UTC.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+
+enum Role {
+  ADMIN
+  PURCHASING
+  ENGINEERING
+  PLANNING
+  STORES
+  QUALITY
+  VIEWER
+}
+
+enum Lifecycle {
+  ACTIVE
+  NRND
+  LAST_TIME_BUY
+  EOL
+  OBSOLETE
+  UNKNOWN
+}
+
+enum Condition {
+  NEW_FACTORY_SEALED
+  NEW_OPEN_REEL
+  NEW_PARTIAL
+  REFURBISHED
+  USED
+}
+
+enum RohsStatus {
+  COMPLIANT
+  COMPLIANT_WITH_EXEMPTION
+  NON_COMPLIANT
+  UNKNOWN
+}
+
+enum ReachStatus {
+  COMPLIANT
+  CONTAINS_SVHC
+  UNKNOWN
+}
+
+/// Sourcing waterfall order (lower = preferred).
+enum SupplierKind {
+  INTERNAL_STOCK // 1. our stores
+  CONSIGNED // 2. customer-consigned stock
+  OWN_EXCESS // 3a. our own excess pool
+  PARTNER_EXCESS // 3b. partner EMS / OEM / ODM excess
+  CHANNEL_PARTNER // 3c. our channel partners and sourcing agents (their stock lists)
+  AUTHORISED // 4. authorised distributor
+  MANUFACTURER // 4. direct from manufacturer
+  BROKER // 5. independent / broker (counterfeit-risk flagged)
+}
+
+enum Msl {
+  MSL_1
+  MSL_2
+  MSL_2A
+  MSL_3
+  MSL_4
+  MSL_5
+  MSL_5A
+  MSL_6
+}
+
+enum MountType {
+  SMD
+  THT
+  PRESS_FIT
+  CHASSIS
+  CABLE
+  OTHER
+}
+
+enum ProjectStage {
+  PROTOTYPE
+  NPI
+  PRODUCTION
+}
+
+enum BomStatus {
+  DRAFT
+  MAPPED
+  MATCHED
+  QUOTED
+  RELEASED
+  ARCHIVED
+}
+
+enum MatchMethod {
+  EXACT
+  NORMALISED
+  FUZZY
+  PARAMETRIC
+  MANUAL
+}
+
+enum AlternateType {
+  DROP_IN // form-fit-function identical
+  PIN_TO_PIN // same footprint, minor spec difference
+  FUNCTIONAL // needs engineering review
+  UPGRADE
+}
+
+enum RfqStatus {
+  DRAFT
+  SENT
+  PARTIALLY_QUOTED
+  QUOTED
+  CLOSED
+  CANCELLED
+}
+
+enum PoStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SENT
+  CANCELLED
+}
+
+enum LineType {
+  SMT
+  THT
+  BOX_BUILD
+  MIXED
+}
+
+enum MachineType {
+  BOARD_LOADER
+  STENCIL_PRINTER
+  SPI
+  PICK_AND_PLACE
+  REFLOW_OVEN
+  AOI
+  XRAY
+  WAVE_SOLDER
+  SELECTIVE_SOLDER
+  DEPANELER
+  CONFORMAL_COATER
+  ICT
+  FLYING_PROBE
+  FCT
+  WASHER
+  PRESS_FIT
+  SCREWDRIVER_STATION
+  PACKING
+  MASKING_STATION
+  INSPECTION_STATION
+  PROGRAMMER
+  BURN_IN
+  LASER_MARKER
+  DISPATCH
+  OTHER
+}
+
+enum WorkOrderStatus {
+  PLANNED
+  KITTING
+  READY
+  IN_PROGRESS
+  ON_HOLD
+  DONE
+  CANCELLED
+}
+
+enum KnowledgeDomain {
+  PCB
+  PCBA
+  BOX_BUILD
+  COMPONENT
+  PACKAGE
+  STANDARD
+  PROCESS
+}
+
+// ───────────────────────────── Users & audit ─────────────────────────────
+
+model User {
+  id                String        @id @default(cuid())
+  email             String        @unique
+  name              String
+  passwordHash      String
+  role              Role          @default(VIEWER)
+  active            Boolean       @default(true)
+  /// Sessions signed in before this (password change, deactivation) are rejected.
+  sessionsValidFrom DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  carts             Cart[]
+  rfqs              Rfq[]
+  auditLogs         AuditLog[]
+  bomRevisions      BomRevision[]
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String // e.g. "bom.upload", "rfq.send"
+  entity    String // model name
+  entityId  String?
+  data      Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+// ───────────────────────────── Catalogue ─────────────────────────────
+
+model Manufacturer {
+  id        String              @id @default(cuid())
+  name      String              @unique // canonical name, e.g. "Texas Instruments"
+  shortName String? // e.g. "TI"
+  website   String?
+  country   String? // ISO-3166 alpha-2 HQ
+  /// Authorised-channel brand strength 1–5, feeds Quality score ("brand identity").
+  brandTier Int                 @default(3)
+  aliases   ManufacturerAlias[]
+  parts     Part[]
+}
+
+model ManufacturerAlias {
+  id             String       @id @default(cuid())
+  alias          String       @unique // stored normalised (upper-case, no punctuation)
+  manufacturerId String
+  manufacturer   Manufacturer @relation(fields: [manufacturerId], references: [id], onDelete: Cascade)
+}
+
+model Category {
+  id           String      @id @default(cuid())
+  slug         String      @unique
+  name         String
+  parentId     String?
+  parent       Category?   @relation("CategoryTree", fields: [parentId], references: [id])
+  children     Category[]  @relation("CategoryTree")
+  /// Attrition / scrap % typically applied to this category (overridden by package).
+  attritionPct Decimal?    @db.Decimal(5, 2)
+  sortOrder    Int         @default(0)
+  parts        Part[]
+  parameters   Parameter[]
+}
+
+/// Parameter definition (per category) used for parametric matching.
+model Parameter {
+  id         String          @id @default(cuid())
+  key        String // e.g. "capacitance"
+  name       String // "Capacitance"
+  unit       String? // "F", "Ω", "V"
+  dataType   String          @default("number") // number | string | enum
+  categoryId String?
+  category   Category?       @relation(fields: [categoryId], references: [id])
+  /// Must match for an FFF drop-in alternate.
+  isCritical Boolean         @default(false)
+  values     PartParameter[]
+
+  @@unique([key, categoryId])
+}
+
+model PartParameter {
+  id          String    @id @default(cuid())
+  partId      String
+  part        Part      @relation(fields: [partId], references: [id], onDelete: Cascade)
+  parameterId String
+  parameter   Parameter @relation(fields: [parameterId], references: [id])
+  valueText   String // as displayed, e.g. "10 µF"
+  valueNum    Float? // SI base unit, e.g. 0.00001
+
+  @@unique([partId, parameterId])
+  @@index([parameterId, valueNum])
+}
+
+model Package {
+  id           String    @id @default(cuid())
+  name         String    @unique // "0603", "SOIC-8", "QFN-48 7x7"
+  family       String // CHIP, SOT, SOIC, TSSOP, QFN, QFP, BGA, LGA, CSP, TO, DPAK, THT, MODULE, CONNECTOR ...
+  mountType    MountType @default(SMD)
+  pinCount     Int?
+  pitchMm      Float?
+  lengthMm     Float?
+  widthMm      Float?
+  heightMm     Float?
+  /// Typical attrition % on our lines for this package.
+  attritionPct Decimal   @default(1.0) @db.Decimal(5, 2)
+  ipc7351Name  String?
+  model3dUrl   String?
+  parts        Part[]
+}
+
+model Part {
+  id                       String       @id @default(cuid())
+  mpn                      String // as printed by manufacturer
+  mpnNormalised            String // upper-case, no spaces/dashes — matching key
+  manufacturerId           String
+  manufacturer             Manufacturer @relation(fields: [manufacturerId], references: [id])
+  categoryId               String
+  category                 Category     @relation(fields: [categoryId], references: [id])
+  packageId                String?
+  package                  Package?     @relation(fields: [packageId], references: [id])
+  description              String
+  datasheetUrl             String?
+  imageUrl                 String?
+  lifecycle                Lifecycle    @default(ACTIVE)
+  lifecycleUpdatedAt       DateTime?
+  /// Year the part was introduced — feeds "years in market" in Quality score.
+  introducedYear           Int?
+  rohs                     RohsStatus   @default(UNKNOWN)
+  reach                    ReachStatus  @default(UNKNOWN)
+  conflictMineralsDeclared Boolean      @default(false)
+  hsnCode                  String? // India HSN, e.g. 85322400
+  eccn                     String? // e.g. EAR99, 3A991
+  countryOfOrigin          String?
+  msl                      Msl?
+  mountType                MountType    @default(SMD)
+  /// Manufacturer standard lead time (weeks).
+  mfrLeadTimeWeeks         Int?
+  /// 1–5, higher = more counterfeited in the market (e.g. popular MCUs, FPGAs).
+  counterfeitRisk          Int          @default(1)
+  /// Where the part record came from: "seed", "nexar", "digikey", "mouser", "price-list", "manual".
+  source                   String       @default("seed")
+  createdAt                DateTime     @default(now())
+  updatedAt                DateTime     @updatedAt
+
+  parameters     PartParameter[]
+  offers         Offer[]
+  priceHistory   PriceHistory[]
+  inventoryLots  InventoryLot[]
+  excessListings ExcessListing[]
+  alternatesFrom Alternate[]         @relation("AlternateFrom")
+  alternatesTo   Alternate[]         @relation("AlternateTo")
+  bomLines       BomLine[]
+  bomLineMatches BomLineMatch[]
+  cartItems      CartItem[]
+  rfqLines       RfqLine[]
+  poLines        PurchaseOrderLine[]
+  events         SourcingEvent[]
+  movements      StockMovement[]
+
+  @@unique([mpnNormalised, manufacturerId])
+  @@index([mpnNormalised])
+  @@index([categoryId])
+  @@index([lifecycle])
+}
+
+model Alternate {
+  id         String        @id @default(cuid())
+  partId     String
+  part       Part          @relation("AlternateFrom", fields: [partId], references: [id], onDelete: Cascade)
+  altPartId  String
+  altPart    Part          @relation("AlternateTo", fields: [altPartId], references: [id], onDelete: Cascade)
+  type       AlternateType
+  confidence Int           @default(80) // 0–100
+  notes      String?
+  approvedBy String?
+  approvedAt DateTime?
+
+  @@unique([partId, altPartId])
+}
+
+// ───────────────────────────── Supply ─────────────────────────────
+
+model Supplier {
+  id             String               @id @default(cuid())
+  code           String               @unique // "DIGIKEY", "INT-STORES"
+  name           String
+  kind           SupplierKind
+  country        String?
+  currency       String               @default("USD")
+  website        String?
+  /// Adapter key used by the sourcing engine (Phase 2). Null = manual / CSV feed.
+  adapter        String?
+  isAuthorised   Boolean              @default(false)
+  /// Default freight as % of goods value, used by landed-cost calc.
+  freightPct     Decimal              @default(0) @db.Decimal(5, 2)
+  contactEmail   String?
+  active         Boolean              @default(true)
+  /// What they supply: components | pcb-fab | pcb-assembly | enclosure | cable-harness
+  supplies       String[]             @default(["components"])
+  /// Capabilities for board and box makers, e.g. { maxLayers, finishes, thicknessMm, ipcClass, leadDays, styles, ipMax }
+  capabilities   Json?
+  offers         Offer[]
+  priceHistory   PriceHistory[]
+  quotes         Quote[]
+  rfqs           Rfq[]
+  purchaseOrders PurchaseOrderDraft[]
+  excessListings ExcessListing[]
+  cartItems      CartItem[]
+  events         SourcingEvent[]
+}
+
+/// A supplier's current offer for a part (one row per supplier SKU/packaging).
+model Offer {
+  id                   String    @id @default(cuid())
+  partId               String
+  part                 Part      @relation(fields: [partId], references: [id], onDelete: Cascade)
+  supplierId           String
+  supplier             Supplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  sku                  String?
+  packaging            String? // Tape & Reel, Cut Tape, Tray, Tube, Bulk
+  stock                Int       @default(0)
+  moq                  Int       @default(1)
+  spq                  Int       @default(1) // standard pack qty (reel size)
+  currency             String    @default("USD")
+  /// [{ qty: 1, price: 0.12 }, { qty: 100, price: 0.08 }, ...] sorted by qty asc
+  priceBreaks          Json
+  factoryLeadTimeWeeks Int?
+  condition            Condition @default(NEW_FACTORY_SEALED)
+  dateCode             String?
+  cocAvailable         Boolean   @default(true)
+  source               String    @default("mock") // mock | nexar | digikey | mouser | price-list
+  url                  String?
+  fetchedAt            DateTime  @default(now())
+
+  @@unique([partId, supplierId, sku])
+  @@index([partId])
+  @@index([supplierId])
+}
+
+model PriceHistory {
+  id         String    @id @default(cuid())
+  partId     String
+  part       Part      @relation(fields: [partId], references: [id], onDelete: Cascade)
+  supplierId String?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id])
+  /// Unit price at the reference quantity break.
+  unitPrice  Decimal   @db.Decimal(14, 6)
+  currency   String
+  refQty     Int       @default(1000)
+  stock      Int?
+  recordedAt DateTime  @default(now())
+
+  @@index([partId, recordedAt])
+}
+
+model Warehouse {
+  id            String         @id @default(cuid())
+  code          String         @unique
+  name          String
+  city          String?
+  /// Dry-cabinet / MSL-controlled storage available.
+  hasDryStorage Boolean        @default(false)
+  lots          InventoryLot[]
+}
+
+/// Physical stock we hold (own or consigned).
+model InventoryLot {
+  id                 String          @id @default(cuid())
+  partId             String
+  part               Part            @relation(fields: [partId], references: [id])
+  warehouseId        String
+  warehouse          Warehouse       @relation(fields: [warehouseId], references: [id])
+  bin                String
+  lotCode            String?
+  reelId             String?         @unique
+  qty                Int
+  reservedQty        Int             @default(0)
+  dateCode           String? // YYWW
+  condition          Condition       @default(NEW_FACTORY_SEALED)
+  msl                Msl?
+  /// When the MSL bag was opened (floor-life timer starts). Null = sealed.
+  mslOpenedAt        DateTime?
+  /// Remaining floor life in hours, decremented while open.
+  floorLifeHoursLeft Float?
+  isConsigned        Boolean         @default(false)
+  customerId         String? // owner when consigned
+  customer           Customer?       @relation(fields: [customerId], references: [id])
+  unitCost           Decimal?        @db.Decimal(14, 6)
+  currency           String          @default("INR")
+  cocOnFile          Boolean         @default(false)
+  countryOfOrigin    String?
+  receivedAt         DateTime        @default(now())
+  movements          StockMovement[]
+  reservations       Reservation[]
+
+  @@index([partId])
+}
+
+/// Stock offered in the excess pool (own excess or partner EMS/OEM/ODM excess).
+model ExcessListing {
+  id           String    @id @default(cuid())
+  partId       String
+  part         Part      @relation(fields: [partId], references: [id])
+  supplierId   String
+  supplier     Supplier  @relation(fields: [supplierId], references: [id])
+  qty          Int
+  askPrice     Decimal?  @db.Decimal(14, 6)
+  currency     String    @default("INR")
+  dateCode     String?
+  condition    Condition @default(NEW_OPEN_REEL)
+  cocAvailable Boolean   @default(false)
+  location     String?
+  /// Open to bids (SoW: "compare excess bids").
+  acceptsBids  Boolean   @default(true)
+  /// Days to deliver to us (channel partners and agents who source on request).
+  leadDays     Int?
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([partId])
+}
+
+// ───────────────────────────── Customers & BoMs ─────────────────────────────
+
+model Customer {
+  id            String         @id @default(cuid())
+  code          String         @unique
+  name          String
+  country       String?
+  /// Saved column-mapping templates for this customer's BoM format.
+  bomTemplates  Json?
+  projects      Project[]
+  consignedLots InventoryLot[]
+}
+
+model Project {
+  id         String       @id @default(cuid())
+  code       String       @unique
+  name       String
+  customerId String
+  customer   Customer     @relation(fields: [customerId], references: [id])
+  stage      ProjectStage @default(PROTOTYPE)
+  /// Physical product description used by the 3D viewer (Phase 4).
+  boardSpec  Json? // { layers, thicknessMm, finish, mask, sizeMm: [w,h], enclosure }
+  boms       Bom[]
+  workOrders WorkOrder[]
+  createdAt  DateTime     @default(now())
+}
+
+model Bom {
+  id                 String        @id @default(cuid())
+  projectId          String
+  project            Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name               String // e.g. "GW-200 Main Board"
+  assemblyPartNumber String?
+  revisions          BomRevision[]
+  createdAt          DateTime      @default(now())
+}
+
+model BomRevision {
+  id             String      @id @default(cuid())
+  bomId          String
+  bom            Bom         @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  revision       String // "A", "B", "1.2"
+  status         BomStatus   @default(DRAFT)
+  sourceFileName String?
+  sheetName      String?
+  /// Parsed cells exactly as uploaded (string[][]), kept so the mapping can be changed later.
+  rawRows        Json?
+  headerRow      Int         @default(0)
+  columnMapping  Json?
+  /// What was read from the uploaded file beyond the BoM table: its sheets, placements, not-fitted designators,
+  /// the bare board's line and cross-check findings (PackSummary, src/lib/bom/workbook.ts).
+  pack           Json?
+  buildQty       Int         @default(100)
+  /// BoM-level scores { availability, resilience, quality, economic, sustainability } at scoredAt.
+  scores         Json?
+  scoredAt       DateTime?
+  notes          String?
+  uploadedById   String?
+  uploadedBy     User?       @relation(fields: [uploadedById], references: [id])
+  createdAt      DateTime    @default(now())
+  lines          BomLine[]
+  workOrders     WorkOrder[]
+  carts          Cart[]
+  board          BoardModel?
+  placements     Placement[]
+  quotes         CustomerQuote[]
+  feasibility    FeasibilityReview[]
+
+  @@unique([bomId, revision])
+}
+
+model BomLine {
+  id                  String         @id @default(cuid())
+  revisionId          String
+  revision            BomRevision    @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  lineNo              Int
+  // Raw values exactly as uploaded
+  rawMpn              String?
+  rawManufacturer     String?
+  rawDescription      String?
+  rawPackage          String?
+  rawValue            String?
+  rawRow              Json? // original cells
+  refDes              String? // "C1, C2, C5-C8"
+  qtyPerBoard         Int
+  dnp                 Boolean        @default(false)
+  customerPartNumber  String?
+  /// Scrub warnings, e.g. ["QTY_REFDES_MISMATCH", "MISSING_MPN"]
+  issues              String[]       @default([])
+  /// Chosen part after matching (null until matched).
+  partId              String?
+  part                Part?          @relation(fields: [partId], references: [id])
+  /// Set when the chosen match is not an exact/normalised MPN hit.
+  needsReview         Boolean        @default(false)
+  /// Build need incl. attrition at scoredAt.
+  requiredQty         Int?
+  matches             BomLineMatch[]
+  placements          Placement[]
+  /// Cached scores 0–100 (Phase 1).
+  scoreAvailability   Int?
+  scoreResilience     Int?
+  scoreQuality        Int?
+  scoreEconomic       Int?
+  scoreSustainability Int?
+
+  @@unique([revisionId, lineNo])
+  @@index([partId])
+}
+
+model BomLineMatch {
+  id         String      @id @default(cuid())
+  bomLineId  String
+  bomLine    BomLine     @relation(fields: [bomLineId], references: [id], onDelete: Cascade)
+  partId     String
+  part       Part        @relation(fields: [partId], references: [id])
+  method     MatchMethod
+  confidence Int // 0–100
+  reason     String?
+  selected   Boolean     @default(false)
+
+  @@unique([bomLineId, partId])
+}
+
+// ───────────────────────────── Buying ─────────────────────────────
+
+model Cart {
+  id            String       @id @default(cuid())
+  name          String
+  /// OPEN carts collect demand; CLOSED once turned into an RFQ.
+  status        String       @default("OPEN")
+  userId        String
+  user          User         @relation(fields: [userId], references: [id])
+  bomRevisionId String?
+  bomRevision   BomRevision? @relation(fields: [bomRevisionId], references: [id])
+  items         CartItem[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model CartItem {
+  id              String    @id @default(cuid())
+  cartId          String
+  cart            Cart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  partId          String
+  part            Part      @relation(fields: [partId], references: [id])
+  qty             Int
+  /// Preferred supplier (null = let the RFQ decide).
+  supplierId      String?
+  supplier        Supplier? @relation(fields: [supplierId], references: [id])
+  /// Preferred offer at time of adding (may be re-priced).
+  offerId         String?
+  excessListingId String?
+  /// BoM line this demand came from, for traceability.
+  bomLineId       String?
+  isBid           Boolean   @default(false)
+  bidPrice        Decimal?  @db.Decimal(14, 6)
+  currency        String    @default("INR")
+  note            String?
+  createdAt       DateTime  @default(now())
+}
+
+model Rfq {
+  id             String               @id @default(cuid())
+  number         String               @unique // RFQ-2026-0001
+  status         RfqStatus            @default(DRAFT)
+  createdById    String
+  createdBy      User                 @relation(fields: [createdById], references: [id])
+  dueDate        DateTime?
+  notes          String?
+  /// Delivery terms assumed for landed cost, e.g. "DAP Chennai".
+  incoterm       String?
+  lines          RfqLine[]
+  suppliers      Supplier[]
+  quotes         Quote[]
+  purchaseOrders PurchaseOrderDraft[]
+  createdAt      DateTime             @default(now())
+}
+
+model RfqLine {
+  id                  String      @id @default(cuid())
+  rfqId               String
+  rfq                 Rfq         @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  partId              String
+  part                Part        @relation(fields: [partId], references: [id])
+  qty                 Int
+  targetPrice         Decimal?    @db.Decimal(14, 6)
+  currency            String      @default("INR")
+  /// Supplier preferred when the line was added to the cart.
+  preferredSupplierId String?
+  note                String?
+  quoteLines          QuoteLine[]
+}
+
+model Quote {
+  id         String      @id @default(cuid())
+  rfqId      String
+  rfq        Rfq         @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  supplierId String
+  supplier   Supplier    @relation(fields: [supplierId], references: [id])
+  validUntil DateTime?
+  currency   String
+  /// MANUAL | IMPORT | API
+  source     String      @default("MANUAL")
+  /// Freight for the whole quote in quote currency (null = supplier default %).
+  freight    Decimal?    @db.Decimal(14, 2)
+  notes      String?
+  receivedAt DateTime    @default(now())
+  lines      QuoteLine[]
+
+  @@unique([rfqId, supplierId])
+}
+
+model QuoteLine {
+  id            String              @id @default(cuid())
+  quoteId       String
+  quote         Quote               @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  rfqLineId     String
+  rfqLine       RfqLine             @relation(fields: [rfqLineId], references: [id], onDelete: Cascade)
+  unitPrice     Decimal             @db.Decimal(14, 6)
+  qtyOffered    Int
+  leadTimeWeeks Int?
+  dateCode      String?
+  condition     Condition           @default(NEW_FACTORY_SEALED)
+  cocAvailable  Boolean             @default(true)
+  /// Chosen in the comparison; becomes a PO line.
+  awarded       Boolean             @default(false)
+  poLines       PurchaseOrderLine[]
+
+  @@unique([quoteId, rfqLineId])
+}
+
+model PurchaseOrderDraft {
+  id            String              @id @default(cuid())
+  number        String              @unique // PO-2026-0001
+  supplierId    String
+  supplier      Supplier            @relation(fields: [supplierId], references: [id])
+  status        PoStatus            @default(DRAFT)
+  currency      String
+  rfqId         String?
+  rfq           Rfq?                @relation(fields: [rfqId], references: [id])
+  /// Landed cost in INR: { goods, freight, insurance, bcd, sws, igst, gst, total, fxRate }
+  costBreakdown Json?
+  /// Order services (SoW "manage order"): [{ kind: transport|finance|storage|test, detail, cost (INR) }]
+  services      Json?
+  notes         String?
+  createdById   String?
+  lines         PurchaseOrderLine[]
+  createdAt     DateTime            @default(now())
+}
+
+model PurchaseOrderLine {
+  id            String             @id @default(cuid())
+  poId          String
+  po            PurchaseOrderDraft @relation(fields: [poId], references: [id], onDelete: Cascade)
+  partId        String
+  part          Part               @relation(fields: [partId], references: [id])
+  qty           Int
+  unitPrice     Decimal            @db.Decimal(14, 6)
+  quoteLineId   String?
+  quoteLine     QuoteLine?         @relation(fields: [quoteLineId], references: [id])
+  leadTimeWeeks Int?
+}
+
+// ───────────────────────────── Factory ─────────────────────────────
+
+model Line {
+  id           String      @id @default(cuid())
+  code         String      @unique // "L1"
+  name         String
+  type         LineType
+  description  String?
+  /// { minChip: "0201", bga: true, minPitchMm: 0.4, maxBoardMm: [510, 460], doubleSided: true, ... }
+  capability   Json
+  /// Theoretical placement capacity, components per hour (SMT lines).
+  capacityCph  Int?
+  feederSlots  Int?
+  shiftsPerDay Int         @default(2)
+  active       Boolean     @default(true)
+  sortOrder    Int         @default(0)
+  machines     Machine[]
+  workOrders   WorkOrder[]
+}
+
+model Machine {
+  id       String      @id @default(cuid())
+  lineId   String
+  line     Line        @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  type     MachineType
+  vendor   String
+  model    String
+  /// Position in the line flow (1 = first station).
+  position Int
+  /// Machine-specific specs: { heads, cph, zones, feeders, ... }
+  specs    Json?
+
+  @@unique([lineId, position])
+}
+
+model WorkOrder {
+  id              String          @id @default(cuid())
+  number          String          @unique // WO-2026-0001
+  projectId       String
+  project         Project         @relation(fields: [projectId], references: [id])
+  bomRevisionId   String
+  bomRevision     BomRevision     @relation(fields: [bomRevisionId], references: [id])
+  lineId          String?
+  line            Line?           @relation(fields: [lineId], references: [id])
+  buildQty        Int
+  status          WorkOrderStatus @default(PLANNED)
+  /// Cached clear-to-build % (Phase 5).
+  clearToBuildPct Int?
+  plannedStart    DateTime?
+  plannedEnd      DateTime?
+  dueDate         DateTime?
+  notes           String?
+  createdById     String?
+  reservations    Reservation[]
+  movements       StockMovement[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @default(now()) @updatedAt
+}
+
+// ───────────────────────────── Knowledge ─────────────────────────────
+
+model KnowledgeArticle {
+  id        String          @id @default(cuid())
+  slug      String          @unique
+  domain    KnowledgeDomain
+  title     String
+  summary   String
+  /// Structured body: sections, parameters, failure modes, sourcing tips, standards.
+  body      Json
+  tags      String[]        @default([])
+  /// Content version from /src/knowledge seed files.
+  version   Int             @default(1)
+  updatedAt DateTime        @updatedAt
+}
+
+// ───────────────────────────── Sourcing infrastructure ─────────────────────────────
+
+/// Postgres-backed cache used when Redis is unavailable (API responses, FX, rate-limit counters).
+model ApiCache {
+  key       String   @id
+  value     Json
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+/// One execution of a background job (price refresh, FX refresh).
+model JobRun {
+  id         String    @id @default(cuid())
+  kind       String // refresh.hot | refresh.full | refresh.parts | fx.refresh
+  trigger    String // schedule | manual | startup
+  status     String    @default("RUNNING") // RUNNING | DONE | FAILED
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  /// { parts, offers, calls: { nexar, digikey, ... }, events, skipped }
+  stats      Json?
+  error      String?
+  startedBy  String?
+
+  @@index([kind, startedAt])
+}
+
+/// Something a refresh noticed that a buyer should see.
+model SourcingEvent {
+  id           String    @id @default(cuid())
+  kind         String // PRICE_SPIKE | PRICE_DROP | STOCK_OUT | BACK_IN_STOCK | LIFECYCLE_CHANGE | NEW_PART
+  partId       String
+  part         Part      @relation(fields: [partId], references: [id], onDelete: Cascade)
+  supplierId   String?
+  supplier     Supplier? @relation(fields: [supplierId], references: [id])
+  data         Json
+  acknowledged Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+
+  @@index([createdAt])
+  @@index([partId])
+  @@index([acknowledged])
+}
+
+/// Indicative Indian customs duty per HSN prefix (longest prefix wins). Confirm with the customs broker.
+model HsnDutyRate {
+  prefix      String   @id // 4–8 digits
+  description String
+  bcdPct      Decimal  @db.Decimal(5, 2) // Basic Customs Duty
+  swsPct      Decimal  @default(10) @db.Decimal(5, 2) // Social Welfare Surcharge, % of BCD
+  igstPct     Decimal  @default(18) @db.Decimal(5, 2)
+  note        String?
+  updatedAt   DateTime @updatedAt
+}
+
+// ───────────────────────────── Board (3D viewer) ─────────────────────────────
+
+/// Physical board for a BoM revision: from Gerbers when uploaded, else from the project's board spec.
+model BoardModel {
+  id          String      @id @default(cuid())
+  revisionId  String      @unique
+  revision    BomRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  source      String      @default("spec") // "gerber" | "spec"
+  widthMm     Float
+  heightMm    Float
+  layerCount  Int         @default(2)
+  thicknessMm Float       @default(1.6)
+  finish      String      @default("ENIG")
+  maskColor   String      @default("green")
+  silkColor   String      @default("white")
+  /// [{ name, type, side, index }] for uploaded fabrication files
+  files       Json?
+  /// { top: svg, bottom: svg, layers: [{ key, type, side, index, svg }], viewBox: [x, y, w, h] }
+  artwork     Json?
+  /// Measured at upload: { paste: { top, bottom: { apertures, areaMm2, source } }, holes } (src/lib/board/fab-measure.ts)
+  fab         Json?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+/// One placed component from the pick-and-place (centroid) file.
+/// Gerbers looked at without a BoM — a quick 3D look at a bare board (NPI, quoting, supplier check).
+model BoardPreview {
+  id          String   @id @default(cuid())
+  name        String
+  createdById String?
+  widthMm     Float
+  heightMm    Float
+  layerCount  Int      @default(2)
+  thicknessMm Float    @default(1.6)
+  finish      String   @default("ENIG")
+  maskColor   String   @default("green")
+  silkColor   String   @default("white")
+  /// [{ name, type, side, index }] for the uploaded fabrication files
+  files       Json?
+  /// Same shape as BoardModel.artwork
+  artwork     Json?
+  /// Components read from the files at upload: { source, parts: FoundPart[], notes } (src/lib/board/find-parts.ts)
+  components  Json?
+  /// Measured at upload: { paste: { top, bottom: { apertures, areaMm2, source } }, holes } (src/lib/board/fab-measure.ts)
+  fab         Json?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model Placement {
+  id         String      @id @default(cuid())
+  revisionId String
+  revision   BomRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  refDes     String
+  x          Float // mm
+  y          Float // mm
+  rotation   Float       @default(0)
+  side       String      @default("TOP") // TOP | BOTTOM
+  footprint  String?
+  value      String?
+  bomLineId  String?
+  bomLine    BomLine?    @relation(fields: [bomLineId], references: [id], onDelete: SetNull)
+
+  @@unique([revisionId, refDes])
+  @@index([bomLineId])
+}
+
+// ───────────────────────────── Stores & work-order material ─────────────────────────────
+
+/// Ledger of every stock change: receipts, issues to work orders, adjustments, reservations, MSL events.
+model StockMovement {
+  id          String        @id @default(cuid())
+  type        String // RECEIVE | ISSUE | ADJUST | RESERVE | UNRESERVE | MSL_OPEN | MSL_CLOSE | BAKE
+  partId      String
+  part        Part          @relation(fields: [partId], references: [id])
+  lotId       String?
+  lot         InventoryLot? @relation(fields: [lotId], references: [id], onDelete: SetNull)
+  qty         Int           @default(0)
+  workOrderId String?
+  workOrder   WorkOrder?    @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  userId      String?
+  note        String?
+  createdAt   DateTime      @default(now())
+
+  @@index([partId, createdAt])
+  @@index([lotId])
+}
+
+/// Stock set aside for a work order (picked FIFO / shortest floor life first); issued when kitted.
+model Reservation {
+  id          String       @id @default(cuid())
+  workOrderId String
+  workOrder   WorkOrder    @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  lotId       String
+  lot         InventoryLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  partId      String
+  bomLineId   String?
+  qty         Int
+  issued      Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+
+  @@index([workOrderId])
+  @@index([lotId])
+}
+
+/// A quote to our customer, built step by step from a BoM revision (Phase 13): bare board → components → box → price.
+/// A DRAFT holds the choices; ISSUED freezes the costed numbers in `snapshot` exactly as sent.
+model CustomerQuote {
+  id          String      @id @default(cuid())
+  /// CQ-2026-0001, given when issued.
+  number      String?     @unique
+  revisionId  String
+  revision    BomRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  status      String      @default("DRAFT") // DRAFT | ISSUED
+  /// Bare board: { supplierId } or { stockPartId }, plus the fab's own quote when typed in { quotedUnit, quotedNre, quotedLeadDays } (INR)
+  board       Json?
+  /// Per BoM line id, the source tried first: { offerId } | { excessListingId } | { ours: true }
+  lines       Json?
+  /// Box: { kind: "catalogue", mpn } | { kind: "custom", style, supplierId } | { kind: "none" }
+  box         Json?
+  /// Board quantities priced, ascending.
+  quantities  Int[]       @default([])
+  /// Conversion rates, margin and NRE for this quote (defaults: src/data/costing.ts)
+  rates       Json?
+  /// The costed quote at issue (INR) and the FX used.
+  snapshot    Json?
+  /// Currency the client sees.
+  currency    String      @default("INR")
+  validDays   Int         @default(30)
+  notes       String?
+  createdById String?
+  issuedAt    DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([revisionId, status])
+}
+
+/// "Can we build it?" review of a BoM revision (Phase 15): nine gates signed in order. A signed gate is locked; the only
+/// way back is a new review, which leaves this one SUPERSEDED.
+model FeasibilityReview {
+  id          String      @id @default(cuid())
+  revisionId  String
+  revision    BomRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  /// Boards the review was made for.
+  qty         Int
+  status      String      @default("OPEN") // OPEN | PASSED | SUPERSEDED
+  /// [{ gate, by, byName, at, note, waived: [{ check, label, reason }], fingerprint, record }] (src/lib/feasibility/gates.ts)
+  signoffs    Json        @default("[]")
+  createdById String?
+  createdAt   DateTime    @default(now())
+  closedAt    DateTime?
+
+  @@index([revisionId, status])
+}
+
+/// A conversation with a seller about a listing or an RFQ (SoW: "chat with seller"). Stored here; not e-mailed.
+model Message {
+  id         String   @id @default(cuid())
+  /// "listing:<excessListingId>" or "rfq:<rfqId>"
+  thread     String
+  userId     String?
+  author     String
+  /// true when written on the seller's behalf (e.g. their phone reply typed in by the buyer)
+  fromSeller Boolean  @default(false)
+  body       String
+  createdAt  DateTime @default(now())
+
+  @@index([thread, createdAt])
+}

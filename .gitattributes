@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.docx binary
+*.png binary
+# Windows batch files need CRLF for labels/goto to work
+*.cmd text eol=crlf
