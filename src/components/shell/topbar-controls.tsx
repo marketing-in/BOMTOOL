@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { signOut } from "next-auth/react";
-import { LogOut, Menu, Monitor, Moon, Sun } from "lucide-react";
+import { LogOut, Monitor, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,32 +17,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import type { Role } from "@prisma/client";
+import { can } from "@/lib/rbac";
 import { CURRENCIES, type Currency } from "@/lib/currency";
 import { CURRENCY_COOKIE_NAME } from "./constants";
-import { SidebarNav } from "./sidebar-nav";
-import { Brand } from "./brand";
-
-export function MobileNav({ role }: { role: Role }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="size-10 lg:hidden" aria-label="Open navigation">
-          <Menu className="size-5" />
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="left" className="bg-brand-panel w-72 overflow-y-auto border-sidebar-border bg-sidebar p-0 text-sidebar-foreground">
-        <SheetTitle className="sr-only">Navigation</SheetTitle>
-        <div className="border-b border-sidebar-border px-5 py-4">
-          <Brand onDark />
-        </div>
-        <SidebarNav role={role} onNavigate={() => setOpen(false)} />
-      </SheetContent>
-    </Sheet>
-  );
-}
+import { OTHER } from "./nav";
 
 export function CurrencySwitch({ value }: { value: Currency }) {
   const router = useRouter();
@@ -70,7 +50,9 @@ export function CurrencySwitch({ value }: { value: Currency }) {
   );
 }
 
-export function UserMenu({ name, email, roleLabel }: { name: string; email: string; roleLabel: string }) {
+/** The account menu also holds the pages outside the four parts: Home, the app tour and (admins) users. */
+export function UserMenu({ name, email, roleLabel, role }: { name: string; email: string; roleLabel: string; role: Role }) {
+  const others = OTHER.filter((i) => !i.permission || can(role, i.permission));
   const { theme, setTheme } = useTheme();
   const initials = name
     .replace(/\(.*\)/, "")
@@ -96,6 +78,14 @@ export function UserMenu({ name, email, roleLabel }: { name: string; email: stri
           <div className="text-sm font-medium">{name}</div>
           <div className="text-xs text-muted-foreground">{email}</div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {others.map((i) => (
+          <DropdownMenuItem key={i.href} asChild>
+            <Link href={i.href}>
+              <i.icon className="size-4" /> {i.label}
+            </Link>
+          </DropdownMenuItem>
+        ))}
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Theme</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={theme ?? "system"} onValueChange={setTheme}>
