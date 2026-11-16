@@ -75,7 +75,7 @@ describe("line fit: running time against older jobs and the line now", () => {
     expect(h.secondsPerPlacement).toBeCloseTo(0.82, 2);
     const [e1, e2] = estimateAll([L1, L2], job, rates, [h]);
     expect(e1.fromHistory).toMatchObject({ jobs: 1, secondsPerPlacement: 0.82 });
-    expect(e1.fromHistory!.smtHours).toBeCloseTo(3 + (500 * 0.82 * 460) / 3600, 0);
+    expect(e1.fromHistory!.totalHours).toBeCloseTo((500 * 0.82 * 460) / 3600, 0);
     expect(e2.fromHistory).toBeNull();
   });
 

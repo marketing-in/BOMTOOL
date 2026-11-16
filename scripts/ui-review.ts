@@ -8,6 +8,7 @@
  *
  *   UI_CAPTURE_ONLY=boms,parts   only routes whose path contains one of these
  *   UI_CAPTURE_MAX_HEIGHT=4000   clip very long pages (px)
+ *   UI_CAPTURE_DEV=1             read records from DATABASE_URL (a dev server) instead of the E2E database
  */
 import { chromium, type Browser, type Page } from "@playwright/test";
 import { PrismaClient } from "@prisma/client";
@@ -33,7 +34,8 @@ async function templates() {
 }
 
 async function records() {
-  const db = new PrismaClient({ datasourceUrl: e2eDatabaseUrl() });
+  // UI_CAPTURE_DEV=1 captures a server running on the development database (DATABASE_URL) instead of the E2E one.
+  const db = new PrismaClient({ datasourceUrl: process.env.UI_CAPTURE_DEV ? process.env.DATABASE_URL : e2eDatabaseUrl() });
   try {
     const [bom, part, wo, article, rfq, po, preview] = await Promise.all([
       db.bomRevision.findFirst({ where: { bom: { name: "GW-200 Main Board" } }, orderBy: { createdAt: "desc" } }),

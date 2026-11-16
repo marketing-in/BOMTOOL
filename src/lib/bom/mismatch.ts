@@ -8,7 +8,7 @@ import { readIssue } from "./issues";
 import type { FootprintMatch } from "@/lib/board/footprint-match";
 
 export type Level = "green" | "amber" | "red";
-export type MismatchKey = "footprint" | "not-on-board" | "not-in-bom" | "value" | "qty" | "mpn" | "refdes" | "duplicate";
+export type MismatchKey = "footprint" | "not-on-board" | "not-in-bom" | "value" | "check" | "qty" | "mpn" | "refdes" | "duplicate";
 
 export type MismatchItem = { ref: string | null; lineNo: number | null; mpn: string | null; detail: string };
 export type MismatchGroup = { key: MismatchKey; title: string; level: Level; ask: string; items: MismatchItem[] };
@@ -21,13 +21,14 @@ const GROUPS: Record<MismatchKey, { title: string; level: Level; ask: string }> 
   "not-on-board": { title: "In the BoM, not on the board", level: "red", ask: "The part has nowhere to go. Ask for the missing placement or a corrected BoM." },
   "not-in-bom": { title: "On the board, not in the BoM", level: "red", ask: "A pad with no part. Ask whether it is fitted (add a line) or do-not-populate." },
   value: { title: "Value differs from the design file", level: "amber", ask: "The footprint matches but the value does not. Confirm which value to fit." },
+  check: { title: "Footprint to confirm by eye", level: "amber", ask: "The BoM names no package, or one we cannot compare. Look at the pad on the board drawing and confirm the part fits." },
   qty: { title: "Quantity does not match designators", level: "amber", ask: "The line's quantity and its designator count disagree. Ask which is right." },
   mpn: { title: "Part number disagrees with its description", level: "red", ask: "What gets bought is not what the designer described. Settle it before the order goes out." },
   refdes: { title: "Designator claimed twice", level: "red", ask: "One position has two parts. Ask which line it belongs to." },
   duplicate: { title: "Same part number on several lines", level: "amber", ask: "Probably fine, but merging the lines avoids double kitting." },
 };
 
-const ORDER: MismatchKey[] = ["footprint", "not-on-board", "not-in-bom", "mpn", "refdes", "qty", "value", "duplicate"];
+const ORDER: MismatchKey[] = ["footprint", "not-on-board", "not-in-bom", "mpn", "refdes", "qty", "value", "check", "duplicate"];
 const RED_MPN = new Set(["MPN_VALUE_MISMATCH", "MPN_VOLTAGE_LOW", "MPN_SIZE_MISMATCH"]);
 const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString("en-IN")} ${n === 1 ? one : many}`;
 
@@ -45,7 +46,12 @@ export function findMismatches(match: FootprintMatch, lines: MismatchLineIn[]): 
     if (r.status === "mismatch") add("footprint", { ...it, detail: `BoM ${r.bomPkg ?? "—"} · board ${r.footprint ?? "—"}` });
     else if (r.status === "not-on-board") add("not-on-board", it);
     else if (r.status === "not-in-bom") add("not-in-bom", { ...it, detail: `${r.footprint ?? "no footprint"} on the ${r.side === "BOTTOM" ? "bottom" : "top"}` });
-    else if (r.status === "check") add("value", it);
+    // A "check" is either a value that differs (the why carries " · ") or a package we cannot compare.
+    else if (r.status === "check") {
+      const at = r.why.indexOf(" · ");
+      if (at >= 0) add("value", { ...it, detail: r.why.slice(at + 3) });
+      else add("check", { ...it, detail: `BoM ${r.bomPkg ?? "names no package"} · board ${r.footprint ?? "—"}` });
+    }
   }
 
   // ── The BoM against itself

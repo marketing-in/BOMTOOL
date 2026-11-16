@@ -165,7 +165,7 @@ export default async function LineFitPage({ params, searchParams }: { params: Pr
                     <td className="num py-2 pr-4 text-right">{h1(e.setupHours)}</td>
                     <td className="num py-2 pr-4 text-right">{h1(e.smtHours)}</td>
                     <td className="num py-2 pr-4 text-right font-medium">{h1(e.totalHours)}</td>
-                    <td className="num py-2 pr-4 text-right">{e.fromHistory ? <span title={`${e.fromHistory.jobs} finished job(s) at ${e.fromHistory.secondsPerPlacement} s a placement`}>{h1(e.fromHistory.totalHours)}</span> : <span className="text-muted-foreground">no history</span>}</td>
+                    <td className="num py-2 pr-4 text-right">{e.fromHistory ? <span title={`${e.fromHistory.jobs} finished job(s) at ${e.fromHistory.secondsPerPlacement} s a placement, whole lot`}>{h1(e.fromHistory.totalHours)}</span> : <span className="text-muted-foreground">no history</span>}</td>
                     <td className="num py-2 text-right">{h1(e.days)}</td>
                   </tr>
                 );
@@ -174,7 +174,7 @@ export default async function LineFitPage({ params, searchParams }: { params: Pr
           </table>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Estimate: placements ÷ (line CPH × {Math.round(t.rates.smtEfficiency * 100)} % efficiency), at least {t.rates.smtMinCycleSec} s a side, plus {t.rates.smtSetupHoursPerSide} h set-up a side and the lot&apos;s through-hole, test and box hours. From older jobs: the same lot at the seconds per placement the line really ran.
+          Estimate: placements ÷ (line CPH × {Math.round(t.rates.smtEfficiency * 100)} % efficiency), at least {t.rates.smtMinCycleSec} s a side, plus {t.rates.smtSetupHoursPerSide} h set-up a side and the lot&apos;s through-hole, test and box hours. From older jobs: the whole lot at the seconds per placement the line really took on finished work orders (set-up and every stage included).
         </p>
       </section>
 
@@ -226,7 +226,10 @@ export default async function LineFitPage({ params, searchParams }: { params: Pr
                 <div className="font-medium">{n.code} <span className="font-normal text-muted-foreground">{line.shiftsPerDay} shift{line.shiftsPerDay === 1 ? "" : "s"}</span></div>
                 <div className="min-w-0">
                   {n.running ? (
-                    <span>Running {n.running.number} · {n.running.project} · <span className="num">{h1(n.running.hoursLeft)}</span> h left</span>
+                    <span>
+                      Running {n.running.number} · {n.running.project} ·{" "}
+                      {n.running.overrun ? <span className="text-risk-amber">plan ended {when(n.running.endsAt)}, still running</span> : <><span className="num">{h1(n.running.hoursLeft)}</span> h left</>}
+                    </span>
                   ) : (
                     <span className="text-muted-foreground">Idle</span>
                   )}

@@ -5,8 +5,8 @@
  * - Estimate: SMT seconds per side = placements ÷ (line cph × efficiency), never below the shortest cycle — the same
  *   rule the quote uses (src/lib/costing/process.ts) — plus set-up per side and the lot's other stages.
  * - History: a finished work order's line hours are its elapsed hours times the share of the day the line works
- *   (shifts × productive hours ÷ 24). That gives seconds per placement on that line, which re-prices this board
- *   "as the line really ran".
+ *   (shifts × productive hours ÷ 24). That covers the whole lot (SMT, through-hole, test, packing), so it gives
+ *   whole-lot seconds per placement on that line, which re-prices this lot "as the line really ran", set-up included.
  * - Now: what is in progress or queued on each line, when the line is free, and so the earliest this lot can finish.
  */
 
@@ -25,8 +25,8 @@ export type LineEstimate = {
   totalHours: number;
   shifts: number;
   days: number;
-  /** The same lot priced at this line's measured seconds per placement, when it has history. */
-  fromHistory: { secondsPerPlacement: number; smtHours: number; totalHours: number; jobs: number } | null;
+  /** The whole lot at this line's measured whole-lot seconds per placement, when it has history. */
+  fromHistory: { secondsPerPlacement: number; totalHours: number; jobs: number } | null;
 };
 
 export type HistoryIn = {
@@ -52,7 +52,8 @@ export type QueueIn = { id: string; number: string; project: string; lineId: str
 export type LineNow = {
   lineId: string;
   code: string;
-  running: { number: string; project: string; qty: number; hoursLeft: number; endsAt: Date | null } | null;
+  /** `overrun`: the plan has ended but the order is still in progress. */
+  running: { number: string; project: string; qty: number; hoursLeft: number; endsAt: Date | null; overrun: boolean } | null;
   queued: { number: string; project: string; status: string; start: Date | null; end: Date | null }[];
   freeAt: Date;
   /** This lot started when the line is free, on the line's own shift pattern. */
@@ -98,8 +99,9 @@ export function estimateAll(lines: LineIn[], job: JobIn, rates: Rates, history: 
     const mine = history.filter((h) => h.lineId === l.id && h.secondsPerPlacement && h.secondsPerPlacement > 0);
     if (!mine.length || !placements) return { ...base, fromHistory: null };
     const spp = median(mine.map((h) => h.secondsPerPlacement!));
-    const smtHours = base.setupHours + (Math.max(1, job.qty) * spp * placements) / 3600;
-    return { ...base, fromHistory: { secondsPerPlacement: Math.round(spp * 100) / 100, smtHours: r1(smtHours), totalHours: r1(smtHours + Math.max(0, job.otherHours)), jobs: mine.length } };
+    // Measured jobs already include their set-up and their other stages: the lot is just placements at that pace.
+    const totalHours = (Math.max(1, job.qty) * spp * placements) / 3600;
+    return { ...base, fromHistory: { secondsPerPlacement: Math.round(spp * 100) / 100, totalHours: r1(totalHours), jobs: mine.length } };
   });
 }
 
@@ -110,7 +112,7 @@ export function lineNow(line: LineIn, queue: QueueIn[], lotHours: number, now: D
   const mine = queue.filter((q) => q.lineId === line.id);
   const run = mine.find((q) => q.status === "IN_PROGRESS") ?? null;
   const runEnd = run ? (run.end ?? null) : null;
-  const running = run ? { number: run.number, project: run.project, qty: run.qty, hoursLeft: runEnd ? r1(Math.max(0, (runEnd.getTime() - now.getTime()) / HOUR)) : 0, endsAt: runEnd } : null;
+  const running = run ? { number: run.number, project: run.project, qty: run.qty, hoursLeft: runEnd ? r1(Math.max(0, (runEnd.getTime() - now.getTime()) / HOUR)) : 0, endsAt: runEnd, overrun: !!runEnd && runEnd < now } : null;
   const queued = mine.filter((q) => q !== run).sort((a, b) => (a.start?.getTime() ?? Infinity) - (b.start?.getTime() ?? Infinity)).map((q) => ({ number: q.number, project: q.project, status: q.status, start: q.start, end: q.end }));
   const ends = mine.map((q) => q.end?.getTime() ?? 0);
   const freeAt = new Date(Math.max(now.getTime(), ...ends));
