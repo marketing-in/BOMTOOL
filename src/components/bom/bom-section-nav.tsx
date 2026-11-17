@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Check, ChevronLeft } from "lucide-react";
-import { MORE, WORKFLOW, locate, type StepKey, type StepState } from "@/lib/bom/workflow";
+import { MORE, WORKFLOW, locate, stepState, type SectionKey, type StepState } from "@/lib/bom/workflow";
 import { cn } from "@/lib/utils";
 
 const DOT: Record<NonNullable<StepState>["state"], string> = {
@@ -14,11 +14,12 @@ const DOT: Record<NonNullable<StepState>["state"], string> = {
 };
 
 /**
- * The menu of one BoM, the same on every one of its pages: a bordered workspace strip with where you are, then the process in
- * order — files, can we build it, board, components, box, quote, production — numbered, each with a dot for how far
- * it has got, and the other views after a divider. Scrolls sideways on a narrow screen, keeping the current step in view.
+ * The menu of one BoM, the same on every one of its pages: a bordered workspace strip with where you are, then the five
+ * steps in order — BoM, Gerbers & components · compare & mismatches · estimate & quote · box (optional) · route & SMT
+ * line — numbered, each with a dot for how far it has got, and the other views after a divider. Scrolls sideways on a
+ * narrow screen, keeping the current step in view.
  */
-export function BomSectionNav({ id, name, states }: { id: string; name: string; states: Record<StepKey, StepState> }) {
+export function BomSectionNav({ id, name, states }: { id: string; name: string; states: Record<SectionKey, StepState> }) {
   const pathname = usePathname();
   const base = `/boms/${id}`;
   const rest = pathname.startsWith(base) ? pathname.slice(base.length) : "";
@@ -48,7 +49,7 @@ export function BomSectionNav({ id, name, states }: { id: string; name: string; 
         <ol className="flex w-max items-center gap-1">
           {WORKFLOW.map((s) => {
             const on = step?.key === s.key;
-            const st = states[s.key];
+            const st = stepState(s, states);
             return (
               <li key={s.key}>
                 <Link ref={on ? active : undefined} href={`${base}${s.path}`} aria-current={on ? "step" : undefined} title={st?.note} className={tab(on)}>
@@ -62,6 +63,7 @@ export function BomSectionNav({ id, name, states }: { id: string; name: string; 
                     {st && st.state !== "done" ? <span aria-hidden className={cn("absolute -top-0.5 -right-0.5 size-2 rounded-full ring-2 ring-card", DOT[st.state])} /> : null}
                   </span>
                   {s.label}
+                  {s.optional ? <span className={cn("text-xs font-normal", on ? "text-primary-foreground/75" : "text-muted-foreground/80")}>optional</span> : null}
                   {st ? <span className="sr-only">: {st.note}</span> : null}
                 </Link>
               </li>

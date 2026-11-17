@@ -163,6 +163,7 @@ imports their Excel/CSV.
 | `npm run dev` / `npm run dev:webpack` | Development server with Turbopack / with webpack |
 | `npm run db:ensure` | Start the local database if it is stopped (create + seed it the first time), then apply pending migrations |
 | `npm run db:local:stop` | Stop the local database |
+| `npm run plant:sync` | Put our lines and machines from `prisma/seed-data/factory.ts` (the machine sheets) into the database, keeping work orders and everything else |
 | `npm test` | Vitest unit tests (266) |
 | `npm run test:e2e` | Re-seed the e2e database, then Playwright flows on a production build (port 3100; first run: `npx playwright install chromium`) |
 | `npm run db:e2e:setup` | Create (if missing), migrate and re-seed the e2e database `ems_e2e` |

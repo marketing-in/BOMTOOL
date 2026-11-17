@@ -29,7 +29,8 @@
     "analyse": "tsx --conditions=react-server scripts/analyse.ts",
     "test:site": "npm run db:e2e:setup && playwright test zzz-site-ui",
     "test:ui:capture": "tsx scripts/ui-review.ts",
-    "db:ensure": "tsx --env-file-if-exists=.env scripts/db-ensure.ts"
+    "db:ensure": "tsx --env-file-if-exists=.env scripts/db-ensure.ts",
+    "plant:sync": "tsx --env-file-if-exists=.env scripts/plant-sync.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",

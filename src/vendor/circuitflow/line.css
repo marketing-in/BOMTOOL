@@ -83,7 +83,7 @@
 .cf-scope .factory-stats dt{font-size:12px;color:var(--t3)}
 .cf-scope .factory-stats dd{margin:2px 0 0;font:500 16px var(--mono);white-space:nowrap;font-variant-numeric:tabular-nums}
 .cf-scope .factory-stats dd small{font:400 12px 'IBM Plex Sans',sans-serif;color:var(--t3)}
-.cf-scope .factory-stations{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.cf-scope .factory-stations{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr))}
 .cf-scope .factory-stations li{border-left:1px solid var(--hair);min-width:0}
 .cf-scope .factory-stations li:first-child{border-left:0}
 .cf-scope .factory-stations button{display:grid;grid-template-columns:auto 1fr;gap:2px 7px;align-items:center;width:100%;padding:10px 12px;text-align:left;border-top:2px solid transparent}
@@ -120,3 +120,11 @@
   --accent-soft: rgba(217,130,74,.16);
   --shadow-1: 0 1px 0 rgba(0,0,0,.3);
 }
+
+/* Our lines (sim-stations.ts): the machine under each process, and a clicked machine's sheet figures. */
+.cf-scope .factory-stations small.factory-model{color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cf-scope .factory-facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0;margin:0;border-bottom:1px solid var(--hair)}
+.cf-scope .factory-facts>div{padding:8px 16px;border-left:1px solid var(--hair);min-width:0}
+.cf-scope .factory-facts dt{font-size:12px;color:var(--t3)}
+.cf-scope .factory-facts dd{margin:2px 0 0;font-size:13px;font-variant-numeric:tabular-nums}
+.cf-scope h3 small{font-size:13px;font-weight:400}

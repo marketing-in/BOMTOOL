@@ -1,5 +1,6 @@
 // Full SMT production line for the board open in the studio:
-// PCB loader → solder paste printer → SPI → pick-and-place → reflow oven → AOI → X-ray.
+// PCB loader → solder paste printer → SPI → pick-and-place → reflow oven → AOI → X-ray — or, given one of our
+// lines (opts.line, src/lib/ops/sim-stations.ts), that line's own stations with its machines' sheet rates.
 // Pure planning in millimetres, seconds and °C, so it runs in Node tests: each station's process
 // for this design (stencil apertures, paste deposits, placement program, reflow profile, optical and
 // X-ray checks), station cycle times, and a schedule of N boards through the line.
@@ -61,9 +62,9 @@ export const ZONE_MM=400;
 const zonesOf=(z1,dS,dR)=>BASE.map((t,i)=>i===0?z1:i>=3&&i<=5?t+dS:i>=6&&i<=8?t+dR:t);
 // Board temperature through the zones: a first-order lag behind the zone air, slower for bigger,
 // thicker and more heavily populated boards.
-export function profile(zones,tau,v){
- const len=zones.length*ZONE_MM,dt=.5,pts=[];let T=25,t=0,x=0,peak=25,tal=0,soak=0,ramp=0;
- while(x<len){const z=zones[Math.min(zones.length-1,Math.floor(x/ZONE_MM))],prev=T;T+=(z-T)*dt/tau;
+export function profile(zones,tau,v,zoneMm=ZONE_MM){
+ const len=zones.length*zoneMm,dt=.5,pts=[];let T=25,t=0,x=0,peak=25,tal=0,soak=0,ramp=0;
+ while(x<len){const z=zones[Math.min(zones.length-1,Math.floor(x/zoneMm))],prev=T;T+=(z-T)*dt/tau;
   ramp=Math.max(ramp,(T-prev)/dt);peak=Math.max(peak,T);if(T>=LIQUIDUS)tal+=dt;if(T>=150&&T<=200)soak+=dt;t+=dt;x+=v*dt;
   if(!pts.length||t-pts[pts.length-1].t>=2)pts.push({t:r2(t),x:r2(x),T:r2(T)})}
  if(r2(t)>pts[pts.length-1].t)pts.push({t:r2(t),x:r2(x),T:r2(T)});
@@ -73,15 +74,16 @@ const inSpec=r=>{const s=SPEC.reflow;return {peak:r.peak>=s.peak[0]&&r.peak<=s.p
 // The recipe: conveyor speed plus preheat, soak and reflow setpoints, searched coarse then fine for
 // the profile closest to the SAC305 targets (peak 243 °C, 65 s above liquidus, 90 s soak, ≤2.5 °C/s),
 // preferring a conveyor near 0.8 m/min and no zone above 285 °C.
-export function planReflow(board,parts){
+// zoneMm: one zone's length — the oven's heated length over its nine heating zones when the line gives it.
+export function planReflow(board,parts,zoneMm=ZONE_MM){
  const area=board.width*board.height,mass=parts.reduce((t,p)=>t+(+p.w||0)*(+p.d||0)*(+p.h||0),0);
  const tau=r2(22+area/900+(board.layers||2)*3+mass/4000);
  let zones=[];const score=r=>{const ok=inSpec(r);return Math.abs(r.peak-243)+Math.abs(r.tal-65)*.6+Math.abs(r.soak-90)*.25+Math.max(0,r.ramp-2.5)*40+Object.values(ok).filter(x=>!x).length*100+Math.max(0,13-r.speed)*2+(Math.max(...zones)>285?100:0)};
- let best=null;const tryIt=(v,z1,dS,dR)=>{zones=zonesOf(z1,dS,dR);const r=profile(zones,tau,v),sc=score(r);if(!best||sc<best.sc)best={sc,v,z1,dS,dR}};
+ let best=null;const tryIt=(v,z1,dS,dR)=>{zones=zonesOf(z1,dS,dR);const r=profile(zones,tau,v,zoneMm),sc=score(r);if(!best||sc<best.sc)best={sc,v,z1,dS,dR}};
  for(let v=6;v<=20;v+=1)for(let z1=70;z1<=130;z1+=15)for(let dS=-40;dS<=10;dS+=10)for(let dR=-24;dR<=36;dR+=6)tryIt(v,z1,dS,dR);
  const c={...best};for(let v=c.v-1;v<=c.v+1;v+=.25)for(let dS=c.dS-6;dS<=c.dS+6;dS+=2)for(let dR=c.dR-6;dR<=c.dR+6;dR+=1)tryIt(v,c.z1,dS,dR);
- const recipe=zonesOf(best.z1,best.dS,best.dR).map((set,i)=>({name:ZONE_NAMES[i],set})),r=profile(recipe.map(z=>z.set),tau,best.v),ok=inSpec(r);
- return {zones:recipe,zoneMm:ZONE_MM,tau,speed:r.speed,speedMmin:r2(r.speed*60/1000),dwell:r.dwell,peak:r.peak,tal:r.tal,soak:r.soak,ramp:r.ramp,points:r.points,ok,pass:Object.values(ok).every(Boolean),gap:50};
+ const recipe=zonesOf(best.z1,best.dS,best.dR).map((set,i)=>({name:ZONE_NAMES[i],set})),r=profile(recipe.map(z=>z.set),tau,best.v,zoneMm),ok=inSpec(r);
+ return {zones:recipe,zoneMm,tau,speed:r.speed,speedMmin:r2(r.speed*60/1000),dwell:r.dwell,peak:r.peak,tal:r.tal,soak:r.soak,ramp:r.ramp,points:r.points,ok,pass:Object.values(ok).every(Boolean),gap:50};
 }
 
 // --- Inspection results for board k --------------------------------------------------------------
@@ -91,12 +93,13 @@ export function inspectBoard(plan,k=0){
   return {ref:a.ref,i:a.i,x:a.x,y:a.y,w:a.w,h:a.h,ar:a.ar,volume:vol,height:r2(stencil*1000*vol/100),offset:r2(Math.abs(gauss(`spio|${k}|${a.ref}|${a.i}`))*.025),status:vol<s.min||vol>s.max?'fail':vol<s.warnLow||vol>s.warnHigh?'warn':'pass'}});
  const byRef=new Map();for(const d of deposits){if(!byRef.has(d.ref))byRef.set(d.ref,[]);byRef.get(d.ref).push(d)}
  const POLAR=new Set(['diode','led','chip','transistor']);
- const aoi=plan.machine.map(p=>{const ds=byRef.get(p.ref)||[],a=SPEC.aoi;
+ const has=id=>plan.stations.some(s=>s.id===id);
+ const aoi=!has('aoi')?[]:plan.machine.map(p=>{const ds=byRef.get(p.ref)||[],a=SPEC.aoi;
   const dx=r2(gauss(`aoix|${k}|${p.ref}`)*.025),dy=r2(gauss(`aoiy|${k}|${p.ref}`)*.025),rot=r2(gauss(`aoir|${k}|${p.ref}`)*.35);
   const starved=ds.some(d=>d.volume<SPEC.spi.min),two=ds.length===2&&Math.min(...ds.map(d=>d.volume))/Math.max(...ds.map(d=>d.volume))<.6&&Math.max(p.w,p.d)<=2.2;
   const defects=[];if(Math.hypot(dx,dy)>a.offset)defects.push('Offset');if(Math.abs(rot)>a.rotation)defects.push('Rotation');if(two)defects.push('Tombstone');else if(starved)defects.push('Insufficient solder');
   return {ref:p.ref,type:p.type,dx,dy,rot,polarity:POLAR.has(p.type)||/elec|CP_|polar/i.test(p.package||'')?'checked':'n/a',defects,pass:!defects.length}});
- const xray=plan.xrayParts.map(p=>{const kind=xrayKind(p),limit=kind==='bga'?SPEC.xray.bga:SPEC.xray.bottom;
+ const xray=!has('xray')?[]:plan.xrayParts.map(p=>{const kind=xrayKind(p),limit=kind==='bga'?SPEC.xray.bga:SPEC.xray.bottom;
   const voids=r2(clamp(8+9*gauss(`xv|${k}|${p.ref}`)+(kind==='bottom'?10:0),1,60));return {ref:p.ref,package:p.package||'',kind,voids,limit,pass:voids<=limit}});
  const spiFail=deposits.filter(d=>d.status==='fail').length,aoiFail=aoi.filter(r=>!r.pass).length,xrayFail=xray.filter(r=>!r.pass).length;
  return {board:k,deposits,aoi,xray,counts:{deposits:deposits.length,spiFail,spiWarn:deposits.filter(d=>d.status==='warn').length,aoiFail,xrayFail},pass:!aoiFail&&!xrayFail};
@@ -105,43 +108,52 @@ export function inspectBoard(plan,k=0){
 // --- Plan and schedule ---------------------------------------------------------------------------
 export const DEFAULTS={boards:5,nozzles:4};
 export function planProduction(board,parts,opts={}){
- const o={...DEFAULTS,...opts};o.boards=clamp(Math.round(o.boards)||1,1,50);
+ const {line:ours,...rest}=opts,o={...DEFAULTS,...rest};o.boards=clamp(Math.round(o.boards)||1,1,50);
+ const stations=ours?.stations?.length?ours.stations.map(s=>({...s,rates:s.rates||{}})):STATIONS.map(s=>({...s,rates:{}}));
+ const R=id=>stations.find(s=>s.id===id)?.rates||{};
  const {machine,hand,bottom}=splitParts(parts);
- const pads=boardPads(machine),printer=planPrinter(pads),reflow=planReflow(board,machine);
+ const ovenZone=R('reflow').heatedLengthMm?R('reflow').heatedLengthMm/9:ZONE_MM;
+ const pads=boardPads(machine),printer=planPrinter(pads),reflow=planReflow(board,machine,ovenZone);
  const line=buildLine(board,machine,{nozzles:o.nozzles,rear:true,bankLen:board.width+30});
  const xrayParts=machine.filter(p=>xrayKind(p));
  const area=board.width*board.height;
- const times={
+ // Station times: the machine sheet's rates where the line gives them, else circuitflow's own models. The printer
+ // never goes under its handling + stroke (the 3D cycle is built from those phases).
+ const printMin=8+(board.height+30)/printer.squeegee.speed+printer.separation+2,rp=R('printer'),rs=R('spi'),rn=R('pnp'),ra=R('aoi');
+ const fovs=ra.fovMm?Math.ceil(board.width/ra.fovMm[0])*Math.ceil(board.height/ra.fovMm[1]):0;
+ const all={
+  marker:r2(R('marker').cycleSec||8),
   loader:6,
-  printer:r2(8+(board.height+30)/printer.squeegee.speed+printer.separation+2+pads.length*.002),
-  spi:r2(4+area/2500+pads.length*.01),
-  pnp:r2(line.stats.placeTime+2*.3+3),
+  printer:r2(Math.max(printMin,(rp.cycleSec||printMin)+pads.length*.002)),
+  spi:rs.cm2PerSec?r2(4+area/100/rs.cm2PerSec+pads.length*.002):r2(4+area/2500+pads.length*.01),
+  pnp:rn.actualCph?r2(machine.length*3600/rn.actualCph+3):r2(line.stats.placeTime+2*.3+3),
   reflow:reflow.dwell,
-  aoi:r2(3+area/4000+machine.length*.06),
+  aoi:fovs&&ra.msPerFov?r2(3+fovs*ra.msPerFov/1000+machine.length*.01):r2(3+area/4000+machine.length*.06),
   xray:xrayParts.length?r2(6+xrayParts.length*6):2,
  };
+ const times=Object.fromEntries(stations.map(s=>[s.id,all[s.id]]));
  // The oven is continuous: boards follow each other at (board length + gap) / conveyor speed.
  const spacing={...times,reflow:r2((board.width+reflow.gap)/reflow.speed)};
- const plan={opts:o,board:{width:board.width,height:board.height,layers:board.layers||2,name:board.name||'',outline:board.outline||null,surfaceTop:board.surface?.top||null,
+ const plan={opts:o,stations,line:ours?{code:ours.code,name:ours.name}:null,board:{width:board.width,height:board.height,layers:board.layers||2,name:board.name||'',outline:board.outline||null,surfaceTop:board.surface?.top||null,
   image:board.image?.dataUrl&&!board.outline?{url:board.image.dataUrl,crop:board.imageCrop&&board.imageCrop.w>0?board.imageCrop:null}:null},machine,hand,bottom,pads,printer,reflow,line,xrayParts,times,spacing};
- plan.schedule=schedule(times,spacing,o.boards);
- const takt=Math.max(...Object.values(spacing)),bottleneck=STATIONS.find(s=>spacing[s.id]===takt).id;
+ plan.schedule=schedule(times,spacing,o.boards,stations);
+ const takt=Math.max(...Object.values(spacing)),bottleneck=stations.find(s=>spacing[s.id]===takt).id,first=stations[0].id,end=stations[stations.length-1].id;
  const results=Array.from({length:o.boards},(_,k)=>inspectBoard(plan,k));
  const last=plan.schedule[plan.schedule.length-1];
  plan.results=results;
- plan.stats={takt:r2(takt),bottleneck,perHour:r2(3600/takt),first:r2(plan.schedule[0].xray.out-plan.schedule[0].loader.in),total:r2(last.xray.out),
+ plan.stats={takt:r2(takt),bottleneck,perHour:r2(3600/takt),first:r2(plan.schedule[0][end].out-plan.schedule[0][first].in),total:r2(last[end].out),
   fpy:r2(results.filter(r=>r.pass).length/results.length*100),placements:line.stats.placements,cph:line.stats.cph,
   // Share of the run each station spends accepting boards (the oven by its entry spacing).
-  utilisation:Object.fromEntries(STATIONS.map(s=>[s.id,r2(Math.min(100,spacing[s.id]*o.boards/Math.max(1,last.xray.out)*100))]))};
+  utilisation:Object.fromEntries(stations.map(s=>[s.id,r2(Math.min(100,spacing[s.id]*o.boards/Math.max(1,last[end].out)*100))]))};
  return plan;
 }
 
 // Each board enters a station after leaving the previous one plus the transfer, and no sooner than
 // the station accepts the next board (one board at a time, or the oven's spacing).
-export function schedule(times,spacing,n){
+export function schedule(times,spacing,n,stations=STATIONS){
  const out=[];
  for(let i=0;i<n;i++){const row={};let ready=0;
-  STATIONS.forEach((s,j)=>{const prev=i?out[i-1][s.id]:null;let tin=j?ready+TRANSFER:0;
+  stations.forEach((s,j)=>{const prev=i?out[i-1][s.id]:null;let tin=j?ready+TRANSFER:0;
    if(prev)tin=Math.max(tin,prev.in+spacing[s.id],s.id==='reflow'?0:prev.out);
    row[s.id]={in:r2(tin),out:r2(tin+times[s.id])};ready=tin+times[s.id]});
   out.push(row)}
@@ -151,9 +163,9 @@ export function schedule(times,spacing,n){
 // Where board i is at time t: inside a station, on the conveyor between two, waiting in the
 // magazine, or finished.
 export function boardAt(plan,i,t){
- const row=plan.schedule[i];if(t<row.loader.in)return {state:'queued'};
- for(let j=0;j<STATIONS.length;j++){const id=STATIONS[j].id,r=row[id];
+ const S=plan.stations,row=plan.schedule[i];if(t<row[S[0].id].in)return {state:'queued'};
+ for(let j=0;j<S.length;j++){const id=S[j].id,r=row[id];
   if(t>=r.in&&t<r.out)return {state:'in',station:id,index:j,progress:(t-r.in)/(r.out-r.in)};
-  const next=STATIONS[j+1];if(next&&t>=r.out&&t<row[next.id].in){const travel=Math.min(TRANSFER,row[next.id].in-r.out),f=travel>0?Math.min(1,(t-r.out)/travel):1;return {state:'moving',from:j,to:j+1,progress:f}}}
+  const next=S[j+1];if(next&&t>=r.out&&t<row[next.id].in){const travel=Math.min(TRANSFER,row[next.id].in-r.out),f=travel>0?Math.min(1,(t-r.out)/travel):1;return {state:'moving',from:j,to:j+1,progress:f}}}
  return {state:'done'};
 }

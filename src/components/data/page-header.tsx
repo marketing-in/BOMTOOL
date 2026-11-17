@@ -2,23 +2,27 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PackageOpen } from "lucide-react";
 
+/** `level={2}`: the header of one section of a page that holds several (a BoM step's sections). */
 export function PageHeader({
   title,
   description,
   actions,
   eyebrow,
   className,
+  level = 1,
 }: {
   title: React.ReactNode;
   description?: React.ReactNode;
   actions?: React.ReactNode;
   eyebrow?: React.ReactNode;
   className?: string;
+  level?: 1 | 2;
 }) {
+  const Heading = level === 1 ? "h1" : "h2";
   return (
-    <div className={cn("mb-8 flex flex-wrap items-end justify-between gap-x-8 gap-y-5", className)}>
+    <div className={cn("flex flex-wrap items-end justify-between gap-x-8 gap-y-5", level === 1 ? "mb-8" : "mb-6", className)}>
       <div className="min-w-0">
-        <h1 className="page-heading text-[2rem] leading-tight font-semibold tracking-tight">{title}</h1>
+        <Heading className={cn("page-heading leading-tight font-semibold tracking-tight", level === 1 ? "text-[2rem]" : "text-2xl")}>{title}</Heading>
         {eyebrow ? <div className="mt-2 text-xs text-muted-foreground">{eyebrow}</div> : null}
         {description ? <p className="mt-2 max-w-[72ch] text-sm leading-relaxed text-muted-foreground">{description}</p> : null}
       </div>

@@ -3,6 +3,7 @@
  * the .jsx/.js files: explicit extensions keep webpack and Turbopack on the real modules.
  */
 import type { ReactElement } from "react";
+import type { SimLine } from "@/lib/ops/sim-stations";
 // @ts-ignore -- vendored JSX without types; typed below
 import FactoryLineImpl from "./FactoryLine.jsx";
 // @ts-ignore -- vendored JS without types; typed below
@@ -33,5 +34,5 @@ export type RawPart = { ref: string; x?: number; y?: number; rot?: number; side?
 
 export const makePart = makePartImpl as (raw: RawPart) => CircuitflowPart;
 
-/** circuitflow's SMT line: machines on one conveyor, boards flowing on the planned schedule. */
-export const FactoryLine = FactoryLineImpl as (props: { board: CircuitflowBoard; parts: CircuitflowPart[] }) => ReactElement;
+/** circuitflow's SMT line: machines on one conveyor, boards flowing on the planned schedule — ours when `line` is given. */
+export const FactoryLine = FactoryLineImpl as (props: { board: CircuitflowBoard; parts: CircuitflowPart[]; line?: SimLine | null }) => ReactElement;

@@ -83,10 +83,10 @@ describe("a line's capability from its machines", () => {
     expect(effectiveCapability({ ...partial, capability: {} }).maxBoardMm).toEqual([600, 510]);
   });
 
-  it("adds up to the summaries on the seeded lines", () => {
+  it("never contradicts what a seeded line's summary states (our lines state little and let the machines speak)", () => {
     for (const l of LINES) {
       const c = effectiveCapability({ type: l.type, capability: l.capability, machines: l.machines.map((m, i) => ({ ...m, position: i + 1, specs: m.specs ?? null })) });
-      for (const k of ["minChip", "minPitchMm", "maxBoardMm", "minBoardMm", "maxComponentHeightMm", "bga"]) expect([l.code, k, c[k as keyof typeof c]]).toEqual([l.code, k, l.capability[k]]);
+      for (const k of ["minChip", "minPitchMm", "maxBoardMm", "minBoardMm", "maxComponentHeightMm", "bga"]) if (k in l.capability) expect([l.code, k, c[k as keyof typeof c]]).toEqual([l.code, k, l.capability[k]]);
     }
   });
 });

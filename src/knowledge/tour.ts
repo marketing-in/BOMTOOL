@@ -47,10 +47,10 @@ export const TOUR: TourChapter[] = [
         key: "footprint-match",
         title: "Footprint match",
         who: "Engineering, purchasing",
-        what: "Step 3 of every BoM: each designator's package in the BoM against the footprint on the board. A ring shows the share that match, and the board is drawn with every part coloured by its result.",
+        what: "Step 2 of every BoM, with the list of every mismatch under it: each designator's package in the BoM against the footprint on the board. A ring shows the share that match, and the board is drawn with every part coloured by its result.",
         tryIt: ["Hover a dot on the board to see the designator and why", "Open the folded list of matching designators"],
         href: "/boms/{bom}/match",
-        menu: "1 BoM → a BoM → 3 · Compare, 4 · Mismatches",
+        menu: "1 BoM → a BoM → 2 · Compare & mismatches",
       },
       {
         key: "upload-gerber",
@@ -109,7 +109,7 @@ export const TOUR: TourChapter[] = [
   {
     key: "quote",
     title: "3 · Quote it",
-    summary: "Four steps: bare board, components, box, price.",
+    summary: "Components sit with the BoM in step 1, the bare board and the price in step 3, the box (optional) in step 4.",
     stops: [
       {
         key: "build-board",
@@ -118,7 +118,7 @@ export const TOUR: TourChapter[] = [
         what: "Fabricators on file and online services, with a landed price per quantity, or type in the fab's own quote.",
         tryIt: ["Choose a fab", "Compare the price at each quantity"],
         href: "/boms/{bom}/build/board",
-        menu: "1 BoM → a BoM → 6 · Bare board",
+        menu: "1 BoM → a BoM → 3 · Estimate & quote → Bare board",
       },
       {
         key: "build-parts",
@@ -127,7 +127,7 @@ export const TOUR: TourChapter[] = [
         what: "Source the whole BoM by our own order, lowest price, shortest lead time or lowest risk — then change single lines if needed.",
         tryIt: ["Compare the four sourcing options", "Pick another source for one line"],
         href: "/boms/{bom}/build/parts",
-        menu: "1 BoM → a BoM → 8 · Components",
+        menu: "1 BoM → a BoM → 1 · BoM, Gerbers & components → Components",
       },
       {
         key: "build-quote",
@@ -136,7 +136,7 @@ export const TOUR: TourChapter[] = [
         what: "Price per board and per lot at up to four quantities, with conversion cost from the process route, NRE, margin and GST. Issue a numbered quote or export Excel.",
         tryIt: ["Change the quantities", "Open the print preview"],
         href: "/boms/{bom}/build/quote",
-        menu: "1 BoM → a BoM → 10 · Quote",
+        menu: "1 BoM → a BoM → 3 · Estimate & quote → Quote",
       },
     ],
   },
@@ -152,7 +152,7 @@ export const TOUR: TourChapter[] = [
         what: "The answer on top beside the customer's own board. Our lines are drawn as lanes of station icons and the whole process as a chain of steps — tap one to see its machine. Nine gates are signed in order; pins, paste, shifts and cost are folded underneath.",
         tryIt: ["Tap a station that is amber to read why", "Open “Solder paste and solder” to find the paste per board and per panel"],
         href: "/boms/{bom}/feasibility",
-        menu: "1 BoM → a BoM → 5 · Line fit, 7 · Estimate",
+        menu: "1 BoM → a BoM → 3 · Estimate & quote; line fit in 5 · Route & SMT line",
       },
       {
         key: "route",
@@ -161,7 +161,7 @@ export const TOUR: TourChapter[] = [
         what: "Every step from bare board to packed box as a chain of icons, placed on our lines and machines. Each step opens to why this product needs it, the parts it handles and what is checked.",
         tryIt: ["Open a step to see the parts it handles", "Press “Show in 3D” on a step"],
         href: "/boms/{bom}/route",
-        menu: "1 BoM → a BoM → 11 · Process route",
+        menu: "1 BoM → a BoM → 5 · Route & SMT line",
       },
     ],
   },

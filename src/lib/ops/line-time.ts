@@ -12,7 +12,8 @@
 
 export type Rates = { smtEfficiency: number; smtMinCycleSec: number; smtSetupHoursPerSide: number; hoursPerShift: number };
 
-export type LineIn = { id: string; code: string; name: string; type: string; shiftsPerDay: number; capacityCph: number | null };
+/** `actualCph`: the placement rate measured on our floor (all placers together); when known it replaces rated × efficiency. */
+export type LineIn = { id: string; code: string; name: string; type: string; shiftsPerDay: number; capacityCph: number | null; actualCph?: number | null };
 export type JobIn = { qty: number; sides: { side: "TOP" | "BOTTOM"; placements: number }[]; /** Hours of the lot's non-SMT stages (THT, test, box) from the capacity plan. */ otherHours: number };
 
 export type LineEstimate = {
@@ -66,7 +67,7 @@ const HOUR = 3_600_000;
 export function estimateOnLine(line: LineIn, job: JobIn, rates: Rates): Omit<LineEstimate, "fromHistory"> {
   const qty = Math.max(1, Math.round(job.qty));
   const sides = job.sides.filter((s) => s.placements > 0);
-  const effCph = line.capacityCph ? line.capacityCph * rates.smtEfficiency : null;
+  const effCph = line.actualCph ? line.actualCph : line.capacityCph ? line.capacityCph * rates.smtEfficiency : null;
   const perSide = sides.map((s) => (effCph ? Math.max(rates.smtMinCycleSec, (s.placements / effCph) * 3600) : rates.smtMinCycleSec));
   const secondsPerBoard = perSide.reduce((a, b) => a + b, 0);
   const setupHours = sides.length * rates.smtSetupHoursPerSide;
@@ -118,4 +119,15 @@ export function lineNow(line: LineIn, queue: QueueIn[], lotHours: number, now: D
   const freeAt = new Date(Math.max(now.getTime(), ...ends));
   const finishAt = new Date(freeAt.getTime() + calendarHours(lotHours, line.shiftsPerDay, hoursPerShift) * HOUR);
   return { lineId: line.id, code: line.code, running, queued, freeAt, finishAt };
+}
+
+/** A line's measured placement rate: the sum of its placers' `actualCph`, or null unless every placer states one. */
+export function measuredCph(machines: { type: string; specs: unknown }[]): number | null {
+  const placers = machines.filter((m) => m.type === "PICK_AND_PLACE");
+  if (!placers.length) return null;
+  const rates = placers.map((m) => {
+    const v = m.specs && typeof m.specs === "object" ? (m.specs as Record<string, unknown>).actualCph : undefined;
+    return typeof v === "number" && v > 0 ? v : null;
+  });
+  return rates.every((r) => r !== null) ? rates.reduce((a, b) => a + (b ?? 0), 0) : null;
 }

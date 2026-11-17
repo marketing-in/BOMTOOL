@@ -1,18 +1,15 @@
-import { notFound, redirect } from "next/navigation";
-import { db } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
-import { boardFrameFor, footprintMatchFor } from "@/server/workflow";
-import { FootprintMatchView } from "@/components/bom/footprint-match";
+import { StepPage } from "@/components/bom/step-page";
+import CompareSection from "../_sections/match";
+import MismatchSection from "../_sections/mismatch";
+import { openRevision, stepTitle } from "../_sections/guard";
 
-export const metadata = { title: "Footprint match" };
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  return stepTitle((await params).id, "Compare & mismatches");
+}
 
-/** Step 3 of the process: do the BoM and the board agree, designator by designator? */
-export default async function FootprintMatchPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireUser();
+/** Step 2: the BoM against the board designator by designator, then every mismatch in one list — one page. */
+export default async function CompareStepPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const rev = await db.bomRevision.findUnique({ where: { id }, select: { status: true, board: { select: { widthMm: true, heightMm: true } } } });
-  if (!rev) notFound();
-  if (rev.status === "DRAFT") redirect(`/boms/${id}/map`);
-  const [match, frame] = await Promise.all([footprintMatchFor(id), boardFrameFor(id).catch(() => null)]);
-  return <FootprintMatchView match={match} revisionId={id} board={rev.board} art={frame?.hasTop ? { href: `/boms/${id}/picture`, box: frame.box } : null} />;
+  await openRevision(id);
+  return <StepPage step="compare" sections={{ match: <CompareSection id={id} />, mismatch: <MismatchSection id={id} /> }} />;
 }

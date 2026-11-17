@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import type { Scores } from "@/lib/bom/scores";
-import { stepProgress, type StepKey, type StepState } from "@/lib/bom/workflow";
+import { stepProgress, type SectionKey, type StepState } from "@/lib/bom/workflow";
 import { workflowFor } from "@/server/workflow";
 import { boardThumbFor, type BoardThumb } from "@/server/board-thumb";
 
@@ -49,7 +49,7 @@ export async function bomCards(limit?: number): Promise<BomCardData[]> {
     Promise.all(rich.map((r) => boardThumbFor(r.id).catch(() => null))),
   ]);
   return revisions.map((r, i) => {
-    const states = (flows[i]?.states ?? null) as Record<StepKey, StepState> | null;
+    const states = (flows[i]?.states ?? null) as Record<SectionKey, StepState> | null;
     return {
       id: r.id,
       name: r.bom.name,

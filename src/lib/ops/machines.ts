@@ -82,7 +82,8 @@ export const MACHINE_KINDS: Record<string, Kind> = {
   INSPECTION_STATION: { label: "Final inspection", stage: "inspect", dict: null, fields: [], conveyor: false },
   PROGRAMMER: { label: "Programmer", stage: "test", dict: "functional-tester", fields: [], conveyor: false },
   BURN_IN: { label: "Burn-in chamber", stage: "test", dict: "burn-in-chamber", fields: ["maxBoardMm"], conveyor: false },
-  LASER_MARKER: { label: "Laser marker", stage: "box", dict: "laser-marking-machine", fields: ["maxBoardMm"], conveyor: false },
+  // Inline at the head of an SMT line (our Line 1), so its board size and thickness bind the line.
+  LASER_MARKER: { label: "Laser marker", stage: "box", dict: "laser-marking-machine", fields: [...BOARD, "minThicknessMm", "maxThicknessMm"], conveyor: true },
   DISPATCH: { label: "Dispatch", stage: "ship", dict: null, fields: [], conveyor: false },
   OTHER: { label: "Station", stage: "other", dict: null, fields: [], conveyor: false },
 };
@@ -462,6 +463,9 @@ export function checkLine(line: LineIn, needs: BuildNeeds, plant: PlantMachines)
 
   if (smtLine && needs.smt.placements) {
     roles.push("smt");
+    // An inline laser marker (our Line 1) takes every board first, so its size and thickness limits bind the line.
+    const markers = of("LASER_MARKER");
+    if (markers.length) steps.push({ ...stepFrom("load", markers, markers.flatMap((m) => boardChecks(m, needs, cap))), label: "Laser marking" });
     const printers = of("STENCIL_PRINTER");
     steps.push(printers.length ? stepFrom("print", printers, printers.flatMap((m, i) => boardChecks(m, needs, cap, { entry: i === 0 }))) : missingStep("print", "red", "no stencil printer on this line"));
     const spi = of("SPI");
@@ -480,7 +484,12 @@ export function checkLine(line: LineIn, needs: BuildNeeds, plant: PlantMachines)
     if (needs.smt.hidden || needs.smt.hasBga) {
       const xray = of("XRAY");
       const what = `${needs.smt.hidden} part${needs.smt.hidden === 1 ? " has" : "s have"} joints under the body`;
-      steps.push(xray.length ? stepFrom("xray", xray, xray.flatMap((m) => boardChecks(m, needs, cap))) : plant.has("XRAY") ? missingStep("xray", "amber", `${what}: X-ray them on another line's machine`) : missingStep("xray", "red", `${what} and there is no X-ray in the plant`));
+      // No X-ray anywhere: BGAs cannot be built blind; bottom-terminated parts (QFN, DFN…) are, with AOI on the
+      // visible fillet and a sectioned or outsourced sample.
+      const noXray = needs.smt.hasBga
+        ? missingStep("xray", "red", `${what}, BGAs among them, and there is no X-ray in the plant — outsource X-ray or add one`)
+        : missingStep("xray", "amber", `${what} and there is no X-ray in the plant — AOI on the visible fillet plus an outsourced X-ray or cross-section of the first boards`);
+      steps.push(xray.length ? stepFrom("xray", xray, xray.flatMap((m) => boardChecks(m, needs, cap))) : plant.has("XRAY") ? missingStep("xray", "amber", `${what}: X-ray them on another line's machine`) : noXray);
     }
   }
 

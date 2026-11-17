@@ -154,9 +154,9 @@ export function FootprintMatchView({ match: m, revisionId, board, art = null }: 
       <section aria-label="Result" className={cn("flex flex-wrap items-center gap-6 rounded-lg border px-5 py-5", t.box)}>
         <MatchRing m={m} />
         <div className="min-w-0 flex-1">
-          <h1 className={cn("flex items-center gap-2 text-2xl leading-tight font-bold tracking-tight", t.text)}>
+          <h2 className={cn("flex items-center gap-2 text-2xl leading-tight font-bold tracking-tight", t.text)}>
             <t.icon className="size-6 shrink-0" aria-hidden /> {m.title}
-          </h1>
+          </h2>
           <p className="mt-1.5 max-w-[70ch] text-sm">{m.summary}</p>
           <p className="mt-3 text-sm font-medium">
             {m.level === "green"

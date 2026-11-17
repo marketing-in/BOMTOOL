@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { ASSEMBLY } from "@/data/assembly";
 import { getFeasibility } from "@/server/feasibility";
 import { lineFitFor } from "@/server/lines";
-import { estimateAll, historyRow, lineNow, type HistoryIn, type LineIn, type QueueIn } from "@/lib/ops/line-time";
+import { estimateAll, historyRow, lineNow, measuredCph, type HistoryIn, type LineIn, type QueueIn } from "@/lib/ops/line-time";
 
 /**
  * Line fit for one BoM revision (Part 1): which lines can build it machine by machine, how long the lot takes on each,
@@ -24,8 +24,8 @@ export const lineTimeFor = cache(async (revisionId: string, wantQty?: number) =>
   const otherHours = f.capacity.stages.filter((s) => !s.key.startsWith("smt-")).reduce((s, x) => s + x.hours, 0);
   const job = { qty: f.qty, sides, otherHours };
 
-  const smtLines: LineIn[] = lines.filter((l) => l.type === "SMT" || l.type === "MIXED").map((l) => ({ id: l.id, code: l.code, name: l.name, type: l.type, shiftsPerDay: l.shiftsPerDay, capacityCph: l.capacityCph }));
-  const allLines: LineIn[] = lines.map((l) => ({ id: l.id, code: l.code, name: l.name, type: l.type, shiftsPerDay: l.shiftsPerDay, capacityCph: l.capacityCph }));
+  const smtLines: LineIn[] = lines.filter((l) => l.type === "SMT" || l.type === "MIXED").map((l) => ({ id: l.id, code: l.code, name: l.name, type: l.type, shiftsPerDay: l.shiftsPerDay, capacityCph: l.capacityCph, actualCph: measuredCph(l.machines) }));
+  const allLines: LineIn[] = lines.map((l) => ({ id: l.id, code: l.code, name: l.name, type: l.type, shiftsPerDay: l.shiftsPerDay, capacityCph: l.capacityCph, actualCph: measuredCph(l.machines) }));
 
   // ── Older jobs: finished work orders, newest first, with placements per board from their own BoM.
   const done = await db.workOrder.findMany({

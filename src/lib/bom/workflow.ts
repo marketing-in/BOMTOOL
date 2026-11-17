@@ -1,29 +1,66 @@
 /**
- * One BoM's process, in order (Part 1 of the four-part app): the BoM and its Gerbers, the two compared, every
- * mismatch in one list, which line and machines can build it and how long, the bare board, the estimate, then the
- * components, box, quote and production. The same numbered strip is on every page of the BoM, with Back / Next from
- * the same list. Pure.
+ * One BoM's process, in five steps (Part 1 of the four-part app), each one page that holds the sections that belong
+ * together: 1 the BoM, its Gerbers and its components · 2 the BoM against the board and every mismatch · 3 the
+ * estimate, bare board and quote · 4 the box, optional · 5 the process route, which line fits and the SMT line
+ * running it. A section's old address still works: it opens its step's page at that section. The same numbered
+ * strip is on every page of the BoM, with Back / Next from the same list. Pure.
  */
 
-export type StepKey = "bom" | "gerbers" | "match" | "mismatch" | "lines" | "board" | "feasibility" | "parts" | "box" | "quote" | "route" | "line";
+/** The parts of the process the data can judge, each a section of one step's page. */
+export type SectionKey = "bom" | "gerbers" | "match" | "mismatch" | "lines" | "board" | "feasibility" | "parts" | "box" | "quote" | "route" | "line";
+export type StepKey = "files" | "compare" | "estimate" | "box" | "production";
 export type ViewKey = "analysis" | "supply" | "reverse" | "viewer";
 
-export type Step = { key: StepKey; n: number; label: string; path: string; /** Other pages that belong to this step. */ also?: string[] };
+/** `path`: the section's own address (it redirects to the step's page at `#anchor`); `also`: other pages that belong to it. */
+export type Section = { key: SectionKey; label: string; path: string; anchor: string; also?: string[] };
+export type Step = { key: StepKey; n: number; label: string; path: string; sections: Section[]; /** Not every product needs it, so it is never the step to take next. */ optional?: boolean };
 export type View = { key: ViewKey; label: string; path: string };
 
 export const WORKFLOW: Step[] = [
-  { key: "bom", n: 1, label: "BoM", path: "", also: ["/map", "/diff", "/quote"] },
-  { key: "gerbers", n: 2, label: "Gerbers", path: "/board" },
-  { key: "match", n: 3, label: "Compare", path: "/match" },
-  { key: "mismatch", n: 4, label: "Mismatches", path: "/mismatch" },
-  { key: "lines", n: 5, label: "Line fit", path: "/lines" },
-  { key: "board", n: 6, label: "Bare board", path: "/build/board" },
-  { key: "feasibility", n: 7, label: "Estimate", path: "/feasibility" },
-  { key: "parts", n: 8, label: "Components", path: "/build/parts" },
-  { key: "box", n: 9, label: "Box", path: "/build/box" },
-  { key: "quote", n: 10, label: "Quote", path: "/build/quote", also: ["/build/print"] },
-  { key: "route", n: 11, label: "Process route", path: "/route" },
-  { key: "line", n: 12, label: "SMT line", path: "/line" },
+  {
+    key: "files",
+    n: 1,
+    label: "BoM, Gerbers & components",
+    path: "",
+    sections: [
+      { key: "bom", label: "BoM", path: "", anchor: "bom", also: ["/map", "/diff", "/quote"] },
+      { key: "gerbers", label: "Gerbers", path: "/board", anchor: "gerbers" },
+      { key: "parts", label: "Components", path: "/build/parts", anchor: "components" },
+    ],
+  },
+  {
+    key: "compare",
+    n: 2,
+    label: "Compare & mismatches",
+    path: "/match",
+    sections: [
+      { key: "match", label: "Compare", path: "/match", anchor: "compare" },
+      { key: "mismatch", label: "Mismatches", path: "/mismatch", anchor: "mismatches" },
+    ],
+  },
+  {
+    key: "estimate",
+    n: 3,
+    label: "Estimate & quote",
+    path: "/feasibility",
+    sections: [
+      { key: "feasibility", label: "Estimate", path: "/feasibility", anchor: "estimate" },
+      { key: "board", label: "Bare board", path: "/build/board", anchor: "bare-board", also: ["/build"] },
+      { key: "quote", label: "Quote", path: "/build/quote", anchor: "quote", also: ["/build/print"] },
+    ],
+  },
+  { key: "box", n: 4, label: "Box", path: "/build/box", optional: true, sections: [{ key: "box", label: "Box", path: "/build/box", anchor: "box" }] },
+  {
+    key: "production",
+    n: 5,
+    label: "Route & SMT line",
+    path: "/route",
+    sections: [
+      { key: "route", label: "Process route", path: "/route", anchor: "route" },
+      { key: "lines", label: "Line fit", path: "/lines", anchor: "line-fit" },
+      { key: "line", label: "SMT line", path: "/line", anchor: "smt-line" },
+    ],
+  },
 ];
 
 /** Views of the same BoM that are not steps of the process. */
@@ -36,22 +73,37 @@ export const MORE: View[] = [
 
 const under = (rest: string, p: string) => rest === p || rest.startsWith(`${p}/`);
 
-/** Which step or view a page of the BoM belongs to, from the path after `/boms/<id>`. */
-export function locate(rest: string): { step: Step | null; view: View | null } {
+/** Which step (and section) or view a page of the BoM belongs to, from the path after `/boms/<id>`. */
+export function locate(rest: string): { step: Step | null; section: Section | null; view: View | null } {
   const r = rest.replace(/\/+$/, "");
   // Longest matching path wins: /build/board is the bare board, not the BoM.
-  let best: { len: number; step: Step | null; view: View | null } = { len: -1, step: null, view: null };
-  for (const s of WORKFLOW) for (const p of [s.path, ...(s.also ?? [])]) if (p && under(r, p) && p.length > best.len) best = { len: p.length, step: s, view: null };
-  for (const v of MORE) if (under(r, v.path) && v.path.length > best.len) best = { len: v.path.length, step: null, view: v };
-  if (best.len >= 0) return { step: best.step, view: best.view };
-  // `/build` alone opens the bare board; anything else is the BoM itself.
-  if (r === "/build") return { step: WORKFLOW.find((s) => s.key === "board")!, view: null };
-  return { step: WORKFLOW[0], view: null };
+  let best: { len: number; step: Step | null; section: Section | null; view: View | null } = { len: -1, step: null, section: null, view: null };
+  for (const st of WORKFLOW)
+    for (const sec of st.sections)
+      for (const p of [sec.path, ...(sec.also ?? [])]) if (p && under(r, p) && p.length > best.len) best = { len: p.length, step: st, section: sec, view: null };
+  for (const v of MORE) if (under(r, v.path) && v.path.length > best.len) best = { len: v.path.length, step: null, section: null, view: v };
+  if (best.len >= 0) return { step: best.step, section: best.section, view: best.view };
+  return { step: WORKFLOW[0], section: WORKFLOW[0].sections[0], view: null };
 }
 
 export function neighbours(step: Step): { prev: Step | null; next: Step | null } {
   const i = WORKFLOW.findIndex((s) => s.key === step.key);
   return { prev: WORKFLOW[i - 1] ?? null, next: WORKFLOW[i + 1] ?? null };
+}
+
+/** The step a section is on. */
+export function stepOf(key: SectionKey): { step: Step; section: Section } {
+  for (const step of WORKFLOW) for (const section of step.sections) if (section.key === key) return { step, section };
+  throw new Error(`No section ${key}`);
+}
+
+/** Where a section lives now: its step's page with the query kept, scrolled to the section. */
+export function sectionHref(id: string, key: SectionKey, query?: Record<string, string | string[] | undefined>): string {
+  const { step, section } = stepOf(key);
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(query ?? {})) for (const x of Array.isArray(v) ? v : v === undefined ? [] : [v]) qs.append(k, x);
+  const q = qs.toString();
+  return `/boms/${id}${step.path}${q ? `?${q}` : ""}#${section.anchor}`;
 }
 
 // ── How far each step has got
@@ -76,7 +128,7 @@ export type StepState = { state: "done" | "attention" | "todo"; note: string } |
 const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString("en-IN")} ${n === 1 ? one : many}`;
 
 /** Done (green), needs attention (amber) or not started, where the data can say; null where it cannot. */
-export function stepStates(f: StepFacts): Record<StepKey, StepState> {
+export function sectionStates(f: StepFacts): Record<SectionKey, StepState> {
   return {
     bom: !f.mapped
       ? { state: "attention", note: "Columns still to map" }
@@ -111,19 +163,39 @@ export function stepStates(f: StepFacts): Record<StepKey, StepState> {
 
 // ── Progress, for a card or a list
 
-export type StepProgress = { key: StepKey; n: number; label: string; path: string; state: "done" | "attention" | "todo" | "unknown"; note: string | null };
+/**
+ * A step's state from its sections': needs a look when any section does, done when every section the data can judge
+ * is, not started when none is, and needs a look when some are done and others not started. Null when the data can
+ * judge none of its sections.
+ */
+export function stepState(step: Step, sections: Record<SectionKey, StepState>): StepState {
+  const known = step.sections.map((s) => ({ s, st: sections[s.key] })).filter((x): x is { s: Section; st: NonNullable<StepState> } => !!x.st);
+  if (!known.length) return null;
+  const many = step.sections.length > 1;
+  const say = (x: { s: Section; st: NonNullable<StepState> }) => (many ? `${x.s.label}: ${x.st.note}` : x.st.note);
+  const look = known.find((x) => x.st.state === "attention");
+  if (look) return { state: "attention", note: say(look) };
+  const todo = known.filter((x) => x.st.state === "todo");
+  if (!todo.length) return { state: "done", note: known.map(say).join(" · ") };
+  return { state: todo.length === known.length ? "todo" : "attention", note: say(todo[0]) };
+}
+
+export type StepProgress = { key: StepKey; n: number; label: string; path: string; optional: boolean; state: "done" | "attention" | "todo" | "unknown"; note: string | null };
 
 /**
  * A BoM's steps in order with how far each has got, how many are done or need a look, and the step to take
- * next: the first one that needs attention or has not been started. Steps the data cannot judge are "unknown" and
- * never the next step.
+ * next: the first one that needs attention or has not been started. Steps the data cannot judge are "unknown" and,
+ * like optional steps, never the next step.
  */
-export function stepProgress(states: Record<StepKey, StepState>): { steps: StepProgress[]; done: number; look: number; next: StepProgress | null } {
-  const steps = WORKFLOW.map((s): StepProgress => ({ key: s.key, n: s.n, label: s.label, path: s.path, state: states[s.key]?.state ?? "unknown", note: states[s.key]?.note ?? null }));
+export function stepProgress(sections: Record<SectionKey, StepState>): { steps: StepProgress[]; done: number; look: number; next: StepProgress | null } {
+  const steps = WORKFLOW.map((s): StepProgress => {
+    const st = stepState(s, sections);
+    return { key: s.key, n: s.n, label: s.label, path: s.path, optional: !!s.optional, state: st?.state ?? "unknown", note: st?.note ?? null };
+  });
   return {
     steps,
     done: steps.filter((s) => s.state === "done").length,
     look: steps.filter((s) => s.state === "attention").length,
-    next: steps.find((s) => s.state === "attention" || s.state === "todo") ?? null,
+    next: steps.find((s) => !s.optional && (s.state === "attention" || s.state === "todo")) ?? null,
   };
 }

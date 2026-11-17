@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { db } from "@/lib/db";
 import { GATES, readSignoffs } from "@/lib/feasibility/gates";
-import { stepStates, type StepFacts } from "@/lib/bom/workflow";
+import { sectionStates, type StepFacts } from "@/lib/bom/workflow";
 import { matchFootprints, matchNote, type FootprintMatch } from "@/lib/board/footprint-match";
 import { findMismatches, mismatchNote, type Mismatches } from "@/lib/bom/mismatch";
 
@@ -68,5 +68,5 @@ export const workflowFor = cache(async (revisionId: string) => {
     draft: { board: !!draft?.board, box: !!draft?.box, issued: drafts.some((d) => d.status === "ISSUED") },
   };
   // Red: the BoM and the board disagree, so the machine check should wait.
-  return { name: `${rev.bom.name} rev ${rev.revision}`, states: stepStates(facts), matchBlocked: rev.status !== "DRAFT" && match.hasBoard && match.level === "red" };
+  return { name: `${rev.bom.name} rev ${rev.revision}`, states: sectionStates(facts), matchBlocked: rev.status !== "DRAFT" && match.hasBoard && match.level === "red" };
 });

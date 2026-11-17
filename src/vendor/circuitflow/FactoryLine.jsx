@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {Play,Pause,RotateCcw,ArrowLeft} from 'lucide-react';
-import {STATIONS,planProduction,boardAt,DEFAULTS} from './factoryLine.js';
+import {planProduction,boardAt,DEFAULTS} from './factoryLine.js';
 import {createKit,stepAt} from './factory/common.js';
 import {createLineModels} from './factoryModels.js';
 import {boardSlab,boardTexture} from './boardLook.js';
@@ -16,15 +16,17 @@ import {partPads} from './blueprint';
 // (or its button below) opens the inner view: that machine's own cycle in 3D plus its process data.
 const INNER={'./factory/loader.js':()=>import('./factory/loader.js'),'./factory/printer.js':()=>import('./factory/printer.js'),'./factory/spi.js':()=>import('./factory/spi.js'),'./factory/pnp.js':()=>import('./factory/pnp.js'),'./factory/reflow.js':()=>import('./factory/reflow.js'),'./factory/aoi.js':()=>import('./factory/aoi.js')};
 const PANELS={loader:lazy(()=>import('./factory/loaderPanel.jsx')),printer:lazy(()=>import('./factory/printerPanel.jsx')),spi:lazy(()=>import('./factory/spiPanel.jsx')),pnp:lazy(()=>import('./factory/pnpPanel.jsx')),reflow:lazy(()=>import('./factory/reflowPanel.jsx')),aoi:lazy(()=>import('./factory/aoiPanel.jsx'))};
-const WIDTH={loader:1.6,printer:2.2,spi:1.6,pnp:2.6,reflow:6.4,aoi:1.6,xray:2.0},GAP=.9,DEPTH=1.9,CY=.92;
+const WIDTH={marker:1.4,loader:1.6,printer:2.2,spi:1.6,pnp:2.6,reflow:6.4,aoi:1.6,xray:2.0},GAP=.9,DEPTH=1.9,CY=.92;
 const RATES=[[1,'1×'],[10,'10×'],[50,'50×']];
 const secs=s=>s<60?s.toFixed(1)+' s':s<3600?Math.floor(s/60)+' min '+String(Math.round(s%60)).padStart(2,'0')+' s':(s/3600).toFixed(1)+' h';
 const label=(text,THREEns)=>{const c=document.createElement('canvas');c.width=512;c.height=112;const x=c.getContext('2d');x.fillStyle='rgba(28,27,24,.86)';x.beginPath();x.roundRect(4,8,504,96,12);x.fill();x.fillStyle='#d9824a';x.fillRect(4,8,8,96);x.fillStyle='#ecebe5';x.font='500 46px "IBM Plex Sans", system-ui, sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(text,262,58);
  const t=new THREEns.CanvasTexture(c);t.colorSpace=THREEns.SRGBColorSpace;const sp=new THREEns.Sprite(new THREEns.SpriteMaterial({map:t,depthTest:true}));sp.scale.set(1.5,.33,1);return sp};
 
-export default function FactoryLine({board,parts}){
+// `line`: one of our lines (src/lib/ops/sim-stations.ts) — its stations, machines and sheet rates; without it, circuitflow's own line.
+export default function FactoryLine({board,parts,line}){
  const [cfg,setCfg]=useState(DEFAULTS);
- const plan=useMemo(()=>planProduction(board,parts,cfg),[board,parts,cfg]);
+ const plan=useMemo(()=>planProduction(board,parts,{...cfg,line}),[board,parts,cfg,line]);
+ const S=plan.stations,first=S[0].id,end=S[S.length-1].id;
  const total=plan.stats.total;
  const [playing,setPlaying]=useState(false),[rate,setRate]=useState(10),[ui,setUi]=useState({T:0,status:{}}),[focus,setFocus]=useState(null),[inner,setInner]=useState({t:0,step:0,duration:1,steps:[],k:0}),[failed,setFailed]=useState(false);
  const host=useRef(null),clock=useRef({T:0,seek:0,playing:false,rate:10,innerT:0,innerSeek:null}),api=useRef(null);
@@ -41,15 +43,15 @@ export default function FactoryLine({board,parts}){
    if(!withFloor)return;const floor=new THREE.Mesh(keep(new THREE.PlaneGeometry(400,400)),keep(new THREE.ShadowMaterial({opacity:.1})));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;sc.add(floor)};
   // --- overview scene
   const scene=new THREE.Scene();lights(scene,false);scene.background=new THREE.Color(0xd5d6d1);scene.fog=new THREE.Fog(0xd5d6d1,22,48);
-  const lineLen=STATIONS.reduce((s,st)=>s+WIDTH[st.id],0)+GAP*(STATIONS.length-1),x0=-lineLen/2,X={};let cx=x0;
-  for(const st of STATIONS){X[st.id]={left:cx,right:cx+WIDTH[st.id],mid:cx+WIDTH[st.id]/2};cx+=WIDTH[st.id]+GAP}
+  const lineLen=S.reduce((s,st)=>s+WIDTH[st.id],0)+GAP*(S.length-1),x0=-lineLen/2,X={};let cx=x0;
+  for(const st of S){X[st.id]={left:cx,right:cx+WIDTH[st.id],mid:cx+WIDTH[st.id]/2};cx+=WIDTH[st.id]+GAP}
   // Machines, link conveyors and the unloader (factoryModels.js); every machine part is clickable.
   const models=createLineModels(THREE),endX=cx+.25,machines=[],towers={},units={};
-  for(const st of STATIONS){const m=models.machine(st.id,{x:X[st.id].mid,w:WIDTH[st.id]-.08,d:DEPTH,cy:CY});scene.add(m.group);
+  for(const st of S){const m=models.machine(st.id,{x:X[st.id].mid,w:WIDTH[st.id]-.08,d:DEPTH,cy:CY});scene.add(m.group);
    for(const h of m.hit){h.userData.station=st.id;machines.push(h)}towers[st.id]=m.lamps;units[st.id]=m;
-   const top=new THREE.Box3().setFromObject(m.group).max.y,sp=label(st.short,THREE);sp.position.set(X[st.id].mid,top+.32,0);scene.add(sp);owned.push(sp.material.map,sp.material)}
-  STATIONS.slice(1).forEach((st,j)=>scene.add(models.link(X[STATIONS[j].id].right,X[st.id].left,CY)));
-  scene.add(models.environment(x0,endX+1.1));scene.add(models.link(X.xray.right,endX,CY));const unload=models.unloader(endX+.55,CY);scene.add(unload.group);
+   const top=new THREE.Box3().setFromObject(m.group).max.y,sp=label(st.label||st.short,THREE);sp.position.set(X[st.id].mid,top+.32,0);scene.add(sp);owned.push(sp.material.map,sp.material)}
+  S.slice(1).forEach((st,j)=>scene.add(models.link(X[S[j].id].right,X[st.id].left,CY)));
+  scene.add(models.environment(x0,endX+1.1));scene.add(models.link(X[end].right,endX,CY));const unload=models.unloader(endX+.55,CY);scene.add(unload.group);
   // --- boards: the studio board itself — its outline and artwork per stage, and its real part models
   // (built at studio scale and shrunk, so small parts keep their true size; boxes on very large runs).
   const maxDim=Math.max(board.width,board.height),f=.8/maxDim,REF=10/maxDim;
@@ -63,13 +65,13 @@ export default function FactoryLine({board,parts}){
   const at=(id,p)=>id==='reflow'?entry(id)+(exit(id)-entry(id))*p:X[id].mid;
   const applyLine=T=>{const busy={},failed={};let good=0,bad=0;
    for(const b of boards){const s=boardAt(plan,b.i,T),row=plan.schedule[b.i];let stage=0;
-    if(T>=row.printer.out)stage=1;if(T>=row.reflow.out)stage=2;b.plate.material[0]=topMats[stage];if(b.pm)b.pm.visible=T>=row.pnp.out;
+    if(row.printer&&T>=row.printer.out)stage=1;if(row.reflow&&T>=row.reflow.out)stage=2;b.plate.material[0]=topMats[stage];if(b.pm)b.pm.visible=!!row.pnp&&T>=row.pnp.out;
     if(s.state==='queued'){b.g.visible=false;continue}b.g.visible=true;
     if(s.state==='in'){busy[s.station]=true;b.g.position.set(at(s.station,s.progress),CY,0)}
-    else if(s.state==='moving'){const a=STATIONS[s.from].id,c=STATIONS[s.to].id;b.g.position.set(exit(a)+(entry(c)-exit(a))*s.progress,CY,0)}
+    else if(s.state==='moving'){const a=S[s.from].id,c=S[s.to].id;b.g.position.set(exit(a)+(entry(c)-exit(a))*s.progress,CY,0)}
     else{const ok=plan.results[b.i].pass,n=ok?good++:bad++;b.g.position.set(endX+.55,CY+.03+n*.04,ok?unload.slots.ok:unload.slots.ng)}}
-   const queued=boards.filter(b=>T<plan.schedule[b.i].loader.out).length;units.loader.setRemaining(queued);
-   for(const st of STATIONS){const done=plan.schedule.filter(r=>T>=r[st.id].out).length;const last=done?plan.results[done-1]:null;
+   const queued=boards.filter(b=>T<plan.schedule[b.i][first].out).length;units.loader?.setRemaining(queued);
+   for(const st of S){const done=plan.schedule.filter(r=>T>=r[st.id].out).length;const last=done?plan.results[done-1]:null;
     failed[st.id]=!!last&&((st.id==='spi'&&last.counts.spiFail>0)||(st.id==='aoi'&&last.counts.aoiFail>0)||(st.id==='xray'&&last.counts.xrayFail>0));
     const [g,a,r]=towers[st.id];g.material.emissiveIntensity=busy[st.id]?1.4:0;a.material.emissiveIntensity=!busy[st.id]&&!failed[st.id]?1.1:0;r.material.emissiveIntensity=failed[st.id]?1.4:0;
     // Operator screen: redrawn only when what it shows changes.
@@ -100,7 +102,7 @@ export default function FactoryLine({board,parts}){
   const tick=now=>{raf=requestAnimationFrame(tick);const dt=Math.min(.1,(now-last)/1000);last=now;const c=clock.current;
    if(c.seek!=null){c.T=c.seek;c.seek=null;status=applyLine(c.T)}
    if(c.playing){c.T=Math.min(total,c.T+dt*c.rate);status=applyLine(c.T);anim+=dt;if(c.T>=total){c.playing=false;setPlaying(false)}}
-   if(!innerObj)for(const st of STATIONS)units[st.id].update(anim,!!status.busy?.[st.id]);
+   if(!innerObj)for(const st of S)units[st.id].update(anim,!!status.busy?.[st.id]);
    if(innerObj){const d=innerObj.duration;if(c.innerSeek!=null){c.innerT=c.innerSeek;c.innerSeek=null}else c.innerT+=dt*(innerObj.rate||1)*(c.innerRate||1);if(c.innerT>d+1.2)c.innerT=0;const r=innerObj.update(Math.min(d,c.innerT));
     // A station can ask the camera to follow something (the board through the oven): keep the offset, move the target.
     if(r?.target){const want=new THREE.Vector3(...r.target),off=camera.position.clone().sub(controls.target),next=controls.target.clone().lerp(want,.2);controls.target.copy(next);camera.position.copy(next).add(off)}}
@@ -118,12 +120,12 @@ export default function FactoryLine({board,parts}){
  useEffect(()=>{if(focus)api.current?.openInner(focus,boardFor(focus));else api.current?.backToLine()},[focus]);// eslint-disable-line react-hooks/exhaustive-deps
  const seek=T=>{const v=Math.max(0,Math.min(total,T));clock.current.seek=v;setUi(u=>({...u,T:v}))};
  const set=(k,v)=>setCfg(c=>({...c,[k]:v}));
- const st=plan.stats,now=ui.T,station=STATIONS.find(s=>s.id===focus),Panel=focus?PANELS[focus]:null;
+ const st=plan.stats,now=ui.T,station=S.find(s=>s.id===focus),Panel=focus?PANELS[focus]:null;
  const stateOf=id=>ui.status?.failed?.[id]?'fail':ui.status?.busy?.[id]?'run':'idle';
 
  return <section className="factory" aria-label="Production line">
   <div className="factory-bar">
-   {focus?<><button type="button" className="button small" onClick={()=>setFocus(null)}><ArrowLeft size={14}/>Line</button><h3>{station.name}</h3><span className="subtle-tag">Simulated</span>
+   {focus?<><button type="button" className="button small" onClick={()=>setFocus(null)}><ArrowLeft size={14}/>Line</button><h3>{station.name}{station.machine?<small className="muted"> · {station.machine}</small>:null}</h3><span className="subtle-tag">Simulated</span>
     <label className="factory-field">Board<select aria-label="Board shown" value={inner.k} onChange={e=>api.current?.openInner(focus,+e.target.value)}>{plan.schedule.map((_,i)=><option key={i} value={i}>{i+1}</option>)}</select></label></>
    :<><button type="button" className="icon-button" aria-label={playing?'Pause production':'Run production'} onClick={()=>{if(clock.current.T>=total)seek(0);setPlaying(p=>!p)}}>{playing?<Pause size={17}/>:<Play size={17}/>}</button>
     <button type="button" className="icon-button" aria-label="Restart production" onClick={()=>{setPlaying(false);seek(0)}}><RotateCcw size={16}/></button>
@@ -137,19 +139,21 @@ export default function FactoryLine({board,parts}){
    {focus&&inner.steps.length>0&&<div className="factory-step" aria-live="polite"><b>{inner.step+1}/{inner.steps.length}</b> {inner.steps[inner.step]?.label}</div>}
    {!focus&&<div className="factory-hint">Click a machine</div>}</div>
   {focus?<div className="factory-detail">
+    {station.facts?.length?<dl className="factory-facts">{station.facts.map(f=><div key={f.label}><dt>{f.label}</dt><dd>{f.value}</dd></div>)}</dl>:null}
     <div className="factory-inner-bar"><input type="range" min="0" max={inner.duration} step="0.01" value={inner.t} aria-label="Cycle time" onChange={e=>{clock.current.innerSeek=+e.target.value}}/><span className="factory-time">{secs(inner.t)} / {secs(inner.duration)}</span>
      <div className="segmented" role="group" aria-label="Cycle speed">{[[.5,'½×'],[1,'1×'],[3,'3×']].map(([v,l])=><button type="button" key={v} aria-pressed={(clock.current.innerRate||1)===v} className={(clock.current.innerRate||1)===v?'active':''} onClick={()=>{clock.current.innerRate=v;setInner(s=>({...s}))}}>{l}</button>)}</div></div>
     <div className="factory-columns"><ol className="factory-steps">{inner.steps.map((s,i)=><li key={i} className={i===inner.step?'now':i<inner.step?'done':''}><button type="button" onClick={()=>{clock.current.innerSeek=s.t}}><span className="numeric">{secs(s.t)}</span>{s.label}</button></li>)}</ol>
      <div className="factory-data">{Panel?<Suspense fallback={<p className="muted">Loading…</p>}><Panel plan={plan} result={plan.results[inner.k]} k={inner.k} t={inner.t} duration={inner.duration}/></Suspense>:null}</div></div>
    </div>
   :<><dl className="factory-stats">
-    <div><dt>Takt</dt><dd>{secs(st.takt)}<small> {STATIONS.find(s=>s.id===st.bottleneck).short}</small></dd></div>
+    <div><dt>Takt</dt><dd>{secs(st.takt)}<small> {S.find(s=>s.id===st.bottleneck).short}</small></dd></div>
     <div><dt>Per hour</dt><dd>{Math.floor(st.perHour)}<small> boards</small></dd></div>
     <div><dt>First board</dt><dd>{secs(st.first)}</dd></div>
     <div><dt>{cfg.boards} boards</dt><dd>{secs(st.total)}</dd></div>
     <div><dt>First pass</dt><dd>{Math.round(st.fpy)}<small>%</small></dd></div>
    </dl>
-   <ol className="factory-stations">{STATIONS.map(s=><li key={s.id} className={stateOf(s.id)+(st.bottleneck===s.id?' bottleneck':'')}><button type="button" aria-label={`Open ${s.name}`} onClick={()=>setFocus(s.id)}><i/><strong>{s.short}</strong><span className="numeric">{secs(plan.times[s.id])}</span><small>{Math.round(st.utilisation[s.id])}% busy</small></button></li>)}</ol>
+   <ol className="factory-stations">{S.map(s=><li key={s.id} className={stateOf(s.id)+(st.bottleneck===s.id?' bottleneck':'')}><button type="button" aria-label={`Open ${s.name}${s.machine?`, ${s.machine}`:''}`} title={s.machine||s.name} onClick={()=>setFocus(s.id)}><i/><strong>{s.short}</strong>{s.label?<small className="factory-model">{s.label}</small>:null}<span className="numeric">{secs(plan.times[s.id])}</span><small>{Math.round(st.utilisation[s.id])}% busy</small></button></li>)}</ol>
+   {plan.line&&!S.some(s=>s.id==='aoi')&&<p className="factory-note muted">No AOI on this line: solder and placement defects are not caught inline — first pass here counts only what SPI sees.</p>}
    {(plan.hand.length>0||plan.bottom.length>0)&&<p className="factory-note muted">{plan.hand.length?`${plan.hand.length} through-hole after the line`:''}{plan.hand.length&&plan.bottom.length?' · ':''}{plan.bottom.length?`${plan.bottom.length} bottom-side in a second pass`:''}</p>}</>}
  </section>;
 }

@@ -18,7 +18,7 @@ export type BuildResult = { error?: string; message?: string } | undefined;
 
 const json = (v: unknown) => v as Prisma.InputJsonValue;
 const done = (revisionId: string, message?: string): BuildResult => {
-  revalidatePath(`/boms/${revisionId}/build`, "layout");
+  revalidatePath(`/boms/${revisionId}`, "layout");
   return message ? { message } : undefined;
 };
 
@@ -241,6 +241,6 @@ export async function issueQuote(revisionId: string): Promise<BuildResult & { qu
     }),
     db.auditLog.create({ data: { userId: user.id, action: "quote.issue", entity: "CustomerQuote", entityId: draft.id, data: { number, quantities: b.quantities } } }),
   ]);
-  revalidatePath(`/boms/${revisionId}/build`, "layout");
+  revalidatePath(`/boms/${revisionId}`, "layout");
   return { message: `${number} issued`, quoteId: draft.id };
 }

@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import type { ViewerData } from "@/components/viewer/types";
+import type { SimLine } from "@/lib/ops/sim-stations";
 import { FactoryLine, makePart } from "@/vendor/circuitflow/entry";
 import "@/vendor/circuitflow/line.css";
 
@@ -31,11 +32,11 @@ export function toCircuitflowBoard(data: ViewerData) {
   return { board, parts };
 }
 
-export default function LineView({ data }: { data: ViewerData }) {
+export default function LineView({ data, line }: { data: ViewerData; line?: SimLine | null }) {
   const { board, parts } = useMemo(() => toCircuitflowBoard(data), [data]);
   return (
     <div className="cf-scope">
-      <FactoryLine board={board} parts={parts} />
+      <FactoryLine board={board} parts={parts} line={line ?? null} />
     </div>
   );
 }

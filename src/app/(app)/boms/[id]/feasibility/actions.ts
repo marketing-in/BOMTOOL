@@ -40,7 +40,7 @@ export async function signGate(revisionId: string, qty: number, gate: string, no
   });
   if (!done.count) return { error: "Someone else signed a gate just now — reload and look again." };
   await db.auditLog.create({ data: { userId: user.id, action: "feasibility.sign", entity: "FeasibilityReview", entityId: review.id, data: json({ gate, waived: res.signoffs.at(-1)?.waived.length ?? 0 }) } }).catch(() => undefined);
-  revalidatePath(`/boms/${revisionId}/feasibility`);
+  revalidatePath(`/boms/${revisionId}`, "layout");
   const title = GATES.find((g) => g.key === gate)!.title;
   return { message: passed ? "All nine gates signed — the review has passed." : `${title} signed and locked.` };
 }
@@ -54,6 +54,6 @@ export async function restartReview(revisionId: string, reason: string): Promise
   if (!review) return { error: "There is no review to replace." };
   await db.feasibilityReview.update({ where: { id: review.id }, data: { status: "SUPERSEDED", closedAt: new Date() } });
   await db.auditLog.create({ data: { userId: user.id, action: "feasibility.restart", entity: "FeasibilityReview", entityId: review.id, data: json({ reason: reason.trim().slice(0, 500) }) } }).catch(() => undefined);
-  revalidatePath(`/boms/${revisionId}/feasibility`);
+  revalidatePath(`/boms/${revisionId}`, "layout");
   return { message: "The old review is kept as superseded. A new one starts at gate 1." };
 }

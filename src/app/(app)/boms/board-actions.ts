@@ -30,7 +30,7 @@ export async function uploadBoardFiles(revisionId: string, form: FormData): Prom
   }
   if (!parts.length) return { error: "No Gerber, drill or centroid files recognised." };
   await db.auditLog.create({ data: { userId: user.id, action: "board.upload", entity: "BomRevision", entityId: revisionId, data: { files: files.map((f) => f.name) } } });
-  revalidatePath(`/boms/${revisionId}/board`);
+  revalidatePath(`/boms/${revisionId}`, "layout");
   revalidatePath(`/boms/${revisionId}/viewer`);
   return { message: parts.join(" · ") };
 }
