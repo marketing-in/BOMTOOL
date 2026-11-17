@@ -26,7 +26,7 @@
   --color-part-supply: var(--part-supply);
   --color-part-factory: var(--part-factory);
   --font-sans: var(--font-body);
-  --font-display: var(--font-display-face);
+  --font-display: var(--font-body);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -68,35 +68,35 @@
 
 :root {
   /* Warm paper, dark ink, and one strong colour per part of the app. No blue anywhere. */
-  --radius: 0.875rem;
-  --background: #f6f1e7;
-  --foreground: #211c16;
-  --card: #fffdf8;
-  --card-foreground: #211c16;
-  --popover: #fffdf8;
-  --popover-foreground: #211c16;
+  --radius: 0.5rem;
+  --background: #f5f5f3;
+  --foreground: #1a1a18;
+  --card: #ffffff;
+  --card-foreground: #1a1a18;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a18;
   /* The current part's colour (set by data-part on <html>); ink outside the four parts. */
-  --part: #211c16;
-  --part-soft: #ece4d4;
+  --part: #1a1a18;
+  --part-soft: #ecece8;
   --part-ink: #ffffff;
   --primary: var(--part);
   --primary-foreground: var(--part-ink);
-  --secondary: #efe8da;
-  --secondary-foreground: #211c16;
-  --muted: #efe8da;
-  --muted-foreground: #675d4f;
+  --secondary: #efefec;
+  --secondary-foreground: #1a1a18;
+  --muted: #efefec;
+  --muted-foreground: #5f5f59;
   --accent: var(--part-soft);
-  --accent-foreground: #211c16;
+  --accent-foreground: #1a1a18;
   --destructive: #c4302b;
-  --border: #e2d8c6;
-  --input: #cbbfa8;
+  --border: #e3e3de;
+  --input: #c6c6bf;
   --ring: color-mix(in srgb, var(--part) 45%, transparent);
   --chart-1: #c93a7c;
   --chart-2: #e0631a;
   --chart-3: #0b7a5c;
   --chart-4: #7b3fb5;
   --chart-5: #e2a400;
-  --sidebar: #211c16;
+  --sidebar: #1a1a18;
   --sidebar-foreground: #f6f1e7;
   --sidebar-primary: #f7c61b;
   --sidebar-primary-foreground: #211c16;
@@ -104,24 +104,24 @@
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgb(255 255 255 / 16%);
   --sidebar-ring: #f7c61b;
-  --brand-from: #211c16;
-  --brand-to: #211c16;
+  --brand-from: #1a1a18;
+  --brand-to: #1a1a18;
   --brand-accent: #f7c61b;
   --primary-bright: var(--part);
   --page-glow: transparent;
-  --viewer-bg: #f1eadc;
+  --viewer-bg: #f0f0ed;
   --viewer-grid: rgb(60 45 20 / 7%);
   --viewer-grid-major: rgb(60 45 20 / 12%);
 
   /* The four parts. */
-  --part-bom: #c22a6e;
-  --part-bom-soft: #fbe1ec;
-  --part-engineering: #6f38ad;
-  --part-engineering-soft: #ecdff8;
-  --part-supply: #0b7a5c;
-  --part-supply-soft: #d8f0e6;
-  --part-factory: #d2551a;
-  --part-factory-soft: #fde3d0;
+  --part-bom: #a81f5c;
+  --part-bom-soft: #f8e6ee;
+  --part-engineering: #5a2f96;
+  --part-engineering-soft: #efe8f7;
+  --part-supply: #0a6650;
+  --part-supply-soft: #e2f1ec;
+  --part-factory: #b8460f;
+  --part-factory-soft: #f9e9de;
   --highlight: #f7c61b;
 
   --dir-blue: #0b7a5c;
@@ -313,7 +313,7 @@
   .workspace-main :where(input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea) { background-color: var(--card); }
   .workspace-main :where(select) { max-width: 100%; }
   .workspace-main :where(p) { overflow-wrap: break-word; }
-  .page-heading { font-size: 2.5rem; line-height: 1.1; font-weight: 700; letter-spacing: -0.03em; }
+  .page-heading { font-size: 1.875rem; line-height: 1.2; font-weight: 650; letter-spacing: -0.025em; }
   .section-heading { font-size: 1rem; font-weight: 650; letter-spacing: -0.02em; }
   .readiness-fill { transition: width 450ms cubic-bezier(0.16, 1, 0.3, 1); }
   .module-tabs { display:flex; gap:0.25rem; overflow-x:auto; border-bottom:1px solid var(--border); margin-bottom:1.5rem; }

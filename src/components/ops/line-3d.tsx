@@ -6,9 +6,9 @@ import { Bounds, Html, OrbitControls } from "@react-three/drei";
 /** One machine of the line as the 3D view needs it. */
 export type Machine3D = { id: string; type: string; short: string; color: string; position: number };
 
-const BODY = "#f4eee2";
-const GLASS = "#2b241b";
-const STEEL = "#b9b0a1";
+const BODY = "#eceae6";
+const GLASS = "#26282b";
+const STEEL = "#a9aaa8";
 
 /** Footprint (length along the line, depth) and body height per kind of machine, in metres-ish units. */
 const SIZE: Record<string, [number, number, number]> = {
@@ -40,7 +40,7 @@ function Box({ p, s, c, r = 0.6 }: { p: [number, number, number]; s: [number, nu
 function Model({ type, color }: { type: string; color: string }) {
   const [w, d, h] = sizeOf(type);
   const zones = type === "REFLOW_OVEN" ? 8 : 3;
-  const band = <Box p={[0, h * 0.42, d / 2 + 0.005]} s={[w * 0.98, 0.12, 0.02]} c={color} />;
+  const band = <Box p={[0, h * 0.42, d / 2 + 0.005]} s={[w * 0.98, 0.16, 0.02]} c={color} />;
   const tower = (
     <group position={[w / 2 - 0.14, h, -d / 2 + 0.14]}>
       <Box p={[0, 0.16, 0]} s={[0.06, 0.32, 0.06]} c={STEEL} />
@@ -66,7 +66,8 @@ function Model({ type, color }: { type: string; color: string }) {
     return (
       <group>
         <Box p={[0, h / 2, 0]} s={[w, h, d]} c={BODY} />
-        <Box p={[0, h + 0.14, 0]} s={[w * 0.92, 0.28, d * 0.86]} c={color} />
+        <Box p={[0, h + 0.14, 0]} s={[w * 0.92, 0.28, d * 0.86]} c="#d9d7d2" />
+        {band}
         {Array.from({ length: zones }, (_, i) => (
           <Box key={i} p={[-w * 0.4 + (i * w * 0.8) / (zones - 1), h * 0.62, d / 2 + 0.01]} s={[(w * 0.7) / zones, h * 0.3, 0.02]} c={GLASS} r={0.2} />
         ))}
@@ -81,9 +82,9 @@ function Model({ type, color }: { type: string; color: string }) {
       <group>
         <Box p={[0, h * 0.35, 0]} s={[w, h * 0.7, d]} c={BODY} />
         <Box p={[0, h * 0.95, 0]} s={[w * 0.96, h * 0.5, d * 0.8]} c={GLASS} r={0.15} />
-        <Box p={[0, h * 1.22, 0]} s={[w, 0.06, d * 0.84]} c={color} />
+        <Box p={[0, h * 1.22, 0]} s={[w, 0.06, d * 0.84]} c="#d9d7d2" />
         {Array.from({ length: 12 }, (_, i) => (
-          <Box key={i} p={[-w * 0.42 + (i * w * 0.84) / 11, h * 0.62, d / 2 + 0.16]} s={[0.07, 0.16, 0.34]} c={i % 3 ? STEEL : color} />
+          <Box key={i} p={[-w * 0.42 + (i * w * 0.84) / 11, h * 0.62, d / 2 + 0.16]} s={[0.07, 0.16, 0.34]} c={STEEL} />
         ))}
         {band}
         {screen}
@@ -94,8 +95,9 @@ function Model({ type, color }: { type: string; color: string }) {
   return (
     <group>
       <Box p={[0, h * 0.4, 0]} s={[w, h * 0.8, d]} c={BODY} />
-      <Box p={[0, h * 0.98, 0]} s={[w * 0.94, h * 0.36, d * 0.9]} c={head ? color : GLASS} r={head ? 0.5 : 0.15} />
-      {head ? <Box p={[0, h * 0.98, d * 0.45 + 0.005]} s={[w * 0.6, h * 0.22, 0.02]} c={GLASS} r={0.15} /> : <Box p={[0, h * 1.18, 0]} s={[w, 0.05, d * 0.94]} c={color} />}
+      <Box p={[0, h * 0.98, 0]} s={[w * 0.94, h * 0.36, d * 0.9]} c={head ? "#d9d7d2" : GLASS} r={head ? 0.5 : 0.15} />
+      {head ? <Box p={[0, h * 0.98, d * 0.45 + 0.005]} s={[w * 0.6, h * 0.22, 0.02]} c={GLASS} r={0.15} /> : null}
+      <Box p={[0, h * 1.18, 0]} s={[w * 0.96, 0.04, d * 0.92]} c="#d9d7d2" />
       {band}
       {screen}
       {tower}
@@ -122,7 +124,7 @@ export default function Line3D({ machines, selected, onSelect }: { machines: Mac
         <group position={[-total / 2, 0, 0]}>
           <mesh position={[total / 2, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
             <planeGeometry args={[total + 1.2, 3.2]} />
-            <meshStandardMaterial color="#e9dfcc" roughness={1} />
+            <meshStandardMaterial color="#e4e4df" roughness={1} />
           </mesh>
           {placed.map(({ m, at, w, d, h }) => {
             const on = m.id === selected;
@@ -149,13 +151,13 @@ export default function Line3D({ machines, selected, onSelect }: { machines: Mac
                     style={{
                       display: "grid",
                       placeItems: "center",
-                      width: 28,
-                      height: 28,
-                      borderRadius: 14,
-                      font: "700 13px var(--font-body)",
-                      background: on ? "#211c16" : "#fffdf8",
-                      color: on ? "#fff" : "#211c16",
-                      border: "2px solid #211c16",
+                      width: 22,
+                      height: 22,
+                      borderRadius: 4,
+                      font: "600 12px var(--font-body)",
+                      background: on ? "#1a1a18" : "#ffffff",
+                      color: on ? "#fff" : "#1a1a18",
+                      border: "1px solid #1a1a18",
                     }}
                   >
                     {m.position}

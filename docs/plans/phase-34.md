@@ -19,8 +19,9 @@
 
 ## Look
 
-- Tokens in `src/app/globals.css`: warm paper, dark ink, no blue. `--part` is the current part's colour, set by `data-part` on `<html>` from the menu (`part-nav.tsx`): BoM pink, Engineering purple, Supply green, Factory orange. `--primary` follows it.
-- Type: Bricolage Grotesque for headings and big numbers, Hanken Grotesk for text.
+- Tokens in `src/app/globals.css`: neutral off-white, dark ink, no blue. `--part` is the current part's colour, set by `data-part` on `<html>` from the menu (`part-nav.tsx`): BoM pink, Engineering purple, Supply green, Factory orange. `--primary` follows it.
+- Type: Hanken Grotesk throughout; size and weight carry the hierarchy.
+- After feedback ("more professional"): neutral off-white ground, white bordered cards, 8 px corners, square markers instead of pills, grey 3D machines with one colour band each, soft package tiles.
 - Each kind of machine has one colour (`KIND_COLOR`).
 
 ## Lines & machines page

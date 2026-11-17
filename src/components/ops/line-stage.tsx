@@ -36,9 +36,9 @@ function PkgGlyph({ id }: { id: string }) {
 }
 
 const REACH_CLS: Record<PackageReach["reach"], string> = {
-  yes: "bg-risk-green text-white dark:text-background",
+  yes: "bg-risk-green-soft text-risk-green",
   check: "bg-risk-amber-soft text-risk-amber ring-1 ring-inset ring-risk-amber/40",
-  no: "bg-muted text-muted-foreground/60",
+  no: "border border-dashed text-muted-foreground/50",
 };
 
 const short = (label: string) => label.replace(/ \(.*\)$/, "").replace("CSP/WLCSP", "CSP").replace("Electrolytic / tall", "Tall").replace("Large connector / odd-form", "Odd-form");
@@ -63,7 +63,7 @@ export function LineStage({ machines, editable }: { machines: MachineCard[]; edi
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_26rem]">
       <div className="min-w-0">
-        <div className="h-[340px] overflow-hidden rounded-3xl bg-card sm:h-[420px]">
+        <div className="h-[340px] overflow-hidden rounded-xl border bg-card sm:h-[440px]">
           <Line3D machines={machines.map((x) => ({ id: x.id, type: x.type, short: x.short, color: x.color, position: x.position }))} selected={m.id} onSelect={setSel} />
         </div>
         <ol className="mt-3 flex flex-wrap gap-2" aria-label="Machines in flow order">
@@ -76,11 +76,11 @@ export function LineStage({ machines, editable }: { machines: MachineCard[]; edi
                   onClick={() => setSel(x.id)}
                   aria-pressed={on}
                   className={cn(
-                    "flex h-10 items-center gap-2 rounded-full py-1 pr-3.5 pl-1 text-sm outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
-                    on ? "bg-foreground font-semibold text-background" : "bg-card hover:bg-muted",
+                    "flex h-9 items-center gap-2 rounded-md border py-1 pr-3 pl-1.5 text-[13px] outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
+                    on ? "border-foreground bg-foreground font-semibold text-background" : "bg-card hover:bg-muted",
                   )}
                 >
-                  <span className="grid size-8 place-items-center rounded-full text-xs font-bold text-white" style={{ background: x.color }}>
+                  <span className="grid size-6 place-items-center rounded text-[11px] font-semibold text-white" style={{ background: x.color }}>
                     {x.position}
                   </span>
                   {x.short}
@@ -91,13 +91,13 @@ export function LineStage({ machines, editable }: { machines: MachineCard[]; edi
         </ol>
       </div>
 
-      <aside key={m.id} aria-live="polite" className="machine-sheet rounded-3xl bg-card p-6 sm:p-7">
+      <aside key={m.id} aria-live="polite" className="rounded-xl border bg-card p-6">
         <div className="flex items-start gap-3">
-          <span className="mt-1 grid size-9 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: m.color }}>
+          <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded text-xs font-semibold text-white" style={{ background: m.color }}>
             {m.position}
           </span>
           <div className="min-w-0 flex-1">
-            <h3 className="font-display text-2xl leading-tight font-semibold tracking-tight">
+            <h3 className="text-xl leading-tight font-semibold tracking-tight">
               {m.vendor} {m.model}
             </h3>
             <p className="mt-0.5 text-sm text-muted-foreground">
@@ -107,13 +107,13 @@ export function LineStage({ machines, editable }: { machines: MachineCard[]; edi
             </p>
           </div>
         </div>
-        {m.oneLiner ? <p className="mt-4 text-[15px] leading-snug">{m.oneLiner}</p> : null}
+        {m.oneLiner ? <p className="mt-4 text-sm leading-snug text-muted-foreground">{m.oneLiner}</p> : null}
 
         {m.big.length ? (
-          <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4">
+          <dl className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border">
             {m.big.map((f) => (
-              <div key={f.label}>
-                <dd className="font-display text-3xl leading-none font-semibold tracking-tight" title={f.note}>
+              <div key={f.label} className="bg-card p-3.5">
+                <dd className="text-2xl leading-none font-semibold tracking-tight tabular-nums" title={f.note}>
                   {f.value}
                 </dd>
                 <dt className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -130,7 +130,7 @@ export function LineStage({ machines, editable }: { machines: MachineCard[]; edi
             <h4 className="text-sm font-semibold">What it can place</h4>
             <ul className="mt-2.5 grid grid-cols-4 gap-1.5">
               {m.reach.map((p) => (
-                <li key={p.id} title={`${p.label}: ${p.reason}`} className={cn("rounded-xl px-1 pt-2 pb-1.5 text-center", REACH_CLS[p.reach])}>
+                <li key={p.id} title={`${p.label}: ${p.reason}`} className={cn("rounded-md px-1 pt-2 pb-1.5 text-center", REACH_CLS[p.reach])}>
                   <PkgGlyph id={p.id} />
                   <span className="mt-1 block truncate text-[11px] leading-tight font-medium">{short(p.label)}</span>
                   <span className="sr-only">{p.reach === "yes" ? "can place" : p.reach === "no" ? "cannot place" : "check first"}</span>
@@ -138,9 +138,9 @@ export function LineStage({ machines, editable }: { machines: MachineCard[]; edi
               ))}
             </ul>
             <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-risk-green" /> yes</span>
+              <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-risk-green-soft ring-1 ring-risk-green/40 ring-inset" /> yes</span>
               <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-risk-amber-soft ring-1 ring-risk-amber/50 ring-inset" /> check first</span>
-              <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm bg-muted ring-1 ring-border ring-inset" /> no</span>
+              <span className="inline-flex items-center gap-1.5"><i className="size-2.5 rounded-sm border border-dashed" /> no</span>
             </p>
           </section>
         ) : null}
@@ -199,7 +199,7 @@ export function LineStage({ machines, editable }: { machines: MachineCard[]; edi
               machine={{ id: m.id, type: m.type, vendor: m.vendor, model: m.model, year: m.year, specs: m.specs, source: m.source }}
               editable={editable}
               trigger={
-                <button type="button" className="inline-flex h-9 items-center gap-1.5 rounded-full bg-muted px-3.5 text-sm font-medium text-foreground outline-none hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring">
+                <button type="button" className="inline-flex h-9 items-center gap-1.5 rounded-md border bg-card px-3 text-sm font-medium text-foreground outline-none hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring">
                   <Pencil className="size-3.5" aria-hidden /> {editable ? "Edit limits" : "Limits"}
                 </button>
               }

@@ -36,11 +36,12 @@ export function PartMenu() {
                 href={p.href}
                 aria-current={on ? "page" : undefined}
                 className={cn(
-                  "my-2 flex h-10 items-center gap-2 rounded-full py-1 pr-4 pl-1 text-sm whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
-                  on ? cn("font-semibold text-white dark:text-background", PART_BG[p.key]) : "text-foreground/75 hover:bg-muted hover:text-foreground",
+                  "relative flex h-14 items-center gap-2 px-3 text-sm whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                  on ? "font-semibold text-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <span className={cn("grid size-8 place-items-center rounded-full text-xs font-bold", on ? "bg-white/25 text-white dark:text-background" : cn("text-white dark:text-background", PART_BG[p.key]))}>{p.n}</span>
+                <span className={cn("size-2 rounded-[2px]", PART_BG[p.key], !on && "opacity-70")} aria-hidden />
+                {on ? <span className={cn("absolute inset-x-3 bottom-0 h-0.5", PART_BG[p.key])} aria-hidden /> : null}
                 {p.label}
                 <Pending />
               </Link>
@@ -70,7 +71,7 @@ export function PartTabs({ role }: { role: Role }) {
                 href={i.href}
                 aria-current={on ? "page" : undefined}
                 className={cn(
-                  "my-1.5 flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
+                  "my-1.5 flex h-8 items-center gap-2 rounded-md px-3 text-[13px] whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
                   on ? "bg-part-soft font-semibold text-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >

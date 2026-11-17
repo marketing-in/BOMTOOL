@@ -56,7 +56,7 @@ export default async function LinesPage({ searchParams }: { searchParams: Promis
           editable ? (
             <LineDialog
               trigger={
-                <Button className="h-10 rounded-full">
+                <Button className="h-10">
                   <Plus className="size-4" aria-hidden /> Add line
                 </Button>
               }
@@ -66,10 +66,10 @@ export default async function LinesPage({ searchParams }: { searchParams: Promis
       />
 
       {!line ? (
-        <div className="rounded-3xl bg-card px-6 py-12 text-center text-sm text-muted-foreground">No lines yet. {editable ? "Add the first one." : "Ask planning to set them up."}</div>
+        <div className="rounded-xl border bg-card px-6 py-12 text-center text-sm text-muted-foreground">No lines yet. {editable ? "Add the first one." : "Ask planning to set them up."}</div>
       ) : (
         <>
-          <nav aria-label="Lines" className="mb-6 flex flex-wrap gap-2">
+          <nav aria-label="Lines" className="mb-8 inline-flex flex-wrap gap-1 rounded-lg border bg-card p-1">
             {lines.map((l) => {
               const on = l.id === line.id;
               const busy = l.workOrders.length > 0;
@@ -80,12 +80,12 @@ export default async function LinesPage({ searchParams }: { searchParams: Promis
                   scroll={false}
                   aria-current={on ? "page" : undefined}
                   className={cn(
-                    "flex h-12 items-center gap-2.5 rounded-full px-5 text-[15px] outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
-                    on ? "bg-primary font-semibold text-primary-foreground" : "bg-card hover:bg-part-soft",
+                    "flex h-10 items-center gap-2.5 rounded-md px-4 text-sm outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
+                    on ? "bg-primary font-semibold text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     !l.active && "opacity-60",
                   )}
                 >
-                  <span className="font-display font-bold">{l.code}</span>
+                  <span className="font-semibold">{l.code}</span>
                   <span className="hidden sm:inline">{TYPE_LABEL[l.type] ?? l.type}</span>
                   <span className={cn("size-2.5 rounded-full", busy ? "bg-risk-green" : "bg-risk-grey", on && "ring-2 ring-white/70")} title={busy ? "Has open work orders" : "No open work orders"} />
                 </Link>
@@ -96,14 +96,14 @@ export default async function LinesPage({ searchParams }: { searchParams: Promis
           <section id={`line-${line.code}`} aria-label={`Line ${line.code}`}>
             <div className="mb-5 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
               <div className="min-w-0">
-                <h2 className="font-display text-3xl leading-tight font-semibold tracking-tight">{line.name.replace(/^.*—\s*/, "")}</h2>
+                <h2 className="text-2xl leading-tight font-semibold tracking-tight">{line.name.replace(/^.*—\s*/, "")}</h2>
                 <ul className="mt-3 flex flex-wrap gap-1.5 text-sm">
                   {capChips(line.effective).map((c) => (
-                    <li key={c.label} className={cn("rounded-full px-3 py-1", c.fromMachines ? "bg-part-soft" : "bg-muted text-muted-foreground")} title={c.fromMachines ? "From its machines' limits" : "From the line's own summary — set the machines' limits to confirm"}>
+                    <li key={c.label} className={cn("rounded-md border px-2.5 py-1 text-[13px]", c.fromMachines ? "bg-card" : "border-dashed text-muted-foreground")} title={c.fromMachines ? "From its machines' limits" : "From the line's own summary — set the machines' limits to confirm"}>
                       {c.label}
                     </li>
                   ))}
-                  {!line.active ? <li className="rounded-full bg-muted px-3 py-1 font-medium">Retired</li> : null}
+                  {!line.active ? <li className="rounded-md bg-muted px-2.5 py-1 text-[13px] font-medium">Retired</li> : null}
                 </ul>
               </div>
               <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
@@ -113,19 +113,19 @@ export default async function LinesPage({ searchParams }: { searchParams: Promis
                     const cph = measured ?? line.capacityCph;
                     return cph ? (
                       <div>
-                        <dd className="font-display text-4xl leading-none font-semibold tracking-tight">{k(cph)}</dd>
+                        <dd className="text-3xl leading-none font-semibold tracking-tight tabular-nums">{k(cph)}</dd>
                         <dt className="mt-1.5 text-xs text-muted-foreground">CPH {measured ? "measured" : "rated"}</dt>
                       </div>
                     ) : null;
                   })()}
                   {line.feederSlots ? (
                     <div>
-                      <dd className="font-display text-4xl leading-none font-semibold tracking-tight">{line.feederSlots}</dd>
+                      <dd className="text-3xl leading-none font-semibold tracking-tight tabular-nums">{line.feederSlots}</dd>
                       <dt className="mt-1.5 text-xs text-muted-foreground">feeder slots</dt>
                     </div>
                   ) : null}
                   <div>
-                    <dd className="font-display text-4xl leading-none font-semibold tracking-tight">{line.shiftsPerDay}</dd>
+                    <dd className="text-3xl leading-none font-semibold tracking-tight tabular-nums">{line.shiftsPerDay}</dd>
                     <dt className="mt-1.5 text-xs text-muted-foreground">shifts a day</dt>
                   </div>
                 </dl>
@@ -142,13 +142,13 @@ export default async function LinesPage({ searchParams }: { searchParams: Promis
             {line.machines.length ? (
               <LineStage key={line.id} machines={line.machines.map(machineCard)} editable={editable} />
             ) : (
-              <div className="rounded-3xl bg-card px-6 py-12 text-center text-sm text-muted-foreground">No machines on this line yet.</div>
+              <div className="rounded-xl border bg-card px-6 py-12 text-center text-sm text-muted-foreground">No machines on this line yet.</div>
             )}
 
             <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
               {editable ? <AddMachineDialog lineId={line.id} lineCode={line.code} /> : null}
               {line.workOrders.map((wo) => (
-                <span key={wo.id} className="inline-flex items-center gap-2 rounded-full bg-card px-4 py-2 text-sm">
+                <span key={wo.id} className="inline-flex items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm">
                   <RiskDot level={(wo.clearToBuildPct ?? 0) >= 90 ? "green" : "amber"} />
                   <span className="num">{wo.number}</span>
                   <span className="text-muted-foreground">{wo.project.name} · {wo.buildQty} pcs</span>
