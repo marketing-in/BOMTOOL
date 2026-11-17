@@ -52,9 +52,9 @@ export function StackupExplorer({ initialLayers = 4 }: { initialLayers?: number 
   const total = layers.reduce((s, l) => s + l.mm, 0);
 
   return (
-    <section className="rounded-lg border bg-card">
+    <section className="rounded-xl border bg-card">
       <div className="flex flex-wrap items-center gap-3 border-b px-4 py-2.5 text-sm">
-        <h2 className="mr-auto font-medium">Stack-up explorer</h2>
+        <h2 className="mr-auto font-semibold">Stack-up explorer</h2>
         <label className="flex items-center gap-1.5">
           Layers
           <select value={n} onChange={(e) => setN(Number(e.target.value))} className={sel}>
@@ -98,8 +98,8 @@ export function StackupExplorer({ initialLayers = 4 }: { initialLayers?: number 
             </li>
           ))}
         </ol>
-        <p className="num mt-3 text-xs text-muted-foreground">
-          ≈ {total.toFixed(2)} mm finished · symmetric · dielectrics shown evenly — your fab sets exact prepreg/core choices for impedance.
+        <p className="num mt-3 text-xs text-muted-foreground" title="Dielectrics shown evenly — your fab sets exact prepreg/core choices for impedance.">
+          ≈ {total.toFixed(2)} mm finished · symmetric
         </p>
       </div>
     </section>

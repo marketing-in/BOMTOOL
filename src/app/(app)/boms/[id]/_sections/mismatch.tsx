@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Check, CircleAlert, TriangleAlert } from "lucide-react";
+import { Check, ChevronDown, CircleAlert, TriangleAlert } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { mismatchesFor } from "@/server/workflow";
 import { PageHeader } from "@/components/data/page-header";
+import { Figures } from "@/components/bom/figures";
 import { cn } from "@/lib/utils";
 import type { Level } from "@/lib/bom/mismatch";
 
@@ -29,39 +30,39 @@ export default async function MismatchSection({ id }: { id: string }) {
   const reds = m.groups.filter((g) => g.level === "red").reduce((s, g) => s + g.items.length, 0);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <PageHeader level={2}
         title="Mismatches"
-        description="Everything in this product that disagrees with itself: the BoM against the board, quantities against designators, part numbers against their descriptions. Settle the red ones with the customer before buying or building."
       />
 
-      <section aria-label="Result" className={cn("flex flex-wrap items-center gap-x-6 gap-y-3 rounded-md px-5 py-4", t.field)}>
-        <t.Icon className={cn("size-5 shrink-0", t.text)} aria-hidden />
-        <div className="min-w-0 flex-1">
-          <div className={cn("text-sm font-semibold", t.text)}>{m.total ? `${m.total.toLocaleString("en-IN")} to settle` : "No mismatches"}</div>
-          <p className="mt-0.5 text-sm text-foreground/80">{m.summary}</p>
-        </div>
-        <dl className="flex gap-6 text-sm">
-          <div><dt className="text-xs text-muted-foreground">Must settle</dt><dd className="num text-xl font-semibold text-risk-red">{reds}</dd></div>
-          <div><dt className="text-xs text-muted-foreground">To check</dt><dd className="num text-xl font-semibold text-risk-amber">{m.total - reds}</dd></div>
-        </dl>
+      <section aria-label="Result" className="flex flex-wrap items-end gap-x-10 gap-y-4">
+        <Figures
+          items={[
+            { label: "Must settle", value: reds, tone: reds ? "red" : "green" },
+            { label: "To check", value: m.total - reds, tone: m.total - reds ? "amber" : "green" },
+          ]}
+        />
+        <p className={cn("flex min-w-0 flex-1 items-center gap-2 text-sm font-medium", t.text)} title={m.summary}>
+          <t.Icon className="size-4 shrink-0" aria-hidden />
+          {m.total ? m.summary : "No mismatches"}
+        </p>
         {!m.hasBoard ? (
-          <Link href={`/boms/${id}/board`} className="text-sm font-medium text-primary underline underline-offset-2">Add Gerbers to compare with the board</Link>
+          <Link href={`/boms/${id}/board`} className="inline-flex h-10 items-center rounded-md border bg-card px-3.5 text-sm font-medium outline-none hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring">Add Gerbers</Link>
         ) : null}
       </section>
 
       {m.groups.map((g, gi) => {
         const gt = TONE[g.level];
         return (
-          <section key={g.key} aria-labelledby={`mm-${g.key}`} className="border-t pt-6">
-            <div className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-              <span className="num w-10 text-xs text-muted-foreground">2.2.{gi + 1}</span>
-              <h2 id={`mm-${g.key}`} className="text-base font-semibold">{g.title}</h2>
-              <span className={cn("rounded-sm px-1.5 py-0.5 text-xs font-medium", gt.field, gt.text)}>{gt.word}</span>
-              <span className="num ml-auto text-sm text-muted-foreground">{g.items.length.toLocaleString("en-IN")}</span>
-            </div>
-            <p className="mb-3 pl-12 text-sm text-muted-foreground">{g.ask}</p>
-            <div className="overflow-x-auto pl-0 sm:pl-12">
+          <details key={g.key} open={g.level === "red" || gi === 0} aria-labelledby={`mm-${g.key}`} className="group rounded-xl border bg-card">
+            <summary className="flex min-h-14 cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 rounded-xl px-5 py-3 outline-none select-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden" title={g.ask}>
+              <h3 id={`mm-${g.key}`} className="text-base font-semibold">{g.title}</h3>
+              <span className={cn("rounded-md px-1.5 py-0.5 text-xs font-medium", gt.field, gt.text)}>{gt.word}</span>
+              <span className="ml-auto text-xl font-semibold tabular-nums">{g.items.length.toLocaleString("en-IN")}</span>
+              <ChevronDown className="size-4 text-muted-foreground transition-transform duration-150 group-open:rotate-180" aria-hidden />
+            </summary>
+            <div className="overflow-x-auto border-t px-5 pb-3">
+              <p className="pt-3 text-sm text-muted-foreground">{g.ask}</p>
               <table className="w-full min-w-[36rem] text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs text-muted-foreground">
@@ -74,27 +75,21 @@ export default async function MismatchSection({ id }: { id: string }) {
                 <tbody>
                   {g.items.slice(0, 200).map((it, i) => (
                     <tr key={`${it.ref}-${it.lineNo}-${i}`} className="border-b last:border-0">
-                      <td className="py-2 pr-4 font-mono text-xs">{it.ref ?? "—"}</td>
+                      <td className="num py-2 pr-4 text-xs">{it.ref ?? "—"}</td>
                       <td className="num py-2 pr-4 text-right">
-                        {it.lineNo !== null ? <Link href={`/boms/${id}?line=${it.lineNo}`} className="text-primary hover:underline">{it.lineNo}</Link> : "—"}
+                        {it.lineNo !== null ? <Link href={`/boms/${id}?line=${it.lineNo}`} className="underline decoration-border hover:decoration-foreground">{it.lineNo}</Link> : "—"}
                       </td>
-                      <td className="truncate py-2 pr-4 font-mono text-xs">{it.mpn ?? "—"}</td>
+                      <td className="num truncate py-2 pr-4 text-xs">{it.mpn ?? "—"}</td>
                       <td className="py-2 text-foreground/85">{it.detail}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              {g.items.length > 200 ? <p className="mt-2 text-xs text-muted-foreground">Showing 200 of {g.items.length.toLocaleString("en-IN")}. The BoM table lists them all.</p> : null}
+              {g.items.length > 200 ? <p className="mt-2 text-xs text-muted-foreground">200 of {g.items.length.toLocaleString("en-IN")} shown</p> : null}
             </div>
-          </section>
+          </details>
         );
       })}
-
-      {m.hasBoard ? (
-        <p className="text-sm text-muted-foreground">
-          Designator by designator on the board drawing: <a href="#compare" className="font-medium text-primary underline underline-offset-2">2.1 Compare</a>.
-        </p>
-      ) : null}
     </div>
   );
 }

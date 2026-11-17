@@ -28,8 +28,11 @@ export default async function DictionaryPage({ searchParams }: { searchParams: P
             <span>Dictionary</span>
           </span>
         }
-        title="Component & machine dictionary"
-        description={`${DICTIONARY_STATS.entries} entries — what every part and machine on our lines does, how it is used, and what can replace it.`}
+        title={
+          <span className="flex flex-wrap items-baseline gap-x-2.5">
+            Component & machine dictionary <span className="num text-base font-normal text-muted-foreground">{DICTIONARY_STATS.entries} entries</span>
+          </span>
+        }
       />
 
       <div className="mb-8 flex flex-wrap items-center gap-3">
@@ -40,7 +43,7 @@ export default async function DictionaryPage({ searchParams }: { searchParams: P
             id="dq"
             name="q"
             defaultValue={q}
-            placeholder="Search: LDO, TVS, AMS1117, LM358, MLCC, reflow oven, nozzle, M12…"
+            placeholder="LDO, AMS1117, MLCC, reflow oven…"
             className="h-11 w-full rounded-md border bg-card pr-3 pl-9 text-sm outline-none focus-visible:border-primary/50 focus-visible:ring-3 focus-visible:ring-ring/30"
           />
         </Form>
@@ -54,7 +57,7 @@ export default async function DictionaryPage({ searchParams }: { searchParams: P
 
       {hits ? (
         <section aria-labelledby="results">
-          <h2 id="results" className="mb-3 text-base font-medium">
+          <h2 id="results" className="mb-3 text-lg font-semibold tracking-tight">
             {hits.length} result{hits.length === 1 ? "" : "s"} for “{q}”
           </h2>
           {hits.length ? (
@@ -64,8 +67,8 @@ export default async function DictionaryPage({ searchParams }: { searchParams: P
               ))}
             </ul>
           ) : (
-            <div className="rounded-lg border bg-card">
-              <EmptyState title="Nothing found">Try a family name (“capacitor”, “connector”), a function (“reverse polarity”) or a part number.</EmptyState>
+            <div className="rounded-xl border bg-card">
+              <EmptyState title="Nothing found">Try a family, a function or a part number.</EmptyState>
             </div>
           )}
         </section>
@@ -74,9 +77,8 @@ export default async function DictionaryPage({ searchParams }: { searchParams: P
           <div className="mb-4 flex items-center gap-2">
             <Link href="/knowledge/dictionary" className="text-sm text-muted-foreground hover:text-foreground">All groups</Link>
             <span aria-hidden className="text-muted-foreground">/</span>
-            <h2 id="group" className="text-base font-medium">{g.label}</h2>
+            <h2 id="group" className="text-lg font-semibold tracking-tight" title={g.blurb}>{g.label}</h2>
           </div>
-          <p className="mb-4 max-w-[70ch] text-sm text-muted-foreground">{g.blurb}</p>
           <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {entriesIn(g.key).map((e) => (
               <EntryCard key={e.slug} slug={e.slug} name={e.name} oneLiner={e.oneLiner} group={e.group} />
@@ -87,7 +89,7 @@ export default async function DictionaryPage({ searchParams }: { searchParams: P
         <>
           {SECTIONS.map((section) => (
             <section key={section} aria-labelledby={`s-${section}`} className="mb-8">
-              <h2 id={`s-${section}`} className="mb-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              <h2 id={`s-${section}`} className="mb-3 text-lg font-semibold tracking-tight">
                 {section}
               </h2>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -98,17 +100,17 @@ export default async function DictionaryPage({ searchParams }: { searchParams: P
                     <Link
                       key={x.key}
                       href={`/knowledge/dictionary?group=${x.key}`}
-                      className="group flex flex-col rounded-lg border bg-card p-4 outline-none transition-[border-color,box-shadow] duration-150 hover:border-foreground/20 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring"
+                      title={x.blurb}
+                      className="group flex flex-col rounded-xl border bg-card p-4 outline-none transition-colors duration-150 hover:border-foreground/20 focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      <div className="flex items-center gap-2.5">
-                        <span className="grid size-8 place-items-center rounded-md bg-primary/8 text-primary">
-                          <Icon className="size-4" aria-hidden />
+                      <div className="flex items-start justify-between gap-2.5">
+                        <span className="grid size-9 place-items-center rounded-md bg-part-soft text-primary">
+                          <Icon className="size-4.5" aria-hidden />
                         </span>
-                        <span className="text-sm font-medium">{x.label}</span>
-                        <span className="num ml-auto text-xs text-muted-foreground">{list.length}</span>
+                        <span className="text-2xl leading-none font-semibold tracking-tight tabular-nums">{list.length}</span>
                       </div>
-                      <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{x.blurb}</p>
-                      <p className="mt-3 line-clamp-1 text-xs text-foreground/70">{list.slice(0, 4).map((e) => e.name.replace(/\s*\(.*\)$/, "")).join(" · ")}</p>
+                      <span className="mt-3 text-sm font-medium">{x.label}</span>
+                      <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{list.slice(0, 4).map((e) => e.name.replace(/\s*\(.*\)$/, "")).join(" · ")}</p>
                     </Link>
                   );
                 })}
@@ -116,8 +118,8 @@ export default async function DictionaryPage({ searchParams }: { searchParams: P
             </section>
           ))}
 
-          <section aria-labelledby="az" className="rounded-lg border bg-card">
-            <h2 id="az" className="flex h-11 items-center border-b px-4 text-base font-medium">A–Z</h2>
+          <section aria-labelledby="az" className="overflow-hidden rounded-xl border bg-card">
+            <h2 id="az" className="flex h-12 items-center border-b px-4 text-base font-semibold">A–Z</h2>
             <div className="columns-1 gap-8 px-4 py-4 sm:columns-2 lg:columns-3 xl:columns-4">
               {[...letters.entries()].map(([L, list]) => (
                 <div key={L} className="mb-4 break-inside-avoid">
@@ -147,9 +149,9 @@ function EntryCard({ slug, name, oneLiner, group }: { slug: string; name: string
     <li>
       <Link
         href={`/knowledge/dictionary/${slug}`}
-        className="group flex h-full gap-3 rounded-lg border bg-card p-4 outline-none transition-[border-color,box-shadow] duration-150 hover:border-foreground/20 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring"
+        className="group flex h-full gap-3 rounded-xl border bg-card p-4 outline-none transition-colors duration-150 hover:border-foreground/20 focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/8 text-primary">
+        <span className="grid size-8 shrink-0 place-items-center rounded-md bg-part-soft text-primary">
           <Icon className="size-4" aria-hidden />
         </span>
         <span className="min-w-0">

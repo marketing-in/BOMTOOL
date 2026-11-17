@@ -27,7 +27,7 @@ export default async function ComponentDirectoryPage({ searchParams }: { searchP
     const inCatalogue = new Map(counts.map((x) => [x.slug, x._count.parts]));
     return (
       <>
-        <PageHeader title="Components" description="Every family of electronic component — what it is, its kinds and packages, what defines it, who makes it and what matters on our line. Each opens our catalogue, the reference list, or a live search of everything the distributors carry." />
+        <PageHeader title="Components" />
         <ViewTabs base="/directory/components" views={views} active="families" />
         <Form action="/directory/components" className="mb-5 flex flex-wrap gap-2">
           <label htmlFor="cf-q" className="sr-only">Search families</label>
@@ -35,7 +35,6 @@ export default async function ComponentDirectoryPage({ searchParams }: { searchP
           <button className="h-10 rounded-md bg-primary px-4 text-sm text-primary-foreground">Find</button>
         </Form>
         <ComponentFamilies inCatalogue={inCatalogue} q={q} />
-        <p className="mt-6 text-xs text-muted-foreground">No list can hold every part in the world — distributors carry tens of millions of MPNs and they change daily. This is the map of every family; the live search reaches every part DigiKey and Mouser list today.</p>
       </>
     );
   }
@@ -45,7 +44,7 @@ export default async function ComponentDirectoryPage({ searchParams }: { searchP
   const href = (p: number) => `/directory/components?${new URLSearchParams({ view: "parts", ...(q ? { q } : {}), ...(c ? { c } : {}), page: String(p) })}`;
   return (
     <>
-      <PageHeader title="Components" description="Reference list of commonly sourced semiconductors and resistors. Parts in our catalogue show where we can get them; the rest are one click from a live distributor search." />
+      <PageHeader title="Components" />
       <ViewTabs base="/directory/components" views={views} active="parts" />
       <Form action="/directory/components" className="mb-4 flex flex-wrap gap-2">
         <input type="hidden" name="view" value="parts" />
@@ -60,7 +59,7 @@ export default async function ComponentDirectoryPage({ searchParams }: { searchP
         </select>
         <button className="h-10 rounded-md bg-primary px-4 text-sm text-primary-foreground">Search</button>
       </Form>
-      <div className="overflow-x-auto rounded-lg border bg-card">
+      <div className="overflow-x-auto rounded-xl border bg-card">
         <table className="w-full min-w-[980px] text-sm">
           <thead className="text-left text-xs text-muted-foreground">
             <tr className="border-b">
@@ -100,7 +99,7 @@ export default async function ComponentDirectoryPage({ searchParams }: { searchP
             })}
           </tbody>
         </table>
-        {!r.rows.length ? <p className="px-4 py-3 text-sm text-muted-foreground">Nothing matches — try fewer words, or search distributors.</p> : null}
+        {!r.rows.length ? <p className="px-4 py-3 text-sm text-muted-foreground">Nothing matches</p> : null}
       </div>
       <div className="mt-3 flex items-center justify-between text-sm">
         <span className="num text-muted-foreground">{r.total.toLocaleString("en-IN")} parts · page {r.page} of {r.pages}</span>
@@ -109,7 +108,7 @@ export default async function ComponentDirectoryPage({ searchParams }: { searchP
           {r.page < r.pages ? <Link href={href(r.page + 1)} className="rounded-md border px-3 py-1.5 hover:bg-muted">Next</Link> : null}
         </span>
       </div>
-      <p className="mt-4 text-xs text-muted-foreground">Reference data from circuitflow&apos;s part master — not verified purchasing data. Check the datasheet before designing a part in.</p>
+      <p className="mt-4 text-xs text-muted-foreground">Reference data, not verified — check the datasheet.</p>
     </>
   );
 }

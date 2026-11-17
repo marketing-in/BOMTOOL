@@ -14,7 +14,7 @@ const ICON: Record<SheetKind, LucideIcon> = { bom: Table2, placement: MapPin, "l
 export function PackStrip({ pack, className }: { pack: PackSummary; className?: string }) {
   const added = pack.added.length;
   return (
-    <section aria-label="Read from the file" className={cn("rounded-lg border bg-card p-4", className)}>
+    <section aria-label="Read from the file" className={cn("rounded-xl border bg-card p-5", className)}>
       <div className="flex items-center gap-1">
         <h2 className="text-sm font-semibold">Read from the file</h2>
         <Info label="About what was read">
@@ -50,7 +50,7 @@ export function PackStrip({ pack, className }: { pack: PackSummary; className?: 
             <li className="flex items-start gap-2">
               <CircuitBoard className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
               <span>
-                <span className="font-medium">Bare board</span> <span className="text-muted-foreground">from its BoM line:</span> <span className="num">{pack.board.label || "no spec in the text"}</span>
+                <span className="font-medium">Bare board</span> <span className="num">{pack.board.label || "no spec in the text"}</span>
               </span>
             </li>
           ) : null}
@@ -58,7 +58,7 @@ export function PackStrip({ pack, className }: { pack: PackSummary; className?: 
             <li className="flex items-start gap-2">
               <Ban className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
               <span>
-                <span className="num font-medium">{added}</span> <span className="text-muted-foreground">on the board and not fitted, added as not-fitted lines:</span> <span className="num">{pack.added.join(", ")}</span>
+                <span className="num font-medium">{added}</span> <span className="text-muted-foreground">added as not-fitted lines:</span> <span className="num">{pack.added.join(", ")}</span>
               </span>
             </li>
           ) : null}

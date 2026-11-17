@@ -55,7 +55,7 @@ function BoardMap({ refs, board, art }: { refs: RefResult[]; board: { widthMm: n
   const h = real ? real.box.h : inside ? board.heightMm : Math.max(...ys) - Math.min(...ys) + pad * 2;
   const dot = Math.max(0.7, Math.min(w, h) / 55);
   return (
-    <figure className="rounded-lg border bg-card p-4">
+    <figure className="rounded-xl border bg-card p-5">
       <figcaption className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm font-semibold">
         <span className="flex items-center gap-2"><CircuitBoard className="size-4 text-primary" aria-hidden /> The board, part by part</span>
         <span className="flex flex-wrap gap-x-3 gap-y-1 text-xs font-normal text-muted-foreground">
@@ -151,33 +151,25 @@ export function FootprintMatchView({ match: m, revisionId, board, art = null }: 
   const good = all.filter((r) => r.status === "match");
   return (
     <div className="space-y-6">
-      <section aria-label="Result" className={cn("flex flex-wrap items-center gap-6 rounded-lg border px-5 py-5", t.box)}>
+      <section aria-label="Result" className={cn("flex flex-wrap items-center gap-6 rounded-xl border p-6", t.box)}>
         <MatchRing m={m} />
         <div className="min-w-0 flex-1">
-          <h2 className={cn("flex items-center gap-2 text-2xl leading-tight font-bold tracking-tight", t.text)}>
+          <h2 className={cn("flex items-center gap-2 text-2xl leading-tight font-semibold tracking-tight", t.text)}>
             <t.icon className="size-6 shrink-0" aria-hidden /> {m.title}
           </h2>
           <p className="mt-1.5 max-w-[70ch] text-sm">{m.summary}</p>
-          <p className="mt-3 text-sm font-medium">
-            {m.level === "green"
-              ? "Next: check that our machines can build it."
-              : m.level === "red"
-                ? "Fix the BoM or the board files before the machine check — a wrong footprint means a part that cannot be placed or soldered."
-                : m.hasBoard
-                  ? "Look at the ones marked “check by eye”, then go on to the machine check."
-                  : "You can still go on to the machine check; it will use the BoM's packages alone."}
-          </p>
+          {m.level === "red" ? <p className="mt-3 text-sm font-medium">Fix the BoM or the board files before the machine check.</p> : null}
           <div className="mt-3 flex flex-wrap gap-2 text-sm">
-            <Link href={`/boms/${revisionId}/board`} className="inline-flex h-9 items-center gap-1.5 rounded-md border bg-card px-3 font-medium outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
-              <FileUp className="size-4" aria-hidden /> {m.hasBoard ? "Replace the board files" : "Add Gerbers and pick-and-place"}
+            <Link href={`/boms/${revisionId}/board`} className="inline-flex h-9 items-center gap-1.5 rounded-md border bg-card px-3 font-medium outline-none transition-colors duration-150 hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring">
+              <FileUp className="size-4" aria-hidden /> {m.hasBoard ? "Replace board files" : "Add Gerbers"}
             </Link>
             {m.level !== "green" && m.hasBoard ? (
-              <Link href={`/boms/${revisionId}`} className="inline-flex h-9 items-center gap-1.5 rounded-md border bg-card px-3 font-medium outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
-                <FileSpreadsheet className="size-4" aria-hidden /> Fix it in the BoM
+              <Link href={`/boms/${revisionId}`} className="inline-flex h-9 items-center gap-1.5 rounded-md border bg-card px-3 font-medium outline-none transition-colors duration-150 hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring">
+                <FileSpreadsheet className="size-4" aria-hidden /> Fix in the BoM
               </Link>
             ) : null}
             <Link href="/knowledge/bom-gerber-footprint-match" className="inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-muted-foreground outline-none transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
-              <BookOpen className="size-4" aria-hidden /> Why footprints must match
+              <BookOpen className="size-4" aria-hidden /> Why it matters
             </Link>
           </div>
         </div>
@@ -185,17 +177,14 @@ export function FootprintMatchView({ match: m, revisionId, board, art = null }: 
 
       {m.hasBoard ? (
         <>
-          <ul className="grid grid-cols-2 gap-3 lg:grid-cols-5" aria-label="Designators by result">
+          <ul className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border lg:grid-cols-5" aria-label="Designators by result">
             {ORDER.map((s) => {
               const S = STATUS[s];
               return (
-                <li key={s} title={S.short} className={cn("flex items-center gap-3 rounded-lg border bg-card px-4 py-3", !m.counts[s] && "opacity-55")}>
-                  <span className={cn("grid size-9 shrink-0 place-items-center rounded-full bg-muted", S.text)}><S.icon className="size-[18px]" aria-hidden /></span>
-                  <div className="min-w-0">
-                    <div className="num text-2xl leading-tight font-semibold">{m.counts[s].toLocaleString("en-IN")}</div>
-                    <div className={cn("truncate text-xs font-semibold", S.text)}>{S.label}</div>
-                    <span className="sr-only">{S.short}</span>
-                  </div>
+                <li key={s} title={S.short} className="bg-card p-5">
+                  <div className={cn("text-3xl leading-none font-semibold tracking-tight tabular-nums", !m.counts[s] && "text-muted-foreground/50")}>{m.counts[s].toLocaleString("en-IN")}</div>
+                  <div className={cn("mt-1.5 flex items-center gap-1.5 truncate text-xs font-medium", m.counts[s] ? S.text : "text-muted-foreground")}><S.icon className="size-3.5 shrink-0" aria-hidden /> {S.label}</div>
+                  <span className="sr-only">{S.short}</span>
                 </li>
               );
             })}
@@ -204,14 +193,14 @@ export function FootprintMatchView({ match: m, revisionId, board, art = null }: 
           <BoardMap refs={m.refs} board={board} art={art} />
 
           {problems.length ? (
-            <section aria-labelledby="to-fix" className="rounded-lg border bg-card">
-              <h2 id="to-fix" className="border-b px-4 py-3 text-sm font-semibold">To fix or check <span className="num font-normal text-muted-foreground">· {problems.reduce((s, r) => s + r.refs.length, 0)} designators</span></h2>
+            <section aria-labelledby="to-fix" className="overflow-hidden rounded-xl border bg-card">
+              <h2 id="to-fix" className="border-b px-5 py-4 text-base font-semibold">To fix or check <span className="num font-normal text-muted-foreground">· {problems.reduce((s, r) => s + r.refs.length, 0)} designators</span></h2>
               <Table list={problems} />
             </section>
           ) : null}
 
           {good.length ? (
-            <details className="group rounded-lg border bg-card">
+            <details className="group overflow-hidden rounded-xl border bg-card">
               <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold outline-none select-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
                 <Check className="size-4 text-risk-green" aria-hidden /> Matching designators <span className="num font-normal text-muted-foreground">· {m.counts.match.toLocaleString("en-IN")}</span>
                 <span className="ml-auto text-xs font-normal text-muted-foreground group-open:hidden">Show</span>

@@ -11,11 +11,11 @@ const C = {
   prepreg: "oklch(0.84 0.07 95)",
   copper: "oklch(0.68 0.13 55)",
   resist: "oklch(0.62 0.16 300 / 0.85)",
-  tin: "oklch(0.82 0.01 250)",
+  tin: "oklch(0.82 0 0)",
   mask: "oklch(0.52 0.12 150 / 0.9)",
   silk: "oklch(0.98 0 0)",
   gold: "oklch(0.8 0.14 85)",
-  probe: "oklch(0.45 0.02 250)",
+  probe: "oklch(0.45 0 0)",
 };
 
 type Props = { stage: number };

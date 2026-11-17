@@ -86,7 +86,7 @@ export function PartBody({
   const [hover, setHover] = useState(false);
   const fade = ghost ? { transparent: true, opacity: 0.16, depthWrite: false } : null;
   const c = color ?? body.color;
-  const em = emissive ?? (hover ? "#335" : "#000");
+  const em = emissive ?? (hover ? "#3a2a4a" : "#000");
   const L = Math.max(0.3, body.length);
   const W = Math.max(0.2, body.width);
   const H = Math.max(0.15, body.height);

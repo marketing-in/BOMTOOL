@@ -4,7 +4,6 @@ import type { Lifecycle } from "@prisma/client";
 import { AlertTriangle, CheckCircle2, CircleHelp, OctagonAlert, XCircle } from "lucide-react";
 import { getDisplayCurrency } from "@/lib/prefs";
 import { formatMoneyCompact, type Currency } from "@/lib/currency";
-import { LIFECYCLE_LABEL } from "@/lib/risk";
 import { getDeepAnalysis } from "@/server/deep-analysis";
 import { PageHeader } from "@/components/data/page-header";
 import { LifecycleBadge, ScorePill } from "@/components/data/badges";
@@ -69,41 +68,40 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
     <>
       <PageHeader
         title={`Deep analysis${data.product ? ` — ${data.product.name}` : ""}`}
-        description={`Readiness, risk, supply and cost for a build of ${buildQty.toLocaleString("en-IN")} boards, and what to do first.`}
+        eyebrow={<span className="num">{buildQty.toLocaleString("en-IN")} boards</span>}
       />
 
       <section
         aria-label="Verdict"
         className={cn(
-          "mb-4 flex items-start gap-3 rounded-lg border p-4",
+          "mb-6 flex items-start gap-3 rounded-xl border p-5",
           r.verdict.level === "green" ? "border-risk-green/40 bg-risk-green-soft" : r.verdict.level === "amber" ? "border-risk-amber/40 bg-risk-amber-soft" : "border-risk-red/40 bg-risk-red-soft",
         )}
       >
         <VerdictIcon className={cn("mt-0.5 size-5 shrink-0", r.verdict.level === "green" ? "text-risk-green" : r.verdict.level === "amber" ? "text-risk-amber" : "text-risk-red")} aria-hidden />
         <div>
-          <h2 className="font-medium">{r.verdict.title}</h2>
+          <h2 className="text-xl leading-tight font-semibold tracking-tight">{r.verdict.title}</h2>
           <p className="text-sm text-muted-foreground">{r.verdict.detail}</p>
         </div>
       </section>
 
-      <dl className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <dl className="mb-8 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border md:grid-cols-3 xl:grid-cols-6">
         {tiles.map((t) => (
-          <div key={t.label} className="rounded-lg border bg-card px-4 py-3">
-            <dt className="text-xs text-muted-foreground">{t.label}</dt>
-            <dd className={cn("mt-1 text-xl font-semibold tracking-tight", t.tone)}>{t.value}</dd>
-            {t.note ? <dd className="mt-0.5 truncate text-xs text-muted-foreground" title={t.note}>{t.note}</dd> : null}
+          <div key={t.label} className="bg-card p-5" title={t.note}>
+            <dd className={cn("text-2xl leading-none font-semibold tracking-tight tabular-nums", t.tone)}>{t.value}</dd>
+            <dt className="mt-1.5 text-xs text-muted-foreground">{t.label}</dt>
           </div>
         ))}
       </dl>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <section aria-labelledby="actions">
-          <h2 id="actions" className="mb-3 text-base font-medium">What to do first</h2>
+          <h2 id="actions" className="mb-3 text-lg font-semibold tracking-tight">What to do first</h2>
           {r.actions.length ? (
             <ol className="space-y-3">
               {r.actions.map((a, i) => (
-                <li key={a.key} className="grid grid-cols-[1.75rem_1fr] gap-3 rounded-lg border bg-card p-4">
-                  <span className={cn("num grid size-7 place-items-center rounded-full text-xs font-medium", a.level === "red" ? "bg-risk-red-soft text-risk-red" : "bg-risk-amber-soft text-risk-amber")}>{i + 1}</span>
+                <li key={a.key} className="grid grid-cols-[1.75rem_1fr] gap-3 rounded-xl border bg-card p-4">
+                  <span className={cn("num grid size-7 place-items-center rounded-md text-xs font-semibold", a.level === "red" ? "bg-risk-red-soft text-risk-red" : "bg-risk-amber-soft text-risk-amber")}>{i + 1}</span>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                       <h3 className="font-medium">{a.title}</h3>
@@ -115,7 +113,7 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
                         {a.lines.slice(0, 8).map((l) => (
                           <li key={l.lineId}>
                             {l.partId ? (
-                              <Link href={`/parts/${l.partId}`} className="num inline-flex h-7 items-center rounded-md border px-2 text-xs transition-colors duration-150 hover:bg-muted">{l.label}</Link>
+                              <Link href={`/parts/${l.partId}`} className="num inline-flex h-7 items-center rounded-md border px-2 text-xs transition-colors duration-150 hover:bg-part-soft">{l.label}</Link>
                             ) : (
                               <span className="num inline-flex h-7 items-center rounded-md border border-dashed px-2 text-xs">{l.label}</span>
                             )}
@@ -129,13 +127,13 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
               ))}
             </ol>
           ) : (
-            <p className="rounded-lg border bg-card p-4 text-sm text-muted-foreground">Nothing to do — this BoM is ready to build.</p>
+            <p className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">Nothing to do.</p>
           )}
         </section>
 
         <aside className="space-y-4">
-          <section className="rounded-lg border bg-card p-4" aria-labelledby="risk-mix">
-            <h2 id="risk-mix" className="mb-3 text-base font-medium">Risk across the BoM</h2>
+          <section className="rounded-xl border bg-card p-4" aria-labelledby="risk-mix">
+            <h2 id="risk-mix" className="mb-3 text-lg font-semibold tracking-tight">Risk across the BoM</h2>
             <StackedBar
               label="Lines by risk"
               segments={[
@@ -156,9 +154,8 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
             />
           </section>
 
-          <section className="rounded-lg border bg-card p-4" aria-labelledby="coverage">
-            <h2 id="coverage" className="text-base font-medium">Where supply comes from</h2>
-            <p className="mt-0.5 mb-3 text-xs text-muted-foreground">Lines by the first source that covers them in full, in sourcing order.</p>
+          <section className="rounded-xl border bg-card p-4" aria-labelledby="coverage">
+            <h2 id="coverage" className="mb-3 text-lg font-semibold tracking-tight">Where supply comes from</h2>
             <StackedBar
               label="Lines by source"
               segments={[
@@ -183,8 +180,8 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
             />
           </section>
 
-          <section className="rounded-lg border bg-card p-4" aria-labelledby="lifecycle">
-            <h2 id="lifecycle" className="mb-3 text-base font-medium">Lifecycle</h2>
+          <section className="rounded-xl border bg-card p-4" aria-labelledby="lifecycle">
+            <h2 id="lifecycle" className="mb-3 text-lg font-semibold tracking-tight">Lifecycle</h2>
             <ul className="space-y-1.5 text-sm">
               {r.lifecycle.map((l) => (
                 <li key={l.state} className="flex items-center justify-between gap-2">
@@ -195,8 +192,8 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
             </ul>
           </section>
 
-          <section className="rounded-lg border bg-card p-4" aria-labelledby="compliance">
-            <h2 id="compliance" className="mb-3 text-base font-medium">Compliance</h2>
+          <section className="rounded-xl border bg-card p-4" aria-labelledby="compliance">
+            <h2 id="compliance" className="mb-3 text-lg font-semibold tracking-tight">Compliance</h2>
             <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 text-sm">
               {(
                 [
@@ -217,8 +214,8 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
       </div>
 
       <section className="mt-8" aria-labelledby="riskiest">
-        <h2 id="riskiest" className="mb-3 text-base font-medium">Riskiest lines</h2>
-        <div className="overflow-x-auto rounded-lg border bg-card">
+        <h2 id="riskiest" className="mb-3 text-lg font-semibold tracking-tight">Riskiest lines</h2>
+        <div className="overflow-x-auto rounded-xl border bg-card">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
               <tr className="border-b text-left text-xs text-muted-foreground">
@@ -249,11 +246,11 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
       </section>
 
       <section className="mt-8" aria-labelledby="money">
-        <h2 id="money" className="text-base font-medium">Where the money goes</h2>
+        <h2 id="money" className="text-lg font-semibold tracking-tight">Where the money goes</h2>
         <p className="mt-0.5 mb-3 text-xs text-muted-foreground">
-          The {r.pareto.length} most expensive lines are {pct(r.pareto.at(-1)?.cumulative ?? 0, 1)}% of the {money(r.spendTotal)} parts cost for this build.
+          Top {r.pareto.length} lines · {pct(r.pareto.at(-1)?.cumulative ?? 0, 1)}% of {money(r.spendTotal)}
         </p>
-        <ol className="space-y-2 rounded-lg border bg-card p-4">
+        <ol className="space-y-2 rounded-xl border bg-card p-4">
           {r.pareto.map((p) => (
             <li key={p.lineId} className="grid grid-cols-[minmax(0,12rem)_1fr_auto] items-center gap-3 text-sm sm:grid-cols-[minmax(0,16rem)_1fr_6rem_4rem]">
               {p.partId ? (
@@ -262,7 +259,7 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
                 <span className="num truncate" title={p.label}>{p.label}</span>
               )}
               <div className="h-3">
-                <div className="h-3 rounded-r-[4px] bg-primary" style={{ width: `${(p.value / max) * 100}%` }} title={`${p.label}: ${money(p.value)}`} />
+                <div className="h-3 rounded-r-[3px] bg-primary/80" style={{ width: `${(p.value / max) * 100}%` }} title={`${p.label}: ${money(p.value)}`} />
               </div>
               <span className="num text-right">{money(p.value)}</span>
               <span className="num hidden text-right text-xs text-muted-foreground sm:block" title="Running share of the build's parts cost">{Math.round(p.cumulative * 100)}%</span>
@@ -274,8 +271,8 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
       {data.box || data.route.some((s) => s.watch) ? (
         <section className="mt-8 grid gap-4 md:grid-cols-2" aria-label="Box and process">
           {data.box && data.enclosure ? (
-            <div className="rounded-lg border bg-card p-4">
-              <h2 className="text-base font-medium">The finished product</h2>
+            <div className="rounded-xl border bg-card p-4">
+              <h2 className="text-lg font-semibold tracking-tight">The finished product</h2>
               <p className="mt-0.5 text-xs text-muted-foreground">{data.enclosure.label}</p>
               <ul className="mt-3 space-y-1.5 text-sm">
                 {data.box.kit
@@ -293,9 +290,8 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
             </div>
           ) : null}
           {data.route.some((s) => s.watch) ? (
-            <div className="rounded-lg border bg-card p-4">
-              <h2 className="text-base font-medium">On the line</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">Process steps with a watch-out for this product.</p>
+            <div className="rounded-xl border bg-card p-4">
+              <h2 className="text-lg font-semibold tracking-tight">On the line</h2>
               <ul className="mt-3 space-y-1.5 text-sm">
                 {data.route
                   .filter((s) => s.watch)
@@ -311,10 +307,6 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
         </section>
       ) : null}
 
-      <p className="mt-8 text-xs text-muted-foreground">
-        Lifecycle labels follow {Object.values(LIFECYCLE_LABEL).join(" · ")}. Risk weighs lifecycle, supply, lead time, alternates, price trend, counterfeit exposure, compliance and age —
-        open any part for the full breakdown.
-      </p>
     </>
   );
 }

@@ -77,7 +77,7 @@ export default async function OperationsPage() {
       <PageHeader title="Operations" />
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat icon={ClipboardList} label="Open work orders" value={wos.length} hint={`${clear} clear to build`} />
-        <Stat icon={PackageX} label="Shortage value" value={formatMoneyCompact(shortage, currency)} hint="Landed, to buy for open WOs" tone={shortage > 0 ? "amber" : "plain"} />
+        <Stat icon={PackageX} label="Shortage value" value={formatMoneyCompact(shortage, currency)} hint="landed, open WOs" tone={shortage > 0 ? "amber" : "plain"} />
         <Stat icon={Hourglass} label="MSL bags open" value={msl.length} hint={`${expiring} under 24 h`} tone={expiring ? "red" : "plain"} />
         <Stat icon={FileText} label="PO drafts, 90 days" value={pos.length} hint={formatMoneyCompact(spendRows.reduce((s, [, v]) => s + v, 0), currency)} />
       </div>
@@ -126,21 +126,21 @@ export default async function OperationsPage() {
           )}
         </Section>
 
-        <Section title="Line load — next 14 days" action={<Link href="/operations/schedule" className="text-xs text-muted-foreground hover:text-foreground">Schedule</Link>}>
+        <Section title="Line load" action={<Link href="/operations/schedule" className="text-xs text-muted-foreground hover:text-foreground">14 days · Schedule</Link>}>
           <ul className="space-y-3 px-4 py-4">
             {util.map(({ l, pct }) => (
               <li key={l.id} className="grid grid-cols-[3rem_1fr_3rem] items-center gap-3 text-sm">
                 <span className="num font-medium">{l.code}</span>
-                <span className="h-2 overflow-hidden rounded-full bg-muted">
-                  <span className={`block h-full rounded-full ${pct > 85 ? "bg-risk-red" : pct > 60 ? "bg-risk-amber" : "bg-primary"}`} style={{ width: `${pct}%` }} />
+                <span className="h-2.5 overflow-hidden rounded-sm bg-muted">
+                  <span className={`block h-full rounded-sm ${pct > 85 ? "bg-risk-red" : pct > 60 ? "bg-risk-amber" : "bg-primary"}`} style={{ width: `${pct}%` }} />
                 </span>
-                <span className="num text-right text-xs text-muted-foreground">{pct}%</span>
+                <span className="num text-right text-sm font-semibold">{pct}%</span>
               </li>
             ))}
           </ul>
         </Section>
 
-        <Section title="Top risk parts in open work orders">
+        <Section title="Risk parts">
           {risky.length ? (
             <ul className="divide-y text-sm">
               {risky.map(({ l, a }) => (
@@ -174,19 +174,19 @@ export default async function OperationsPage() {
           )}
         </Section>
 
-        <Section title="Spend by supplier — PO drafts, 90 days" className="xl:col-span-2">
+        <Section title="Spend by supplier" action={<span className="text-xs text-muted-foreground">PO drafts, 90 days</span>} className="xl:col-span-2">
           {spendRows.length ? (
             <ul className="space-y-2 px-4 py-4">
               {spendRows.map(([name, v]) => (
-                <li key={name} className="grid grid-cols-[12rem_1fr_6rem] items-center gap-3 text-sm">
+                <li key={name} className="grid grid-cols-[minmax(0,10rem)_1fr_5rem] sm:grid-cols-[12rem_1fr_6rem] items-center gap-3 text-sm">
                   <span className="truncate">{name}</span>
-                  <span className="h-2 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-primary" style={{ width: `${(v / spendMax) * 100}%` }} /></span>
+                  <span className="h-2.5 overflow-hidden rounded-sm bg-muted"><span className="block h-full rounded-sm bg-primary" style={{ width: `${(v / spendMax) * 100}%` }} /></span>
                   <span className="num text-right text-xs">{formatMoneyCompact(v, currency)}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <EmptyState title="No PO drafts yet">Create them from an RFQ comparison.</EmptyState>
+            <EmptyState title="No PO drafts yet" />
           )}
         </Section>
       </div>

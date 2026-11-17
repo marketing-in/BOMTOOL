@@ -198,7 +198,7 @@ export function AskPanel() {
           <SheetTitle className="flex items-center gap-2 text-base">
             <Sparkles className="size-4 text-primary" aria-hidden /> Ask AI
             {mode ? (
-              <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", mode === "claude" ? "bg-risk-green-soft text-risk-green" : "bg-risk-amber-soft text-risk-amber")}>
+              <span className={cn("rounded-md px-2 py-0.5 text-[11px] font-medium", mode === "claude" ? "bg-risk-green-soft text-risk-green" : "bg-risk-amber-soft text-risk-amber")}>
                 {mode === "claude" ? "Live" : "Simulated"}
               </span>
             ) : null}

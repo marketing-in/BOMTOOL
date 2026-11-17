@@ -7,7 +7,7 @@ export function createLineModels(THREE){
  const mat=(color,metalness=.15,roughness=.6,extra={})=>keep(new THREE.MeshStandardMaterial({color,metalness,roughness,...extra}));
  const C={frame:mat(0xe2dfd7,.1,.62),panel:mat(0xd3cfc5,.1,.65),dark:mat(0x2b2d30,.3,.6),kick:mat(0x3a3c3f,.2,.7),steel:mat(0xb4b8bc,.75,.3),alu:mat(0xc9cdd0,.8,.28),copper:mat(0xd9824a,.35,.45),
   glass:mat(0xa9bcc6,.1,.05,{transparent:true,opacity:.22,depthWrite:false}),belt:mat(0x1c1d1f,.05,.9),screenBack:mat(0x1d1f22,.3,.5),yellow:mat(0xe3b82e,.1,.5),red:mat(0xc8312a,.15,.45),
-  lead:mat(0x7d8185,.35,.55),mask:mat(0x1f6b45,.1,.55),reelA:mat(0xe9e8e3,.05,.5),reelB:mat(0x2c4f8a,.1,.5),hot:mat(0x301205,0,1,{emissive:0xff6a2a,emissiveIntensity:.9})};
+  lead:mat(0x7d8185,.35,.55),mask:mat(0x1f6b45,.1,.55),reelA:mat(0xe9e8e3,.05,.5),reelB:mat(0x5a2f96,.1,.5),hot:mat(0x301205,0,1,{emissive:0xff6a2a,emissiveIntensity:.9})};
  const add=(m,x,y,z,parent)=>{m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;parent.add(m);return m};
  const box=(w,h,d,material,x,y,z,parent)=>add(new THREE.Mesh(keep(new THREE.BoxGeometry(w,h,d)),material),x,y,z,parent);
  const cyl=(r,h,material,x,y,z,parent,axis='y',seg=20)=>{const g=keep(new THREE.CylinderGeometry(r,r,h,seg));if(axis==='x')g.rotateZ(Math.PI/2);if(axis==='z')g.rotateX(Math.PI/2);return add(new THREE.Mesh(g,material),x,y,z,parent)};
@@ -127,7 +127,7 @@ export function createLineModels(THREE){
    x.font='700 54px "IBM Plex Sans", system-ui, sans-serif';x.fillText('ESD',230,110);x.font='600 34px "IBM Plex Sans", system-ui, sans-serif';x.fillText('protected area',230,165)});
   if(sign){const p=new THREE.Mesh(keep(new THREE.PlaneGeometry(1.6,.8)),mat(0xffffff,0,.6,{map:sign.t}));p.position.set(x0+1,2.4,wallZ+.12);g.add(p)}
   // Reel racks against the wall.
-  const reelCols=[0xe9e8e3,0x2c4f8a,0x2d7a4c,0xb3261e,0x1c1d1f].map(c=>mat(c,.1,.5));
+  const reelCols=[0xe9e8e3,0x5a2f96,0x2d7a4c,0xb3261e,0x1c1d1f].map(c=>mat(c,.1,.5));
   for(const rx of [x0+4,x0+6.4,x1-3]){const r=new THREE.Group();r.position.set(rx,0,wallZ+.75);g.add(r);for(const sx of [-1,1])for(const sz of [-1,1])box(.04,2.1,.04,C.steel,sx*1.05,1.05,sz*.3,r);
    for(let k=0;k<4;k++){box(2.14,.03,.64,C.steel,0,.3+k*.55,0,r);for(let i=0;i<12;i++)cyl(.17,.03,reelCols[(i+k*3)%5],-.95+i*.17,.5+k*.55,0,r,'x')}}
   // Reel cart near the placement machine and a rework bench at the end of the line.

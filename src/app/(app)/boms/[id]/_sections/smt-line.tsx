@@ -34,10 +34,10 @@ export default async function SmtLineSection({ id, searchParams }: { id: string;
       <PageHeader
         level={2}
         title={pick ? pick.name : "SMT line"}
-        description={`This board on ${pick ? `our ${pick.code}` : "a generic line"}: ${flow}. ${smt} parts placed. Press play; click a machine to see its cycle, its sheet figures and its process data.`}
+        eyebrow={<span title={flow}>{pick ? pick.code : "Generic line"} · <span className="num">{smt}</span> parts placed</span>}
       />
       {ours.length > 1 ? (
-        <div role="group" aria-label="Line" className="mb-4 inline-flex rounded-lg bg-muted p-0.5 text-sm">
+        <div role="group" aria-label="Line" className="mb-4 inline-flex gap-1 rounded-lg border bg-card p-1 text-sm">
           {ours.map((l) => {
             const on = l.code === pick?.code;
             return (
@@ -46,20 +46,18 @@ export default async function SmtLineSection({ id, searchParams }: { id: string;
                 href={sectionHref(id, "line", { ...(searchParams.qty ? { qty: searchParams.qty } : {}), smt: l.code })}
                 scroll={false}
                 aria-current={on ? "true" : undefined}
-                className={cn("inline-flex h-9 items-center gap-1.5 rounded-md px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring", on ? "bg-card font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                className={cn("inline-flex h-9 items-center gap-1.5 rounded-md px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring", on ? "bg-primary font-semibold text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground")}
               >
                 {l.code}
-                {l.code === best ? <span className="text-xs font-normal text-risk-green">best fit</span> : null}
+                {l.code === best ? <span className={cn("text-xs font-normal", on ? "text-primary-foreground/80" : "text-risk-green")}>best fit</span> : null}
               </Link>
             );
           })}
         </div>
       ) : null}
       <LineLoader data={data} line={pick?.sim ?? null} />
-      <p className="mt-3 text-xs text-muted-foreground">
-        Stations, machine names and rates come from our machine sheets (Factory → Lines &amp; machines): printer cycle, SPI area rate, the placement rate measured on our floor, the oven&apos;s heated
-        length, the AOI&apos;s field of view. The process models are circuitflow&apos;s (src/vendor/circuitflow); inspection results are simulated — repeatable for this board — not measurements from
-        our machines.
+      <p className="mt-3 text-xs text-muted-foreground" title="Stations and rates come from our machine sheets. Inspection results are simulated — repeatable for this board — not measurements from our machines.">
+        <span className="rounded-md bg-risk-amber-soft px-2 py-0.5 font-medium text-risk-amber">Simulated</span> inspection results
       </p>
     </>
   );

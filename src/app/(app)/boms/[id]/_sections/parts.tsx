@@ -109,11 +109,11 @@ export default async function PartsSection({ id, searchParams }: { id: string; s
 
       <div className="grid gap-6 xl:grid-cols-[400px_minmax(0,1fr)]">
         <aside className="min-w-0 xl:sticky xl:top-4 xl:self-start">
-          <div className="rounded-lg border bg-card">
+          <div className="overflow-hidden rounded-xl border bg-card">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2.5">
-              <div role="tablist" aria-label="Show" className="inline-flex rounded-md border bg-muted/60 p-0.5">
+              <div role="tablist" aria-label="Show" className="inline-flex gap-0.5 rounded-md border bg-card p-0.5">
                 {FILTERS.map(([key, label]) => (
-                  <Link key={key} role="tab" aria-selected={show === key} href={href({ show: key })} className={cn("rounded px-2 py-1 text-xs transition-colors duration-150", show === key ? "bg-card font-medium shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                  <Link key={key} role="tab" aria-selected={show === key} href={href({ show: key })} className={cn("rounded px-2 py-1 text-xs transition-colors duration-150", show === key ? "bg-primary font-semibold text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
                     {label}
                   </Link>
                 ))}
@@ -129,7 +129,7 @@ export default async function PartsSection({ id, searchParams }: { id: string; s
                   <Link
                     href={href({ line: l.id })}
                     aria-current={l.id === sel?.id ? "true" : undefined}
-                    className={cn("flex items-start gap-2.5 px-3 py-2.5 outline-none transition-colors duration-150 hover:bg-muted/50 focus-visible:bg-muted/60", l.id === sel?.id && "bg-primary/[0.05] shadow-[inset_2px_0_0_var(--primary)]", (l.dnp || l.excluded) && "text-muted-foreground")}
+                    className={cn("flex items-start gap-2.5 px-3 py-2.5 outline-none transition-colors duration-150 hover:bg-muted/50 focus-visible:bg-muted/60", l.id === sel?.id && "bg-part-soft", (l.dnp || l.excluded) && "text-muted-foreground")}
                   >
                     <span className="num w-6 shrink-0 pt-0.5 text-right text-xs text-muted-foreground">{l.lineNo}</span>
                     <span className="min-w-0 flex-1">
@@ -159,7 +159,7 @@ export default async function PartsSection({ id, searchParams }: { id: string; s
             </ol>
             {buyer && withGaps.length ? (
               <div className="border-t px-3 py-2.5">
-                <RefreshButton scope={{ partIds: withGaps, label: `${withGaps.length} parts with gaps` }} label={`Search distributors for ${withGaps.length} parts with missing details`} variant="ghost" />
+                <RefreshButton scope={{ partIds: withGaps, label: `${withGaps.length} parts with gaps` }} label={`Fill ${withGaps.length} parts with gaps`} variant="ghost" />
               </div>
             ) : null}
           </div>
@@ -201,11 +201,11 @@ async function LineDetail({
 }) {
   const part = sel.partId ? await getPart(sel.partId) : null;
   const where = (
-    <section aria-label="Where it sits on the board" className="rounded-lg border bg-card">
+    <section aria-label="Where it sits on the board" className="rounded-xl border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2.5">
-        <h3 className="text-sm font-medium">On the board</h3>
+        <h3 className="text-base font-semibold">On the board</h3>
         <span className="flex gap-3 text-xs">
-          {view === "3d" ? <Link href={href({})} className="text-muted-foreground hover:text-foreground">Flat map</Link> : <Link href={href({ view: "3d" })} className="text-primary hover:underline">Show in 3D</Link>}
+          {view === "3d" ? <Link href={href({})} className="text-muted-foreground hover:text-foreground">Flat map</Link> : <Link href={href({ view: "3d" })} className="font-medium underline decoration-border hover:decoration-foreground">Show in 3D</Link>}
           <Link href={`/boms/${b.revisionId}/viewer`} className="text-muted-foreground hover:text-foreground">3D viewer</Link>
         </span>
       </div>
@@ -216,9 +216,7 @@ async function LineDetail({
       ) : (
         <div className="mx-auto max-w-xl px-4 py-3">
           <BoardMap width={b.viewer.board.width} height={b.viewer.board.height} parts={b.viewer.parts} lineId={sel.id} title={`${sel.refDes} on the board`} />
-          <p className="mt-1 text-xs text-muted-foreground">
-            {sel.refDes || "No designators"} filled; dashed parts are on the bottom side.{b.viewer.approximateLayout ? " Approximate layout — upload the pick-and-place file for real positions." : ""}
-          </p>
+          {b.viewer.approximateLayout ? <p className="mt-1 text-xs text-risk-amber">Approximate layout — no pick-and-place file.</p> : null}
         </div>
       )}
     </section>
@@ -256,7 +254,7 @@ async function LineDetail({
     const asked = ch?.query || sel.mpn || "";
     return (
       <div className="space-y-4">
-        <section className="rounded-lg border bg-card" aria-labelledby="choose-part">
+        <section className="rounded-xl border bg-card" aria-labelledby="choose-part">
           <div className="border-b px-4 py-3">
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
               <h2 id="choose-part" className="flex items-center gap-2 text-base font-semibold">
@@ -271,11 +269,7 @@ async function LineDetail({
               {ch?.refs.length ? <span className="num"> · {compressRefs(ch.refs)}</span> : null}
               {sel.mpn ? <span className="num"> · asked for {sel.mpn}</span> : null}
             </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {ch?.guessed
-                ? "Guessed from the Gerber pads: the footprint and positions are real, the value is not in the files. Check the customer's drawing or a sample board, then choose the part; it is priced as soon as it has one."
-                : `Gerbers carry the footprint and position, not the value or part number. Search below by value or part number${sellerNames ? ` (${sellerNames} are searched too)` : ""}, then choose the part; it is priced as soon as it has one. Untick designators to give some of them another part.`}
-            </p>
+            {ch?.guessed ? <p className="mt-2 text-xs text-risk-amber">Guessed from the Gerber pads — the value is not in the files.</p> : null}
           </div>
           {ch ? (
             <ChoosePart
@@ -287,21 +281,21 @@ async function LineDetail({
               lineHref={`/boms/${b.revisionId}/build/parts?${show !== "all" ? `show=${show}&` : ""}line=`}
               sections={[
                 { title: "Match candidates", note: "proposed by the matcher", rows: rows(ch.matches) },
-                { title: `Fits ${ch.footprint ?? "this footprint"}${ch.kind ? ` · ${KIND_PLURAL[ch.kind]}` : ""}`, note: `${ch.fitsTotal} in our catalogue · ours first, then distributor stock and price`, rows: rows(ch.fits) },
+                { title: `Fits ${ch.footprint ?? "this footprint"}${ch.kind ? ` · ${KIND_PLURAL[ch.kind]}` : ""}`, note: `${ch.fitsTotal} in our catalogue`, rows: rows(ch.fits) },
                 { title: `Found for “${ch.query}”`, rows: rows(ch.found) },
               ]}
             />
           ) : null}
-          {nothing && !market ? <p className="border-b px-4 py-3 text-sm text-muted-foreground">Nothing in our catalogue fits this footprint yet — search by value or MPN below.</p> : null}
+          {nothing && !market ? <p className="border-b px-4 py-3 text-sm text-muted-foreground">Nothing in our catalogue fits this footprint yet.</p> : null}
           <form method="get" action={`/boms/${b.revisionId}/build/parts`} className="flex flex-wrap items-center gap-2 px-4 py-3">
             <input type="hidden" name="line" value={sel.id} />
             {show !== "all" ? <input type="hidden" name="show" value={show} /> : null}
             <label htmlFor="find-part" className="sr-only">Search our catalogue{sellerNames ? ` and ${sellerNames}` : ""}</label>
-            <input id="find-part" name="find" defaultValue={ch?.query ?? ""} placeholder="MPN or words — 10k 0603, LM358, 100nF" className="h-9 min-w-56 flex-1 rounded-md border bg-background px-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
-            <button type="submit" className="h-9 rounded-md border bg-card px-3 text-sm font-medium outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">{sellerNames ? `Search our catalogue and ${sellerNames}` : "Search our catalogue"}</button>
+            <input id="find-part" name="find" defaultValue={ch?.query ?? ""} placeholder="10k 0603, LM358, 100nF" className="h-9 min-w-56 flex-1 rounded-md border bg-card px-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+            <button type="submit" className="h-9 rounded-md border bg-card px-3 text-sm font-medium outline-none transition-colors duration-150 hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring" title={sellerNames ? `Our catalogue and ${sellerNames}` : "Our catalogue"}>Search</button>
             {asked ? (
               <Link href={`/parts/market?q=${encodeURIComponent(asked)}`} className="text-sm text-muted-foreground hover:text-foreground">
-                Full distributor results →
+                All distributors →
               </Link>
             ) : null}
           </form>
@@ -397,8 +391,8 @@ async function LineDetail({
     !r.pin || sel.excluded ? 0 : sel.plan.filter((p) => (r.pin!.offerId ? p.offerId === r.pin!.offerId : r.pin!.excessListingId ? p.excessListingId === r.pin!.excessListingId : p.tier <= 2)).reduce((s, p) => s + p.qty, 0);
   const bar = (r: Row, key: SortKey) =>
     sort === key ? (
-      <span className="mt-1 ml-auto block h-1 w-16 overflow-hidden rounded-full bg-muted" aria-hidden>
-        <span className="block h-full rounded-full bg-primary/70" style={{ width: `${Math.max(barOf(r) * 100, r.qty > 0 ? 4 : 0)}%` }} />
+      <span className="mt-1 ml-auto block h-1 w-16 overflow-hidden rounded-sm bg-muted" aria-hidden>
+        <span className="block h-full bg-primary/70" style={{ width: `${Math.max(barOf(r) * 100, r.qty > 0 ? 4 : 0)}%` }} />
       </span>
     ) : null;
   const hot = (key: SortKey) => (sort === key ? "font-semibold text-foreground" : "");
@@ -406,12 +400,12 @@ async function LineDetail({
     const taken = inQuote(r);
     const band = BAND[RISK_BAND(r.risk)];
     return (
-      <tr key={r.key} className={cn(r.qty <= 0 && "text-muted-foreground", (isPinned(r.pin) || taken > 0) && "bg-primary/[0.04]")}>
+      <tr key={r.key} className={cn(r.qty <= 0 && "text-muted-foreground", (isPinned(r.pin) || taken > 0) && "bg-part-soft/60")}>
         {place !== undefined ? <td className="num w-10 py-2 pl-4 text-right text-sm text-muted-foreground">{r.qty > 0 ? place : "—"}</td> : null}
         <td className="px-3 py-2">
           <span className="font-medium">{r.name}</span>
           {r.mock ? <span className="ml-1.5 rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground">mock</span> : null}
-          {taken > 0 ? <span className="num ml-1.5 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap text-primary">In the quote · {taken.toLocaleString("en-IN")}</span> : null}
+          {taken > 0 ? <span className="num ml-1.5 rounded bg-primary px-1.5 py-0.5 text-[10px] font-medium whitespace-nowrap text-primary-foreground">In the quote · {taken.toLocaleString("en-IN")}</span> : null}
           <span className="block text-xs text-muted-foreground">{place !== undefined && r.tier ? `${TIER_SHORT[r.tier]} · ` : ""}{r.detail}</span>
         </td>
         <td className={cn("num px-3 py-2 text-right", hot("stock"))}>{r.qty.toLocaleString("en-IN")}<span className="block text-[11px] font-normal text-muted-foreground">available</span>{bar(r, "stock")}</td>
@@ -449,19 +443,19 @@ async function LineDetail({
 
   return (
     <div className="space-y-4">
-      <section aria-label="Part" className="grid gap-4 rounded-lg border bg-card p-4 sm:grid-cols-[120px_minmax(0,1fr)]">
+      <section aria-label="Part" className="grid gap-5 rounded-xl border bg-card p-5 sm:grid-cols-[120px_minmax(0,1fr)]">
         <div className="grid aspect-square w-full max-w-[120px] place-items-center overflow-hidden rounded-md border bg-white p-2">
           <PartPhoto src={photo} alt={`${part.mpn} photo`} className="max-h-full max-w-full" fallback={part.package ? <PackageDrawing pkg={part.package} size={90} /> : <span className="text-xs text-muted-foreground">No photo yet</span>} />
         </div>
         <div className="min-w-0">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="num text-lg font-semibold tracking-tight">
+            <h2 className="text-xl font-semibold tracking-tight">
               <span className="mr-1 text-sm font-normal text-muted-foreground">Line {sel.lineNo}</span>{" "}
               {part.mpn}
             </h2>
             <span className="flex items-center gap-3 text-xs">
               {datasheet ? (
-                <a href={datasheet} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                <a href={datasheet} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium underline decoration-border hover:decoration-foreground">
                   <FileText className="size-3.5" aria-hidden /> Datasheet
                 </a>
               ) : (
@@ -476,47 +470,47 @@ async function LineDetail({
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <LifecycleBadge lifecycle={part.lifecycle} />
             {[[rohsText, rohsLevel], [reachText, reachLevel], [part.msl ? `MSL ${part.msl.replace("MSL_", "")}` : "MSL ?", part.msl ? "green" : "amber"], [part.package?.name ?? "package ?", "grey"], [`${part.category.name}`, "grey"]].map(([t, lv]) => (
-              <span key={t} className="inline-flex h-6 items-center gap-1.5 rounded-full bg-muted px-2 text-xs">
+              <span key={t} className="inline-flex h-6 items-center gap-1.5 rounded-md bg-muted px-2 text-xs">
                 <RiskDot level={lv as "green" | "amber" | "red" | "grey"} /> {t}
               </span>
             ))}
           </div>
-          <dl className="num mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
-            <div className="min-w-0"><dt className="font-sans text-xs text-muted-foreground">Per board</dt><dd className="truncate" title={sel.refDes}>{sel.qtyPerBoard} · {sel.refDes || "—"}</dd></div>
-            <div><dt className="font-sans text-xs text-muted-foreground">Need at {qtyLabel(b.refQty)}</dt><dd>{sel.required.toLocaleString("en-IN")} <span className="text-xs text-muted-foreground">incl. attrition</span></dd></div>
-            <div><dt className="font-sans text-xs text-muted-foreground">Cost per board</dt><dd className="font-medium">{sel.cost.priced ? m.unit(sel.perBoard) : "no price"}</dd></div>
-            <div><dt className="font-sans text-xs text-muted-foreground">Risk</dt><dd>{sel.risk ? <span className="inline-flex items-center gap-1.5"><RiskDot level={sel.risk.level} />{sel.risk.score} / 100</span> : "—"}</dd></div>
+          <dl className="mt-4 flex flex-wrap gap-x-8 gap-y-4">
+            <div><dd className="text-2xl leading-none font-semibold tracking-tight tabular-nums">{sel.cost.priced ? m.unit(sel.perBoard) : "no price"}</dd><dt className="mt-1.5 text-xs text-muted-foreground">Cost per board</dt></div>
+            <div className="min-w-0"><dd className="text-2xl leading-none font-semibold tracking-tight tabular-nums" title={sel.refDes}>{sel.qtyPerBoard}</dd><dt className="mt-1.5 max-w-48 truncate text-xs text-muted-foreground" title={sel.refDes}>Per board · {sel.refDes || "—"}</dt></div>
+            <div><dd className="text-2xl leading-none font-semibold tracking-tight tabular-nums">{sel.required.toLocaleString("en-IN")}</dd><dt className="mt-1.5 text-xs text-muted-foreground" title="Including attrition">Need at {qtyLabel(b.refQty)}</dt></div>
+            <div><dd className="flex items-center gap-2 text-2xl leading-none font-semibold tracking-tight tabular-nums">{sel.risk ? <><RiskDot level={sel.risk.level} />{sel.risk.score}</> : "—"}</dd><dt className="mt-1.5 text-xs text-muted-foreground">Risk / 100</dt></div>
           </dl>
         </div>
       </section>
 
       {sel.excluded ? (
-        <p className="flex items-center gap-2 rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+        <p className="flex items-center gap-2 rounded-md border bg-muted/40 px-4 py-3 text-sm">
           {sel.excluded === "box" ? <BoxIcon className="size-4 text-muted-foreground" aria-hidden /> : <Layers className="size-4 text-muted-foreground" aria-hidden />}
-          This line is the {sel.excluded === "box" ? "enclosure — choose and price it in step 4, the box" : "bare board — it is priced in step 3, with the quote"}, not with the components.
+          {sel.excluded === "box" ? "The enclosure — priced in step 4, the box." : "The bare board — priced in step 3."}
         </p>
       ) : null}
 
       {sel.missing.length ? (
-        <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-risk-amber/40 bg-risk-amber-soft px-4 py-3 text-sm">
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-risk-amber/40 bg-risk-amber-soft px-4 py-3 text-sm">
           <span>
-            <span className="font-medium">Still missing:</span> {sel.missing.join(", ")}. The nightly refresh fills these in from the distributors; search now to fill them sooner.
+            <span className="font-medium">Missing:</span> {sel.missing.join(", ")}
           </span>
-          {buyer ? <RefreshButton scope={{ partIds: [part.id], label: part.mpn }} label="Search distributors now" /> : null}
+          {buyer ? <RefreshButton scope={{ partIds: [part.id], label: part.mpn }} label="Search distributors" /> : null}
         </section>
       ) : null}
 
-      <section aria-labelledby="sources" className="rounded-lg border bg-card">
+      <section aria-labelledby="sources" className="overflow-hidden rounded-xl border bg-card">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
-          <h3 id="sources" className="text-sm font-medium">Where it comes from — choose a source</h3>
+          <h3 id="sources" className="text-base font-semibold">Where it comes from — choose a source</h3>
           <span className="flex items-center gap-2 text-xs text-muted-foreground">
-            Unit at {need.toLocaleString("en-IN")} pcs; landed = freight + duty, net of GST credit
+            <span title="Landed = freight + duty, net of GST credit">at {need.toLocaleString("en-IN")} pcs</span>
             {edit && sel.pinned && !sel.excluded ? <ChooseButton act={{ kind: "pin", revisionId: b.revisionId, lineId: sel.id, pin: null }} chosen={false} label="Back to sourcing order" /> : null}
           </span>
         </div>
         {!sel.pinned && sel.plan.length ? (
           <p className="border-b bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
-            Sourcing order picks: {sel.plan.map((p) => `${p.qty.toLocaleString("en-IN")} from ${p.source}${p.unit !== null ? ` at ${m.unit(p.unit)}` : ""}`).join(" + ")}.
+            Picks: {sel.plan.map((p) => `${p.qty.toLocaleString("en-IN")} from ${p.source}${p.unit !== null ? ` at ${m.unit(p.unit)}` : ""}`).join(" + ")}.
           </p>
         ) : null}
         <div className="border-b px-4 py-2.5">
@@ -541,14 +535,13 @@ async function LineDetail({
           <>
             <p className="px-4 pt-3 pb-1 text-xs font-medium text-muted-foreground">
               All {ranked.length} option{ranked.length === 1 ? "" : "s"} · {SORT[sort].label.toLowerCase()}, {SORT[sort][dir]}
-              {sort === "risk" ? " · the risk of the source: our shelf, authorised, partner or excess stock, broker" : sort === "lead" ? ` · for ${need.toLocaleString("en-IN")} pcs` : sort === "price" ? " · landed" : ""}
+              {sort === "lead" ? ` · for ${need.toLocaleString("en-IN")} pcs` : sort === "price" ? " · landed" : ""}
             </p>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[680px] text-sm" aria-label={`Sources ranked by ${SORT[sort].label.toLowerCase()}, ${SORT[sort][dir]}`}>
                 <tbody className="divide-y">{ranked.map((r, i) => sourceRow(r, i + 1))}</tbody>
               </table>
             </div>
-            {ranked.some((r) => r.qty <= 0) ? <p className="border-t px-4 py-2 text-xs text-muted-foreground">Sources with no stock stay at the bottom, whichever way the list runs.</p> : null}
           </>
         ) : (
           <p className="px-4 py-3 text-sm text-muted-foreground">Nobody lists this part yet.</p>
@@ -556,8 +549,8 @@ async function LineDetail({
       </section>
 
       <div className="grid gap-4 2xl:grid-cols-2">
-        <section aria-label="Price breaks" className="rounded-lg border bg-card">
-          <h3 className="border-b px-4 py-2.5 text-sm font-medium">Price breaks</h3>
+        <section aria-label="Price breaks" className="rounded-xl border bg-card">
+          <h3 className="border-b px-4 py-3 text-base font-semibold">Price breaks</h3>
           <div className="px-3 py-3">
             <BreakChart
               need={need}
@@ -569,8 +562,8 @@ async function LineDetail({
             />
           </div>
         </section>
-        <section aria-label="Price history" className="rounded-lg border bg-card">
-          <h3 className="border-b px-4 py-2.5 text-sm font-medium">Price history @1k</h3>
+        <section aria-label="Price history" className="rounded-xl border bg-card">
+          <h3 className="border-b px-4 py-3 text-base font-semibold">Price history @1k</h3>
           <div className="px-2 py-3">
             <PriceHistoryChartLoader series={series} currency={currency} />
           </div>
@@ -578,10 +571,10 @@ async function LineDetail({
       </div>
 
       <div className="grid gap-4 2xl:grid-cols-2">
-        <section aria-label="Risk analysis" className="rounded-lg border bg-card">
+        <section aria-label="Risk analysis" className="rounded-xl border bg-card">
           <div className="flex items-baseline justify-between border-b px-4 py-2.5">
-            <h3 className="text-sm font-medium">Risk analysis</h3>
-            {sel.risk ? <span className="num text-xs text-muted-foreground">{sel.risk.score} / 100 at this build&apos;s need</span> : null}
+            <h3 className="text-base font-semibold">Risk analysis</h3>
+            {sel.risk ? <span className="num text-xs text-muted-foreground">{sel.risk.score} / 100</span> : null}
           </div>
           {sel.risk ? <p className="px-4 pt-2.5 text-sm">{sel.risk.summary}</p> : null}
           <ul className="divide-y">
@@ -592,8 +585,8 @@ async function LineDetail({
                   <span>{f.label}</span>
                   <span className="num ml-auto text-xs text-muted-foreground">{f.score}</span>
                 </div>
-                <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted">
-                  <div className={cn("h-full rounded-full", f.level === "green" ? "bg-risk-green" : f.level === "amber" ? "bg-risk-amber" : "bg-risk-red")} style={{ width: `${f.score}%` }} />
+                <div className="mt-1 h-1 overflow-hidden rounded-sm bg-muted">
+                  <div className={cn("h-full", f.level === "green" ? "bg-risk-green" : f.level === "amber" ? "bg-risk-amber" : "bg-risk-red")} style={{ width: `${f.score}%` }} />
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">{f.reason}{f.action ? <> <span className="text-foreground">Do:</span> {f.action}</> : null}</p>
               </li>
@@ -602,8 +595,8 @@ async function LineDetail({
         </section>
 
         <div className="space-y-4">
-          <section aria-label="Alternates" className="rounded-lg border bg-card">
-            <h3 className="border-b px-4 py-2.5 text-sm font-medium">Alternates</h3>
+          <section aria-label="Alternates" className="rounded-xl border bg-card">
+            <h3 className="border-b px-4 py-3 text-base font-semibold">Alternates</h3>
             {alts.length ? (
               <ul className="divide-y">
                 {alts.map((a) => {
@@ -620,7 +613,7 @@ async function LineDetail({
               </ul>
             ) : (
               <p className="px-4 py-3 text-sm text-muted-foreground">
-                None recorded. The <Link href={`/parts/${part.id}`} className="underline-offset-2 hover:underline">part page</Link> suggests parametric alternates engineering can approve.
+                None recorded. <Link href={`/parts/${part.id}`} className="underline decoration-border hover:decoration-foreground">Part page</Link>
               </p>
             )}
           </section>

@@ -31,9 +31,9 @@ export function Fold({
   className?: string;
 }) {
   return (
-    <details id={id} open={open} className={cn("group scroll-mt-24 rounded-lg border bg-card", className)}>
-      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-lg px-4 py-2.5 outline-none select-none transition-colors duration-150 hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
-        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+    <details id={id} open={open} className={cn("group scroll-mt-24 rounded-xl border bg-card", className)}>
+      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-xl px-4 py-2.5 outline-none select-none transition-colors duration-150 hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+        <span className="grid size-9 shrink-0 place-items-center rounded-md bg-part-soft text-primary">
           <Icon className="size-[18px]" aria-hidden />
         </span>
         <span className="min-w-0 flex-1">

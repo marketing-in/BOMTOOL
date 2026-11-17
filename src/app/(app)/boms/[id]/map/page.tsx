@@ -34,18 +34,18 @@ export default async function MapPage({ params, searchParams }: { params: Promis
           <>
             <span className="num">{rev.sourceFileName}</span>
             {rev.sheetName ? <> · sheet “{rev.sheetName}”</> : null} · {rows.length} rows ·{" "}
-            {template ? "columns set from this customer's saved template" : "columns detected automatically — check them before matching"}
+            {template ? "saved template" : "auto-detected — check before matching"}
           </>
         }
         actions={impact ? <DeleteRevisionButton revisionId={rev.id} impact={impact} /> : undefined}
       />
       {rev.board ? (
-        <p className="mb-4 rounded-lg border bg-card px-4 py-2.5 text-sm">
-          Board files read: <span className="num">{rev.board.layerCount} layers · {rev.board.widthMm.toFixed(1)} × {rev.board.heightMm.toFixed(1)} mm</span> — after matching you choose the bare board first.
+        <p className="mb-4 text-sm">
+          Board files read: <span className="num font-medium">{rev.board.layerCount} layers · {rev.board.widthMm.toFixed(1)} × {rev.board.heightMm.toFixed(1)} mm</span>
         </p>
       ) : boardError ? (
-        <p role="alert" className="mb-4 rounded-lg border border-risk-amber/40 bg-risk-amber-soft px-4 py-2.5 text-sm">
-          The board files couldn&apos;t be drawn. Carry on with the BoM; upload them again from <em>Gerbers &amp; centroid</em> on the BoM.
+        <p role="alert" className="mb-4 rounded-md border border-risk-amber/40 bg-risk-amber-soft px-4 py-2.5 text-sm">
+          The board files couldn&apos;t be drawn. Upload them again from <em>Gerbers &amp; centroid</em>.
         </p>
       ) : null}
       {pack ? <PackStrip pack={pack} className="mb-4" /> : null}

@@ -15,8 +15,8 @@ export function ReceiveForm({ parts, warehouses, customers }: { parts: { id: str
   const [mpn, setMpn] = useState("");
   const match = parts.find((p) => p.mpn.toLowerCase() === mpn.trim().toLowerCase());
   return (
-    <form action={action} className="space-y-3 rounded-lg border bg-card p-4">
-      <div className="text-sm font-medium">Receive stock</div>
+    <form action={action} className="space-y-3 self-start rounded-xl border bg-card p-5">
+      <h2 className="text-base font-semibold">Receive stock</h2>
       <div className="space-y-1.5">
         <Label htmlFor="rmpn">MPN</Label>
         <input id="rmpn" list="rparts" value={mpn} onChange={(e) => setMpn(e.target.value)} className={`${field} num`} placeholder="Start typing…" autoComplete="off" />

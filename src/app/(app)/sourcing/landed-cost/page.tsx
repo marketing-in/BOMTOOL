@@ -16,13 +16,10 @@ export default async function LandedCostPage() {
   const fx = getActiveFx();
   return (
     <>
-      <PageHeader
-        title="Landed cost"
-        description="What a part really costs us in INR: price + freight + insurance + customs duty, with GST/IGST shown as input credit."
-      />
+      <PageHeader title="Landed cost" />
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
         <LandedCalculator rates={rates} fx={fx} suppliers={suppliers.map((s) => ({ ...s, freightPct: Number(s.freightPct) }))} />
-        <Section title="Duty table (indicative)" action={<span className="text-xs text-muted-foreground">longest HSN prefix wins</span>}>
+        <Section title="Duty table (indicative)" action={<span className="text-xs text-muted-foreground" title="The longest matching HSN prefix wins">{rates.length} rows</span>}>
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-muted-foreground">
               <tr className="border-b">
@@ -44,7 +41,7 @@ export default async function LandedCostPage() {
             </tbody>
           </table>
           <p className="border-t px-4 py-3 text-xs text-muted-foreground">
-            SWS is 10 % of BCD. Rates change with each Budget and notification — confirm with your customs broker before quoting. FX: {fx.source}, {fx.asOf}.
+            SWS = 10 % of BCD. Indicative — confirm with your customs broker. FX: {fx.source}, {fx.asOf}.
           </p>
         </Section>
       </div>

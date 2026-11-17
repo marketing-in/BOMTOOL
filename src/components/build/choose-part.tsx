@@ -101,7 +101,7 @@ export function ChoosePart({
         <div className="border-b px-4 py-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <span className="text-xs text-muted-foreground">
-              The part is for <span className="num font-medium text-foreground">{picked.size}</span> of {refs.length} places — untick the ones that take another part
+              <span className="num font-medium text-foreground">{picked.size}</span> of {refs.length} places
             </span>
             <button type="button" onClick={() => setPicked(all ? new Set() : new Set(refs))} className="text-xs text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring">
               {all ? "Clear" : "All"}
@@ -227,7 +227,7 @@ export function ChoosePart({
               </table>
             </div>
           ) : (
-            <p className="px-4 pb-3 text-sm text-muted-foreground">Nothing found — try the value with the package (10k 1210), or the part number.</p>
+            <p className="px-4 pb-3 text-sm text-muted-foreground">Nothing found. Try “10k 1210” or the part number.</p>
           )}
         </div>
       ) : null}

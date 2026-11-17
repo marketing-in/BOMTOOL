@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
-import { ArrowLeftRight, Banknote, Minus, Plus } from "lucide-react";
 import { db } from "@/lib/db";
 import { getDisplayCurrency } from "@/lib/prefs";
 import { formatMoneyCompact } from "@/lib/currency";
 import { SCORE_KEYS, SCORE_LABEL } from "@/lib/bom/scores";
 import { diffRevisions, type DiffChange } from "@/lib/bom/diff";
 import { analyseRevision } from "@/server/bom-pipeline";
-import { PageHeader, Stat, EmptyState } from "@/components/data/page-header";
+import { PageHeader, EmptyState } from "@/components/data/page-header";
+import { Figures } from "@/components/bom/figures";
 import { RiskDot } from "@/components/data/badges";
 
 export const metadata = { title: "Revision diff" };
@@ -31,8 +31,8 @@ export default async function DiffPage({ params, searchParams }: { params: Promi
     return (
       <>
         <PageHeader title="Compare revisions" />
-        <div className="rounded-lg border bg-card">
-          <EmptyState title="Only one revision">Upload a new revision of this BoM to compare (BoM page → New revision).</EmptyState>
+        <div className="rounded-xl border bg-card">
+          <EmptyState title="Only one revision" />
         </div>
       </>
     );
@@ -51,7 +51,6 @@ export default async function DiffPage({ params, searchParams }: { params: Promi
             rev {from.revision.revision} → rev {to.revision.revision}
           </span>
         }
-        description="Changes matched by designator. Costs and scores at each revision's own build quantity."
         actions={
           others.length > 1 ? (
             <form className="flex items-center gap-2 text-sm">
@@ -61,18 +60,21 @@ export default async function DiffPage({ params, searchParams }: { params: Promi
                   <option key={o.id} value={o.id}>rev {o.revision}</option>
                 ))}
               </select>
-              <button className="h-10 rounded-md border px-3">Show</button>
+              <button className="h-10 rounded-md border bg-card px-3 outline-none hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring">Show</button>
             </form>
           ) : null
         }
       />
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat icon={Plus} label="Designators added" value={summary.added} />
-        <Stat icon={Minus} label="Removed" value={summary.removed} />
-        <Stat icon={ArrowLeftRight} label="Changed" value={summary.changed} hint="Different part or fit/DNP" />
-        <Stat icon={Banknote} label="Material per board" value={formatMoneyCompact(perBoard(to), currency)} hint={`was ${formatMoneyCompact(perBoard(from), currency)}`} />
-      </div>
-      <section className="mb-6 flex flex-wrap gap-4 rounded-lg border bg-card px-4 py-3 text-sm">
+      <Figures
+        className="mb-6"
+        items={[
+          { label: "Added", value: summary.added },
+          { label: "Removed", value: summary.removed },
+          { label: "Changed", value: summary.changed, title: "Different part or fit/DNP" },
+          { label: "Material per board", value: formatMoneyCompact(perBoard(to), currency), note: `was ${formatMoneyCompact(perBoard(from), currency)}` },
+        ]}
+      />
+      <section className="mb-6 flex flex-wrap gap-x-6 gap-y-2 text-sm" title="Scores at each revision's own build quantity">
         {SCORE_KEYS.map((k) => {
           const a = from.scores?.[k] ?? 0;
           const b = to.scores?.[k] ?? 0;
@@ -84,7 +86,7 @@ export default async function DiffPage({ params, searchParams }: { params: Promi
           );
         })}
       </section>
-      <div className="overflow-hidden rounded-lg border bg-card">
+      <div className="overflow-hidden rounded-xl border bg-card">
         {changes.length ? (
           <ul className="divide-y text-sm">
             {changes.map((c, i) => (
@@ -97,7 +99,7 @@ export default async function DiffPage({ params, searchParams }: { params: Promi
             ))}
           </ul>
         ) : (
-          <EmptyState title="No differences">Both revisions place the same parts on the same designators.</EmptyState>
+          <EmptyState title="No differences" />
         )}
       </div>
     </>

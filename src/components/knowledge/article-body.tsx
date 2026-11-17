@@ -16,7 +16,7 @@ export function ArticleBody({ sections }: { sections: Section[] }) {
         const id = s.heading.toLowerCase().replace(/[^a-z0-9]+/g, "-");
         return (
           <section key={i} aria-labelledby={id}>
-            <h2 id={id} className="mb-3 text-base font-semibold tracking-tight">
+            <h2 id={id} className="mb-3 text-lg font-semibold tracking-tight">
               {s.heading}
             </h2>
             {s.type === "text" ? (
@@ -26,7 +26,7 @@ export function ArticleBody({ sections }: { sections: Section[] }) {
                 ))}
               </div>
             ) : s.type === "facts" ? (
-              <dl className="divide-y rounded-lg border bg-card">
+              <dl className="divide-y overflow-hidden rounded-xl border bg-card">
                 {s.items.map((f, k) => (
                   <div key={k} className="grid gap-1 px-4 py-3 sm:grid-cols-[14rem_1fr] sm:gap-4">
                     <dt className="text-sm font-medium">{f.label}</dt>
@@ -35,7 +35,7 @@ export function ArticleBody({ sections }: { sections: Section[] }) {
                 ))}
               </dl>
             ) : s.type === "list" ? (
-              <ul className={cn("max-w-[75ch] space-y-2", s.tone && s.tone !== "neutral" && "rounded-lg border p-4", s.tone && TONE[s.tone].bg)}>
+              <ul className={cn("max-w-[75ch] space-y-2", s.tone && s.tone !== "neutral" && "rounded-xl border p-4", s.tone && TONE[s.tone].bg)}>
                 {s.items.map((it, k) => {
                   const Icon = TONE[s.tone ?? "neutral"].icon;
                   return (
@@ -47,7 +47,7 @@ export function ArticleBody({ sections }: { sections: Section[] }) {
                 })}
               </ul>
             ) : s.type === "table" ? (
-              <div className="rounded-lg border bg-card">
+              <div className="overflow-hidden rounded-xl border bg-card">
                 <div className="relative overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="text-left text-xs text-muted-foreground">

@@ -28,7 +28,7 @@ export function SourcingTabs({ counts }: { counts: { cart: number; rfqs: number;
             className="module-tab"
           >
             {t.label}
-            {n ? <span className="num rounded-full bg-muted px-1.5 text-[11px]">{n}</span> : null}
+            {n ? <span className="num rounded bg-part-soft px-1.5 text-[11px] font-semibold text-foreground">{n}</span> : null}
           </Link>
         );
       })}

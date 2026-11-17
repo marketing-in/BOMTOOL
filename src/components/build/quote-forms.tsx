@@ -28,7 +28,7 @@ export function QuantitiesForm({ revisionId, quantities, disabled }: { revisionI
       }}
     >
       <label className="min-w-56 flex-1 text-xs text-muted-foreground">
-        Quantities to quote (up to four)
+        <span title="Up to four">Quantities</span>
         <input name="q" defaultValue={quantities.join(", ")} disabled={disabled} className={field} placeholder="100, 500, 1k" />
       </label>
       <button type="submit" disabled={pending || disabled} className={outline}>

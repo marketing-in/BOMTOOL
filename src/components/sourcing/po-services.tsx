@@ -23,7 +23,7 @@ export function PoServices({ poId, initial, suggest, editable }: { poId: string;
       <ul className="num space-y-1 text-sm">
         {rows.map((r, i) => (
           <li key={i} className="flex justify-between gap-4">
-            <span className="font-sans">{SERVICE_LABEL[r.kind]}<span className="text-muted-foreground"> · {r.detail}</span></span>
+            <span>{SERVICE_LABEL[r.kind]}<span className="text-muted-foreground"> · {r.detail}</span></span>
             <span>{formatMoney(r.cost, "INR")}</span>
           </li>
         ))}

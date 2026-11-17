@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Lifecycle } from "@prisma/client";
-import { ArrowUpRight, Bell, CircuitBoard, ClipboardList, Cpu, Factory, FileUp, Hourglass, Search, Wallet } from "lucide-react";
+import { ArrowUpRight, Bell, ChevronDown, CircuitBoard, ClipboardList, Cpu, Factory, FileUp, Hourglass, Search, Wallet } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/rbac";
@@ -28,7 +28,7 @@ const BAR: Record<string, string> = { green: "bg-risk-green", amber: "bg-risk-am
 const INK: Record<string, string> = { green: "var(--risk-green)", amber: "var(--risk-amber)", red: "var(--risk-red)", grey: "var(--risk-grey)" };
 const WO_STATUS: Record<string, string> = { IN_PROGRESS: "Running", KITTING: "Kitting", READY: "Ready", PLANNED: "Planned" };
 const ALERT_RANK = { red: 0, amber: 1, green: 2, grey: 3 } as const;
-const CHIP = "inline-flex min-h-8 items-center gap-1.5 rounded-md bg-muted/70 px-2.5 outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring";
+const CHIP = "inline-flex min-h-8 items-center gap-1.5 rounded-md border bg-card px-2.5 outline-none transition-colors duration-150 hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring";
 
 function ago(d: Date | string | undefined | null) {
   if (!d) return "never";
@@ -73,8 +73,8 @@ export default async function HomePage() {
           <h1 className="page-heading text-[2rem] leading-tight font-semibold tracking-tight">
             {greeting(now)}, {firstName}
           </h1>
-          <p className="mt-2 text-sm text-muted-foreground">Your sourcing and factory overview · {new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "long", timeZone: "Asia/Kolkata" }).format(now)}</p>
-          <ul className="mt-2.5 flex flex-wrap gap-1.5 text-xs" aria-label="Today">
+          <p className="mt-1.5 text-sm text-muted-foreground">{new Intl.DateTimeFormat("en-IN", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Kolkata" }).format(now)}</p>
+          <ul className="mt-3 flex flex-wrap gap-1.5 text-xs" aria-label="Today">
             <li>
               <Link href="/operations" className={CHIP}>
                 <Factory className="size-3.5 text-primary" aria-hidden /> <span className="num font-semibold">{running} of {d.lines.length}</span> lines running
@@ -95,11 +95,11 @@ export default async function HomePage() {
         </div>
         <div className="flex flex-wrap gap-2">
           {can(user.role, "bom.write") ? (
-            <Link href="/boms/new" className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground shadow-xs outline-none transition-[background-color,box-shadow] duration-150 hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40">
+            <Link href="/boms/new" className="inline-flex h-11 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground outline-none transition-colors duration-150 hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring">
               <FileUp className="size-4" aria-hidden /> Upload a BoM
             </Link>
           ) : null}
-          <Link href="/parts" className="inline-flex h-11 items-center gap-2 rounded-lg border bg-card px-4 text-sm outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
+          <Link href="/parts" className="inline-flex h-11 items-center gap-2 rounded-md border bg-card px-4 text-sm outline-none transition-colors duration-150 hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring">
             <Search className="size-4 text-muted-foreground" aria-hidden /> Find a part
           </Link>
         </div>
@@ -141,7 +141,7 @@ export default async function HomePage() {
                   <li key={line.id} className="px-5 py-4" title={`${line._count.machines} stations`}>
                     <div className="mb-2.5 flex items-center justify-between gap-4">
                       <Link href="/operations/lines" className="flex min-w-0 items-center gap-3 text-sm font-medium hover:text-primary">
-                        <span className="num rounded-md bg-muted px-2 py-1 text-xs text-primary">{line.code}</span>
+                        <span className="num rounded-md bg-muted px-2 py-1 text-xs font-semibold">{line.code}</span>
                         <span className="truncate">{line.name.replace(/^.*—\s*/, "")}</span>
                       </Link>
                       <span className="flex shrink-0 items-center gap-1.5 text-xs">
@@ -163,7 +163,7 @@ export default async function HomePage() {
 
           <section aria-labelledby="home-boms">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 id="home-boms" className="text-base font-semibold">
+              <h2 id="home-boms" className="text-lg font-semibold tracking-tight">
                 Customer BoMs
               </h2>
               <Link href="/boms" className="text-xs text-muted-foreground hover:text-foreground">All BoMs</Link>
@@ -173,7 +173,7 @@ export default async function HomePage() {
                 {cards.map((b) => <BomCard key={b.id} b={b} compact />)}
               </div>
             ) : (
-              <p className="rounded-lg border bg-card px-4 py-6 text-center text-sm text-muted-foreground">No BoMs yet — upload one to start.</p>
+              <p className="rounded-xl border bg-card px-4 py-8 text-center text-sm text-muted-foreground">No BoMs yet.</p>
             )}
           </section>
         </div>
@@ -215,12 +215,20 @@ export default async function HomePage() {
                 </ul>
               </>
             ) : (
-              <p className="px-4 py-6 text-center text-sm text-muted-foreground">All clear — nothing needs attention.</p>
+              <p className="px-4 py-6 text-center text-sm text-muted-foreground">All clear.</p>
             )}
           </Section>
 
-          <Section title="Supply data" action={<span className="text-xs text-muted-foreground">refreshed {ago(lastRefresh?.finishedAt ?? lastRefresh?.startedAt)}</span>}>
-            <ul className="divide-y">
+          <details className="group overflow-hidden rounded-xl border bg-card">
+            <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+              <h2 className="text-base font-semibold">Supply data</h2>
+              <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                {mock ? <span className="rounded-md bg-risk-amber-soft px-2 py-0.5 font-medium text-risk-amber">Simulated</span> : null}
+                {ago(lastRefresh?.finishedAt ?? lastRefresh?.startedAt)}
+                <ChevronDown className="size-4 transition-transform duration-150 group-open:rotate-180" aria-hidden />
+              </span>
+            </summary>
+            <ul className="divide-y border-t">
               {supply.map(({ a, s }) => {
                 const on = a.kind === "mock" ? mock : a.configured() && a.dailyLimit > 0;
                 const failing = on && !!s.lastErrorAt && (!s.lastOkAt || s.lastErrorAt > s.lastOkAt);
@@ -235,7 +243,7 @@ export default async function HomePage() {
                 );
               })}
             </ul>
-          </Section>
+          </details>
 
           <Section title="Catalogue lifecycle">
             <div className="px-4 pt-4 pb-3">
@@ -255,9 +263,9 @@ export default async function HomePage() {
               </ul>
             </div>
             {d.watch.length ? (
-              <>
-                <h3 className="border-t px-4 pt-3 text-xs text-muted-foreground">In active BoMs</h3>
-                <ul className="divide-y">
+                <details className="group border-t">
+                <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">In active BoMs <span className="num text-xs font-normal text-muted-foreground">{Math.min(5, d.watch.length)}</span></summary>
+                <ul className="divide-y border-t">
                   {d.watch.slice(0, 5).map((l) => (
                     <li key={l.id}>
                       <Link href={`/parts/${l.part!.id}`} className="group flex items-center gap-3 px-4 py-2.5 transition-colors duration-150 hover:bg-muted/50">
@@ -273,7 +281,7 @@ export default async function HomePage() {
                     </li>
                   ))}
                 </ul>
-              </>
+              </details>
             ) : null}
           </Section>
         </div>
@@ -281,7 +289,7 @@ export default async function HomePage() {
 
       <section aria-labelledby="learn" className="mt-8">
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 id="learn" className="text-lg font-semibold">Know every part</h2>
+          <h2 id="learn" className="text-lg font-semibold tracking-tight">Know every part</h2>
           <Link href="/knowledge" className="text-xs text-muted-foreground hover:text-foreground">All knowledge</Link>
         </div>
         <KnowledgeEntrances lines />

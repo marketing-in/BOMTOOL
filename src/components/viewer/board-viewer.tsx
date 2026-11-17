@@ -8,7 +8,7 @@ import * as THREE from "three";
 import { AlertTriangle, BookOpen, Box, CircuitBoard, Cpu, FileText, Hand, Layers, Maximize, Minimize, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import { PartPhoto } from "@/components/data/part-photo";
 import { formatMoney, type Currency } from "@/lib/currency";
-import { LIFECYCLE_LABEL, scoreToRisk, type RiskLevel } from "@/lib/risk";
+import { scoreToRisk, type RiskLevel } from "@/lib/risk";
 import { SCORE_KEYS, SCORE_LABEL } from "@/lib/bom/scores";
 import { ScorePill, LifecycleBadge } from "@/components/data/badges";
 import { cn } from "@/lib/utils";
@@ -114,7 +114,7 @@ function Studio() {
       {/* key panel off-axis, so a top-down view isn't one big reflection */}
       <Lightformer form="rect" intensity={1.8} position={[90, -110, 120]} scale={[150, 100, 1]} />
       <Lightformer form="rect" intensity={0.5} position={[0, 0, 160]} scale={[80, 80, 1]} />
-      <Lightformer form="rect" intensity={0.6} position={[-150, 110, 50]} scale={[140, 60, 1]} color="#dbe6ff" />
+      <Lightformer form="rect" intensity={0.6} position={[-150, 110, 50]} scale={[140, 60, 1]} color="#f3efe6" />
       <Lightformer form="ring" intensity={0.8} position={[0, -200, 20]} scale={60} />
       {/* bounce from the bench, so the solder side isn't black */}
       <Lightformer form="rect" intensity={0.7} position={[0, 0, -150]} scale={[180, 180, 1]} />
@@ -247,7 +247,7 @@ function ExplodedStack({ layers, visible, explode, w, h, parts }: { layers: Stac
   const lift = gap * 1.1 + 1;
   const tops = parts.filter((p) => p.side === "TOP" && !p.dnp);
   const bottoms = parts.filter((p) => p.side === "BOTTOM" && !p.dnp);
-  const tag = "block -translate-y-1/2 rounded border bg-card/95 px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-foreground shadow-sm";
+  const tag = "block -translate-y-1/2 rounded border bg-card/95 px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-foreground";
   return (
     <group>
       {/* The components, lifted off the board they are soldered to. */}
@@ -396,7 +396,7 @@ function AssembledBoard({
             color={overlayColor(p, overlay)}
             // Not fitted: the pads stay empty, so the part is only hinted at.
             ghost={p.dnp || (!!focus && !focus.has(p.refDes))}
-            emissive={p.refDes === selected ? "#1d4ed8" : selectedLine && p.lineId === selectedLine ? "#2563eb" : undefined}
+            emissive={p.refDes === selected ? "#5a2f96" : selectedLine && p.lineId === selectedLine ? "#7b3fb5" : undefined}
             onClick={(e) => {
               e.stopPropagation();
               onSelect(p.refDes);
@@ -435,9 +435,9 @@ function HoverCard({ part: p, quick }: { part: ViewerPart; quick: boolean }) {
             ? { dot: "bg-risk-amber", text: `${ours.toLocaleString("en-IN")} in stock · need ${p.required.toLocaleString("en-IN")}` }
             : { dot: "bg-risk-amber", text: "Not in our stock" };
   return (
-    <div className="ml-4 w-56 -translate-y-1/2 rounded-lg border bg-card/95 p-2.5 text-xs shadow-lg backdrop-blur">
+    <div className="ml-4 w-56 -translate-y-1/2 rounded-lg border bg-card/95 p-2.5 text-xs backdrop-blur">
       <div className="flex items-center gap-1.5">
-        <span className="num rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold">{p.refDes}</span>
+        <span className="num rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold">{p.refDes}</span>
         <span className="truncate text-muted-foreground">{p.kind?.name ?? p.pkg ?? "Component"}</span>
       </div>
       <div className="num mt-1.5 truncate text-sm font-semibold">{p.mpn ?? p.value ?? p.pkg ?? "Not matched"}</div>
@@ -569,7 +569,7 @@ export default function BoardViewer({
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
-      <div ref={stage} className="viewer-grid relative h-[66dvh] min-h-[440px] overflow-hidden rounded-lg border [&:fullscreen]:h-dvh [&:fullscreen]:rounded-none [&:fullscreen]:border-0">
+      <div ref={stage} className="viewer-grid relative h-[66dvh] min-h-[440px] overflow-hidden rounded-xl border [&:fullscreen]:h-dvh [&:fullscreen]:rounded-none [&:fullscreen]:border-0">
         {/* Renders only when something changes, so a still board costs nothing on a tablet. */}
         <Canvas frameloop="demand" shadows="soft" dpr={[1, 2]} camera={{ fov: 32, near: 0.5, far: 5000 }} onPointerMissed={() => setSelected(null)} onPointerLeave={() => setHovered(null)} aria-label="3D board view">
           <CameraRig view={view} nonce={nonce} {...fit} />
@@ -577,7 +577,7 @@ export default function BoardViewer({
           <Redraw on={`${mode}|${shell}|${overlay}|${step}|${selected}|${hovered}|${view}|${nonce}|${full ? 1 : 0}|${tex ? 1 : 0}`} />
           <Studio />
           <ambientLight intensity={0.3} />
-          <hemisphereLight args={["#ffffff", "#444455", 0.45]} />
+          <hemisphereLight args={["#ffffff", "#4a4a48", 0.45]} />
           {/* The key light. Its shadow camera is given its size when it is made: the default reaches 5 mm from the centre, and a size set later is not picked up. Lower and to the side, so parts throw a shadow long enough to see. */}
           <directionalLight key={size} position={[size * 0.9, -size * 0.7, size * 1.1]} intensity={1.5} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004} shadow-normalBias={0.03}>
             <orthographicCamera attach="shadow-camera" args={[-size, size, size, -size, 1, size * 6]} />
@@ -622,7 +622,7 @@ export default function BoardViewer({
             </button>
           </div>
           {/* which view is on, like a CAD tool's view chip */}
-          <span className="inline-flex h-7 items-center gap-1.5 rounded-full border bg-card/90 px-2.5 text-xs font-medium text-muted-foreground backdrop-blur">
+          <span className="inline-flex h-7 items-center gap-1.5 rounded-md border bg-card/90 px-2.5 text-xs font-medium text-muted-foreground backdrop-blur">
             <span className="size-1.5 rounded-full bg-risk-green" aria-hidden />
             {mode === "pcb" ? "Layers separated" : VIEW_LABEL[view]}
             {panning ? " · pan" : ""}
@@ -630,7 +630,7 @@ export default function BoardViewer({
         </div>
 
         {/* Floating toolbar, right edge: full screen, zoom, reset, pan. */}
-        <div role="toolbar" aria-label="View tools" aria-orientation="vertical" className="absolute top-1/2 right-3 flex -translate-y-1/2 flex-col gap-0.5 rounded-lg border bg-card/95 p-1 shadow-sm backdrop-blur">
+        <div role="toolbar" aria-label="View tools" aria-orientation="vertical" className="absolute top-1/2 right-3 flex -translate-y-1/2 flex-col gap-0.5 rounded-lg border bg-card/95 p-1 backdrop-blur">
           {(
             [
               [full ? Minimize : Maximize, full ? "Leave full screen" : "Full screen", toggleFull, full],
@@ -659,12 +659,12 @@ export default function BoardViewer({
 
         {data.approximateLayout && mode !== "pcb" ? (
           <p className="pointer-events-none absolute top-16 left-3 max-w-[calc(100%-5rem)] rounded-md border bg-card/90 px-2.5 py-1.5 text-xs text-muted-foreground backdrop-blur">
-            Approximate layout — upload the pick-and-place file for real positions.
+            Approximate layout — no pick-and-place file
           </p>
         ) : null}
         <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-end justify-between gap-2">
           <p className="hidden min-w-0 truncate pb-2 text-xs text-muted-foreground sm:block">{panning ? "Drag to pan" : "Drag to orbit"} · Scroll to zoom · {mode === "pcb" || mode === "bare" ? "Right-drag to pan" : "Click to inspect"}</p>
-          <div role="radiogroup" aria-label="Camera" className="pointer-events-auto ml-auto inline-flex shrink-0 rounded-md border bg-card/95 p-0.5 shadow-sm backdrop-blur">
+          <div role="radiogroup" aria-label="Camera" className="pointer-events-auto ml-auto inline-flex shrink-0 rounded-md border bg-card/95 p-0.5 backdrop-blur">
             {(["iso", "top", "side", "bottom"] as View[]).map((v) => (
               <button key={v} role="radio" aria-checked={view === v} className={seg(view === v)} onClick={() => setView(v)}>
                 {VIEW_LABEL[v]}
@@ -693,11 +693,11 @@ export default function BoardViewer({
           />
         ) : null}
         {boxed && shell === "closed" ? null : (
-          <section className="rounded-lg border bg-card p-4">
+          <section className="rounded-xl border bg-card p-5">
             {mode === "pcb" ? (
               <>
                 <h2 className="text-sm font-medium">Layers</h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">{data.board.source === "gerber" ? "From the uploaded Gerbers" : "From the board spec — upload Gerbers for real artwork"}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{data.board.source === "gerber" ? "From Gerbers" : "From the board spec"}</p>
                 <ul className="mt-3 space-y-1">
                   {stack.map((l) => (
                     <li key={l.key}>
@@ -711,15 +711,14 @@ export default function BoardViewer({
                 </ul>
               </>
             ) : mode === "bare" ? (
-              <p className="text-sm text-muted-foreground">
-                The board as it comes back from the fab: {data.board.maskColor} solder mask over the copper, {data.board.finish} on the pads, drilled and silkscreened.{" "}
-                {data.board.source === "gerber" ? "Drawn from the uploaded Gerbers." : "Drawn from the board spec — upload Gerbers for the real artwork."}
-              </p>
+              <ul className="flex flex-wrap gap-1.5 text-[13px]">
+                <li className="rounded-md border px-2.5 py-1">{data.board.maskColor} mask</li>
+                <li className="rounded-md border px-2.5 py-1">{data.board.finish}</li>
+                <li className="rounded-md border border-dashed px-2.5 py-1 text-muted-foreground">{data.board.source === "gerber" ? "From Gerbers" : "From the board spec"}</li>
+              </ul>
             ) : !data.revisionId ? (
               // A quick look has footprints, not parts: nothing to colour by risk, stock or price yet.
-              <p className="text-sm text-muted-foreground">
-                Parts in their real colours. Risk, stock and price colours need part numbers — <span className="text-foreground">Quote this board</span> to choose them.
-              </p>
+              <p className="text-sm text-muted-foreground">Real colours. Risk colours need part numbers.</p>
             ) : (
               <>
                 <label htmlFor="overlay" className="text-sm font-medium">Colour parts by</label>
@@ -750,7 +749,7 @@ export default function BoardViewer({
           </section>
         )}
 
-        <section className="rounded-lg border bg-card p-4" aria-live="polite">
+        <section className={cn("rounded-xl border bg-card p-5", !(sel && mode !== "bare") && (mode === "pcb" || mode === "bare" || (boxed && shell === "closed")) && "hidden")} aria-live="polite">
           {sel && mode !== "bare" ? (
             <div className="space-y-3">
               <div className="flex gap-3">
@@ -774,7 +773,7 @@ export default function BoardViewer({
               <p className="line-clamp-2 text-xs text-muted-foreground">{sel.description}</p>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
                 {sel.lifecycle ? <LifecycleBadge lifecycle={sel.lifecycle} /> : null}
-                {sel.dnp ? <span className="rounded bg-muted px-1.5 py-0.5">DNP</span> : null}
+                {sel.dnp ? <span className="rounded-md bg-muted px-1.5 py-0.5">DNP</span> : null}
                 {sel.kind ? (
                   <Link href={`/knowledge/dictionary/${sel.kind.slug}`} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground">
                     <BookOpen className="size-3.5" aria-hidden /> {sel.kind.name}
@@ -788,25 +787,25 @@ export default function BoardViewer({
               </div>
 
               {sel.partId ? (
-                <dl className="grid grid-cols-2 gap-1.5 text-xs">
-                  <div className="rounded-md border px-2 py-1.5">
-                    <dt className="text-[10px] text-muted-foreground">RoHS</dt>
+                <dl className="grid grid-cols-2 gap-3 border-t pt-3 text-sm">
+                  <div>
+                    <dt className="text-[11px] text-muted-foreground">RoHS</dt>
                     <dd className={sel.rohs === "NON_COMPLIANT" ? "text-risk-red" : sel.rohs === "COMPLIANT" ? undefined : "text-risk-amber"}>{sel.rohs === "COMPLIANT" ? "Compliant" : sel.rohs === "COMPLIANT_WITH_EXEMPTION" ? "With exemption" : sel.rohs === "NON_COMPLIANT" ? "Not compliant" : "Unknown"}</dd>
                   </div>
-                  <div className="rounded-md border px-2 py-1.5">
-                    <dt className="text-[10px] text-muted-foreground">REACH</dt>
+                  <div>
+                    <dt className="text-[11px] text-muted-foreground">REACH</dt>
                     <dd className={sel.reach === "COMPLIANT" ? undefined : "text-risk-amber"}>{sel.reach === "COMPLIANT" ? "No SVHC" : sel.reach === "CONTAINS_SVHC" ? "Contains SVHC" : "Unknown"}</dd>
                   </div>
                 </dl>
               ) : null}
 
               {sel.risk ? (
-                <div className="rounded-md bg-muted/40 p-2.5">
+                <div className="border-t pt-3">
                   <div className="flex items-baseline gap-2">
-                    <span className={cn("num text-lg font-semibold", sel.risk.level === "green" ? "text-risk-green" : sel.risk.level === "amber" ? "text-risk-amber" : "text-risk-red")}>{sel.risk.score}</span>
-                    <span className="text-xs text-muted-foreground">risk score for this build</span>
+                    <span className={cn("text-2xl leading-none font-semibold tracking-tight tabular-nums", sel.risk.level === "green" ? "text-risk-green" : sel.risk.level === "amber" ? "text-risk-amber" : "text-risk-red")}>{sel.risk.score}</span>
+                    <span className="text-xs text-muted-foreground">risk</span>
                   </div>
-                  <p className="text-xs">{sel.risk.summary}</p>
+                  <p className="mt-1.5 text-xs">{sel.risk.summary}</p>
                   {sel.risk.actions.map((a) => (
                     <p key={a} className="mt-1 text-xs text-muted-foreground">→ {a}</p>
                   ))}
@@ -814,9 +813,8 @@ export default function BoardViewer({
               ) : null}
 
               {sel.supply ? (
-                <div>
-                  <div className="text-xs text-muted-foreground">Availability, in sourcing order</div>
-                  <dl className="mt-1.5 grid grid-cols-2 gap-1.5 text-center">
+                <div className="border-t pt-3">
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-3" aria-label="Availability, in sourcing order">
                     {(
                       [
                         ["Our inventory", sel.supply.ours],
@@ -825,15 +823,15 @@ export default function BoardViewer({
                         ["Marketplace", sel.supply.market],
                       ] as const
                     ).map(([label, qty], i) => (
-                      <div key={label} className="rounded-md border px-1 py-1.5">
-                        <dt className="text-[10px] text-muted-foreground">
+                      <div key={label} className="flex flex-col-reverse">
+                        <dt className="mt-0.5 text-[11px] text-muted-foreground">
                           {i + 1} · {label}
                         </dt>
-                        <dd className="num mt-0.5 text-sm">{qty.toLocaleString("en-IN")}</dd>
+                        <dd className="text-lg leading-tight font-semibold tracking-tight tabular-nums">{qty.toLocaleString("en-IN")}</dd>
                       </div>
                     ))}
                   </dl>
-                  <p className="num mt-1.5 text-xs text-muted-foreground">
+                  <p className="num mt-2.5 text-xs text-muted-foreground">
                     Need {sel.required.toLocaleString("en-IN")}
                     {sel.shortfall ? <span className="text-risk-red"> · short {sel.shortfall.toLocaleString("en-IN")}</span> : null} · {sel.supply.sources} authorised source{sel.supply.sources === 1 ? "" : "s"}
                     {sel.supply.leadWeeks !== null ? ` · ${sel.supply.leadWeeks} wk lead` : ""}
@@ -859,7 +857,7 @@ export default function BoardViewer({
               ) : null}
               {sel.alternates.length ? (
                 <div>
-                  <div className="text-xs text-muted-foreground">Alternates (FFF = form-fit-function drop-in)</div>
+                  <div className="text-xs text-muted-foreground" title="FFF = form-fit-function drop-in">Alternates</div>
                   <ul className="mt-1 space-y-0.5 text-sm">
                     {sel.alternates.map((a) => (
                       <li key={a.partId} className="flex justify-between gap-2">
@@ -880,22 +878,7 @@ export default function BoardViewer({
               </div>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              {mode === "pcb"
-                ? "Toggle layers and drag the explode slider to see the stack-up."
-                : mode === "bare"
-                  ? "Drag to turn the board, scroll to zoom. Bottom shows the solder side; PCBA puts the components on."
-                : boxed && shell === "closed"
-                  ? "The finished product as the customer unpacks it. Switch to X-ray or Exploded to see inside and click parts."
-                  : data.parts.length && !data.revisionId
-                  ? "Parts read off the Gerbers. Click one to see its footprint and designator; the table below groups them by footprint."
-                  : data.parts.length
-                  ? "Click any part, or a line in the BoM below, to see what it is, its risk and compliance, and where we can get it: our inventory, channel partners, distributors, marketplace."
-                  : "A bare board from its Gerbers. Switch to PCB layers to pull the stack-up apart."}
-              {sel === null && mode !== "bare" && data.parts.some((p) => p.lifecycle && p.lifecycle !== "ACTIVE") ? (
-                <span className="mt-2 block text-xs">Tip: colour by lifecycle to find {LIFECYCLE_LABEL.OBSOLETE.toLowerCase()} and end-of-life parts.</span>
-              ) : null}
-            </p>
+            <p className="text-sm text-muted-foreground">{data.parts.length ? "Click a part" : "No parts on this board"}</p>
           )}
         </section>
 

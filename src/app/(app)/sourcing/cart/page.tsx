@@ -104,10 +104,7 @@ export default async function CartPage() {
 
   return (
     <>
-      <PageHeader
-        title="Cart"
-        description="Demand collected from BoMs and part pages. Adjust quantities and preferred suppliers, then send one RFQ to several suppliers to compare landed cost."
-      />
+      <PageHeader title="Cart" />
       {rows.length ? (
         <CartEditor
           rows={rows}
@@ -116,9 +113,9 @@ export default async function CartPage() {
           canRfq={can(user.role, "rfq.send")}
         />
       ) : (
-        <div className="rounded-lg border bg-card">
+        <div className="rounded-xl border bg-card">
           <EmptyState title="Your cart is empty">
-            Open a <Link href="/boms" className="underline">BoM</Link> and use <em>Add all shortages to cart</em>, or add single parts from the grid or a part page.
+            Add shortages from a <Link href="/boms" className="underline">BoM</Link>, or parts from a part page.
           </EmptyState>
         </div>
       )}

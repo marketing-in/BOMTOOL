@@ -16,7 +16,7 @@ const D = 26;
 const VIA_SCALE = 6;
 
 const COLOR = { copper: "#c27c43", core: "#cbbb80", prepreg: "#d9cd98", mask: "#1c6a3a", silk: "#f3f3ef", hole: "#26221e" };
-const SELECT = new THREE.Color("#3b82f6");
+const SELECT = new THREE.Color("#5a2f96");
 
 type Rect = { x: number; y: number; w: number; h: number };
 type Round = { x: number; y: number; r: number };
@@ -359,7 +359,7 @@ export default function PcbExplorer({ initial }: { initial?: string }) {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="relative h-[420px] overflow-hidden rounded-lg border bg-gradient-to-b from-muted/30 to-muted/70 sm:h-[560px]">
+      <div className="relative h-[420px] overflow-hidden rounded-xl border bg-muted/60 sm:h-[560px]">
         <ExploreCanvas cut={cut} camera={VIEWS[view]} label={`${stack.label} PCB stack-up in 3D`}>
           <group onPointerMissed={() => setSelected(null)}>
             {layout.layers.map(renderLayer)}
@@ -383,7 +383,7 @@ export default function PcbExplorer({ initial }: { initial?: string }) {
               : null}
             {selLayer ? (
               <Html position={[W / 2 + 0.5, cut ? 0 : -D / 2, labelZ]} style={{ pointerEvents: "none" }}>
-                <div className="ml-2 -translate-y-1/2 rounded-md border bg-card px-2 py-1 text-xs whitespace-nowrap shadow-sm">
+                <div className="ml-2 -translate-y-1/2 rounded-md border bg-card px-2 py-1 text-xs whitespace-nowrap">
                   {selLayer.label} · <span className="num">{selLayer.um} µm</span>
                 </div>
               </Html>
@@ -394,7 +394,7 @@ export default function PcbExplorer({ initial }: { initial?: string }) {
         <p className="pointer-events-none absolute right-3 bottom-2 text-[11px] text-muted-foreground">Drag to turn · scroll to zoom · click a layer</p>
       </div>
 
-      <div className="space-y-5 rounded-lg border bg-card p-4">
+      <div className="space-y-5 rounded-xl border bg-card p-5">
         <ControlGroup title="Stack-up">
           <Segmented
             label="Stack-up"
@@ -425,7 +425,7 @@ export default function PcbExplorer({ initial }: { initial?: string }) {
         </ControlGroup>
 
         <ControlGroup title="Layers, top to bottom">
-          <ul className="max-h-64 space-y-px overflow-y-auto rounded-md border">
+          <ul className="-mx-2 max-h-64 overflow-y-auto">
             {stack.layers.map((l) => {
               const on = selected?.kind === "layer" && selected.key === l.key;
               const swatch = l.kind === "copper" ? COLOR.copper : l.kind === "mask" ? COLOR.mask : l.kind === "silk" ? "#e5e5e0" : l.kind === "core" ? COLOR.core : COLOR.prepreg;
@@ -435,7 +435,7 @@ export default function PcbExplorer({ initial }: { initial?: string }) {
                     type="button"
                     onClick={() => setSelected(on ? null : { kind: "layer", key: l.key })}
                     aria-pressed={on}
-                    className={cn("flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring", on ? "bg-primary/10" : "hover:bg-muted/60")}
+                    className={cn("flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring", on ? "bg-primary/10" : "hover:bg-muted/60")}
                   >
                     <span aria-hidden className="size-3 shrink-0 rounded-sm border border-black/10" style={{ background: swatch }} />
                     <span className="min-w-0 flex-1 truncate">
@@ -471,7 +471,7 @@ export default function PcbExplorer({ initial }: { initial?: string }) {
           </ul>
         </ControlGroup>
 
-        <div className="rounded-md bg-muted/50 p-3 text-sm leading-relaxed" aria-live="polite">
+        <div className="border-t pt-4 text-sm leading-relaxed" aria-live="polite">
           {info ? (
             <>
               <div className="font-medium">{info.label}</div>

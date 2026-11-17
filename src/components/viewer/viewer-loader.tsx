@@ -7,7 +7,7 @@ import type { Mode } from "./board-viewer";
 // WebGL only in the browser.
 const BoardViewer = dynamic(() => import("./board-viewer"), {
   ssr: false,
-  loading: () => <div className="grid h-[62dvh] min-h-[420px] place-items-center rounded-lg border bg-card text-sm text-muted-foreground">Loading 3D viewer…</div>,
+  loading: () => <div className="grid h-[62dvh] min-h-[420px] place-items-center rounded-xl border bg-card text-sm text-muted-foreground">Loading 3D viewer…</div>,
 });
 
 export function ViewerLoader({

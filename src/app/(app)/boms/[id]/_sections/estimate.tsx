@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { sectionHref } from "@/lib/bom/workflow";
-import { Banknote, Box, Check, CircleAlert, Clock, Droplet, Grid3x3, Lock, TriangleAlert } from "lucide-react";
+import { Banknote, Check, CircleAlert, Clock, Droplet, Grid3x3, Lock, TriangleAlert } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { getDisplayCurrency } from "@/lib/prefs";
@@ -63,18 +63,17 @@ export default async function EstimateSection({ id, searchParams }: { id: string
   return (
     <div className="space-y-8">
       {wf?.matchBlocked ? (
-        <p role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-risk-red/30 bg-risk-red-soft px-4 py-3 text-sm">
+        <p role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-risk-red/30 bg-risk-red-soft px-4 py-3 text-sm">
           <CircleAlert className="size-4 shrink-0 text-risk-red" aria-hidden />
-          <span className="font-medium">The BoM and the board do not match yet.</span> {wf.states.match?.note}. The checks below use parts that may not fit their pads.
-          <Link href={`/boms/${id}/match`} className="font-medium underline underline-offset-2">Open the footprint match</Link>
+          <span className="font-medium">The BoM and the board do not match yet.</span> {wf.states.match?.note}.
+          <Link href={`/boms/${id}/match`} className="font-medium underline underline-offset-2">Open the match</Link>
         </p>
       ) : null}
 
       <section aria-label="Verdict" className="overflow-hidden rounded-xl border bg-card">
-        <div className={cn("h-1.5", tone.bar)} aria-hidden />
         <div className={cn("grid items-center gap-x-6 gap-y-4 p-5", view ? "md:grid-cols-[12rem_minmax(0,1fr)_auto] xl:grid-cols-[14rem_minmax(0,1fr)_auto]" : "md:grid-cols-[minmax(0,1fr)_auto]")}>
           {view ? (
-            <Link href={`/boms/${id}/viewer`} aria-label="Open the board in 3D" className="group mx-auto block w-full max-w-56 rounded-lg bg-muted/50 p-3 outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
+            <Link href={`/boms/${id}/viewer`} aria-label="Open the board in 3D" className="group mx-auto block w-full max-w-56 rounded-lg bg-muted/60 p-3 outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
               <BoardIso revisionId={id} width={view.board.width} height={view.board.height} thickness={view.board.thickness} artwork={!!view.board.top} maskColor={view.board.maskColor} parts={view.parts.map((part) => ({ refDes: part.refDes, x: part.x, y: part.y, rotation: part.rotation, side: part.side, body: part.body, dnp: part.dnp, mark: part.marking ?? part.mpn }))} label={`${f.product?.name ?? f.title} in 3D`} className="transition-transform duration-200 group-hover:scale-[1.03]" />
               <span className="mt-1.5 block text-center text-[11px] text-muted-foreground">
                 {n0(view.board.width)} × {n0(view.board.height)} mm · {view.board.layerCount} layers · {n0(placed)} parts
@@ -83,29 +82,28 @@ export default async function EstimateSection({ id, searchParams }: { id: string
           ) : null}
           <div className="min-w-0">
             <p className="truncate text-xs text-muted-foreground">{[f.product?.customer, f.product?.name ?? f.title].filter(Boolean).join(" · ")}</p>
-            <h2 className="text-2xl leading-tight font-bold tracking-tight">Can we build it?</h2>
-            <div className={cn("mt-1 flex items-center gap-2 text-xl font-semibold tracking-tight", tone.text)}>
-              <VerdictIcon className="size-5 shrink-0" aria-hidden />
+            <h2 className="text-sm font-medium text-muted-foreground">Can we build it?</h2>
+            <div className={cn("mt-1 flex items-center gap-2 text-3xl leading-tight font-semibold tracking-tight", tone.text)}>
+              <VerdictIcon className="size-6 shrink-0" aria-hidden />
               <span>{v.label}</span>
               <Info label="About this answer">
                 <p>{v.summary}</p>
-                <p className="text-xs text-muted-foreground">The customer&apos;s product judged as we would on the shop floor: joints to solder and inspect, paste, cost and shifts — then nine gates signed in order.</p>
               </Info>
             </div>
             <ul className="mt-3 flex flex-wrap gap-1.5 text-xs" aria-label="Checks">
-              <li className="inline-flex h-7 items-center gap-1.5 rounded-full border bg-card px-2.5"><span className="size-2 rounded-full bg-risk-green" aria-hidden /><span className="num font-semibold">{v.greens}</span> OK</li>
-              <li className={cn("inline-flex h-7 items-center gap-1.5 rounded-full border bg-card px-2.5", !v.ambers && "opacity-60")}><span className="size-2 rounded-full bg-risk-amber" aria-hidden /><span className="num font-semibold">{v.ambers}</span> to watch</li>
-              <li className={cn("inline-flex h-7 items-center gap-1.5 rounded-full border bg-card px-2.5", !v.reds && "opacity-60")}><span className="size-2 rounded-full bg-risk-red" aria-hidden /><span className="num font-semibold">{v.reds}</span> blocker{v.reds === 1 ? "" : "s"}</li>
-              <li className="inline-flex h-7 items-center gap-1.5 rounded-full border bg-card px-2.5"><Lock className="size-3 text-muted-foreground" aria-hidden /><span className="num font-semibold">{signed} of {f.gates.length}</span> gates signed{f.review?.passed ? " — review passed" : ""}</li>
+              <li className="inline-flex h-7 items-center gap-1.5 rounded-md border bg-card px-2.5"><span className="size-2 rounded-full bg-risk-green" aria-hidden /><span className="num font-semibold">{v.greens}</span> OK</li>
+              <li className={cn("inline-flex h-7 items-center gap-1.5 rounded-md border bg-card px-2.5", !v.ambers && "opacity-60")}><span className="size-2 rounded-full bg-risk-amber" aria-hidden /><span className="num font-semibold">{v.ambers}</span> to watch</li>
+              <li className={cn("inline-flex h-7 items-center gap-1.5 rounded-md border bg-card px-2.5", !v.reds && "opacity-60")}><span className="size-2 rounded-full bg-risk-red" aria-hidden /><span className="num font-semibold">{v.reds}</span> blocker{v.reds === 1 ? "" : "s"}</li>
+              <li className="inline-flex h-7 items-center gap-1.5 rounded-md border bg-card px-2.5"><Lock className="size-3 text-muted-foreground" aria-hidden /><span className="num font-semibold">{signed} of {f.gates.length}</span> gates signed{f.review?.passed ? " — review passed" : ""}</li>
             </ul>
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="text-xs text-muted-foreground">{f.review ? "Review quantity (fixed)" : "Quantity"}</span>
+              <span className="text-xs text-muted-foreground">{f.review ? "Review qty" : "Qty"}</span>
               {(f.review ? [f.qty] : f.quantities).map((q) => (
                 <Link
                   key={q}
                   href={sectionHref(id, "feasibility", { qty: String(q) })}
                   aria-current={q === f.qty ? "true" : undefined}
-                  className={cn("num inline-flex h-8 items-center rounded-md border px-3 text-sm outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring", q === f.qty ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted")}
+                  className={cn("num inline-flex h-8 items-center rounded-md border px-3 text-sm outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring", q === f.qty ? "border-primary bg-primary font-semibold text-primary-foreground" : "bg-card hover:bg-part-soft")}
                 >
                   {qtyLabel(q)}
                 </Link>
@@ -167,8 +165,8 @@ export default async function EstimateSection({ id, searchParams }: { id: string
 
       <section aria-labelledby="gates" className="space-y-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <h2 id="gates" className="text-base font-semibold tracking-tight">Nine gates, in order</h2>
-          <span className="inline-flex h-7 items-center gap-1.5 rounded-full border bg-card px-2.5 text-xs font-semibold">
+          <h2 id="gates" className="text-lg font-semibold tracking-tight">Gates</h2>
+          <span className="inline-flex h-7 items-center gap-1.5 rounded-md border bg-card px-2.5 text-xs font-semibold">
             <Lock className="size-3 text-risk-green" aria-hidden /> <span className="num">{signed} of {f.gates.length}</span> signed
           </span>
           <Info label="About the gates">
@@ -186,9 +184,7 @@ export default async function EstimateSection({ id, searchParams }: { id: string
       </section>
 
       <section aria-labelledby="figures" className="space-y-2">
-        <h2 id="figures" className="flex items-center gap-2 text-base font-semibold tracking-tight">
-          <Box className="size-4 text-primary" aria-hidden /> The figures behind the answer
-        </h2>
+        <h2 id="figures" className="text-lg font-semibold tracking-tight">Figures</h2>
         <JointsFold {...p} />
         <PasteFold {...p} />
         <ShiftsFold {...p} />

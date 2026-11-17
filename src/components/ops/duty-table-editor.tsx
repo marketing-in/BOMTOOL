@@ -38,10 +38,10 @@ export function DutyTableEditor({ rates, editable }: { rates: Rate[]; editable: 
             return (
               <tr key={isDraft ? "new" : r.prefix}>
                 <td className="px-3 py-1.5">{isDraft ? <input aria-label="New HSN prefix" value={r.prefix} onChange={(e) => set({ prefix: e.target.value.replace(/\D/g, "").slice(0, 8) })} className={cell} placeholder="e.g. 8504" /> : <span className="num">{r.prefix}</span>}</td>
-                <td className="px-3 py-1.5"><input aria-label={`Description ${r.prefix}`} value={r.description} disabled={!editable} onChange={(e) => set({ description: e.target.value })} className={`${cell} font-sans`} /></td>
+                <td className="px-3 py-1.5"><input aria-label={`Description ${r.prefix}`} value={r.description} disabled={!editable} onChange={(e) => set({ description: e.target.value })} className={cell} /></td>
                 <td className="px-3 py-1.5"><input aria-label={`BCD ${r.prefix}`} type="number" step="0.5" min={0} value={r.bcdPct} disabled={!editable} onChange={(e) => set({ bcdPct: Number(e.target.value) })} className={cell} /></td>
                 <td className="px-3 py-1.5"><input aria-label={`IGST ${r.prefix}`} type="number" step="1" min={0} value={r.igstPct} disabled={!editable} onChange={(e) => set({ igstPct: Number(e.target.value) })} className={cell} /></td>
-                <td className="px-3 py-1.5"><input aria-label={`Note ${r.prefix}`} value={r.note} disabled={!editable} onChange={(e) => set({ note: e.target.value })} className={`${cell} font-sans`} /></td>
+                <td className="px-3 py-1.5"><input aria-label={`Note ${r.prefix}`} value={r.note} disabled={!editable} onChange={(e) => set({ note: e.target.value })} className={cell} /></td>
                 {editable ? (
                   <td className="px-3 py-1.5 text-right">
                     <Button size="sm" variant={isDraft ? "default" : "ghost"} className="h-8" disabled={pending || (isDraft && r.prefix.length < 4)} onClick={() => save(r)}>
@@ -54,7 +54,7 @@ export function DutyTableEditor({ rates, editable }: { rates: Rate[]; editable: 
           })}
         </tbody>
       </table>
-      <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">Indicative rates for estimating. Social welfare surcharge is 10 % of BCD. Confirm with your customs broker before quoting; changes are recorded in the audit log.</p>
+      <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">Indicative. SWS = 10 % of BCD. Confirm with your customs broker; changes go to the audit log.</p>
     </div>
   );
 }

@@ -19,15 +19,28 @@ export default async function AlertsPage() {
   return (
     <>
       <PageHeader
-        title="Alerts"
-        description="Market changes from the price refresh, plus live checks on work orders, moisture-sensitive stock, RFQs and approvals."
+        title={
+          <span className="flex items-baseline gap-2.5">
+            Alerts <span className="num text-base font-normal text-muted-foreground">{alerts.length}</span>
+          </span>
+        }
         actions={market.length ? <AckAllButton ids={market.map((a) => a.eventId!)} /> : null}
       />
-      <div className="overflow-hidden rounded-lg border bg-card">
+      {alerts.length ? (
+        <dl className="mb-6 flex gap-10">
+          {(["red", "amber"] as const).map((lv) => (
+            <div key={lv}>
+              <dd className={`text-3xl leading-none font-semibold tracking-tight tabular-nums ${lv === "red" ? "text-risk-red" : "text-risk-amber"}`}>{alerts.filter((a) => a.level === lv).length}</dd>
+              <dt className="mt-1.5 text-xs text-muted-foreground">{lv === "red" ? "urgent" : "to watch"}</dt>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      <div className="overflow-hidden rounded-xl border bg-card">
         {alerts.length ? (
           <ul className="divide-y">
             {alerts.map((a) => (
-              <li key={a.id} className="flex items-center gap-3 px-4 py-2.5">
+              <li key={a.id} className="flex items-center gap-3 px-5 py-3">
                 <RiskDot level={a.level} />
                 <span className="w-20 shrink-0 text-xs text-muted-foreground">{KIND_LABEL[a.kind]}</span>
                 <Link href={a.href} className="min-w-0 flex-1 hover:underline">
@@ -40,7 +53,7 @@ export default async function AlertsPage() {
             ))}
           </ul>
         ) : (
-          <EmptyState title="All clear">Nothing needs attention right now.</EmptyState>
+          <EmptyState title="All clear" />
         )}
       </div>
     </>

@@ -136,7 +136,7 @@ export function IsoPartShape({ p, z = 0, id, shadowZ }: { p: IsoPart; z?: number
         <g transform={at}>
           {ic && small > 1.4 ? <circle cx={-L / 2 + small * 0.17} cy={W / 2 - small * 0.17} r={small * 0.07} fill="#fff" opacity="0.5" /> : null}
           {ic && fs >= 0.75 ? (
-            <text transform={`rotate(${flip})`} y={fs * 0.34} textAnchor="middle" fontSize={fs} fontFamily="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#dfe3ea" opacity="0.72">
+            <text transform={`rotate(${flip})`} y={fs * 0.34} textAnchor="middle" fontSize={fs} fontFamily="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#e3e3df" opacity="0.72">
               {text}
             </text>
           ) : null}
@@ -160,7 +160,7 @@ export function IsoDefs({ id, blur }: { id: string; blur: number }) {
     <defs>
       <linearGradient id={`${id}-can`} x1="0" x2="1" y1="0" y2="0">
         <stop offset="0" stopColor="#6b7078" />
-        <stop offset="0.28" stopColor="#f3f5f8" />
+        <stop offset="0.28" stopColor="#f5f5f3" />
         <stop offset="0.6" stopColor="#aeb3ba" />
         <stop offset="1" stopColor="#5a5e66" />
       </linearGradient>

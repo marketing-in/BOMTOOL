@@ -69,7 +69,7 @@ export function ProductPanel({ data, shell, onShell, explode, onExplode }: { dat
   ];
 
   return (
-    <section className="rounded-lg border bg-card p-4" aria-labelledby="product-title">
+    <section className="rounded-xl border bg-card p-5" aria-labelledby="product-title">
       {data.product ? (
         <>
           <h2 id="product-title" className="text-sm font-medium">

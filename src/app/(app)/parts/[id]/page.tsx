@@ -19,7 +19,7 @@ import { landedCost } from "@/lib/landed-cost";
 import { priceAtQty } from "@/lib/currency";
 import { FALLBACK_DUTY, loadDutyRates } from "@/server/bom-pipeline";
 import { ensureFx } from "@/server/fx";
-import { ArrowUp, BookOpen, Check, FileText, HelpCircle } from "lucide-react";
+import { ArrowUp, BookOpen, Check, ChevronDown, FileText, HelpCircle } from "lucide-react";
 import { analysePartRisk } from "@/lib/part-risk";
 import { isLive, priceSeries, priceTrendPct } from "@/lib/price-trend";
 import { getLiveSince } from "@/server/price-history";
@@ -270,14 +270,14 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
       />
 
       {part.counterfeitRisk >= 4 ? (
-        <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-risk-amber/40 bg-risk-amber-soft px-4 py-3 text-sm">
+        <div className="mb-6 flex items-start gap-2.5 rounded-md border border-risk-amber/40 bg-risk-amber-soft px-4 py-3 text-sm">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-risk-amber" aria-hidden />
-          <span>Frequently counterfeited part. Buy from authorised channels only, or require CoC, decapsulation / X-ray inspection for broker stock.</span>
+          <span><strong className="font-semibold">Frequently counterfeited.</strong> Authorised channels only — broker stock needs CoC and decap / X-ray.</span>
         </div>
       ) : null}
 
-      <section aria-label="Part summary" className="mb-6 grid gap-5 rounded-lg border bg-card p-4 sm:grid-cols-[160px_minmax(0,1fr)] xl:grid-cols-[180px_minmax(0,1fr)_300px]">
-        <div className="grid aspect-square w-full max-w-[180px] place-items-center overflow-hidden rounded-md border bg-white p-3">
+      <section aria-label="Part summary" className="mb-8 grid gap-6 rounded-xl border bg-card p-5 sm:grid-cols-[160px_minmax(0,1fr)] xl:grid-cols-[180px_minmax(0,1fr)_260px]">
+        <div className="grid aspect-square w-full max-w-[180px] place-items-center overflow-hidden rounded-md bg-white p-3 ring-1 ring-border">
           <PartPhoto
             src={photo}
             alt={`${part.mpn} product photo`}
@@ -285,8 +285,7 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
             fallback={part.package ? <PackageDrawing pkg={part.package} size={130} /> : <span className="text-xs text-muted-foreground">No photo yet</span>}
           />
         </div>
-        <dl className="grid content-start gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-          <Fact label="Manufacturer part number"><span className="num font-medium">{part.mpn}</span></Fact>
+        <dl className="grid grid-cols-2 content-start gap-x-6 gap-y-4 text-sm lg:grid-cols-4">
           <Fact label="Brand">{part.manufacturer.name}</Fact>
           <Fact label="Category">{part.category.name}</Fact>
           <Fact label="Package">{part.package ? `${part.package.name}${part.package.pitchMm ? ` · ${part.package.pitchMm} mm` : ""}` : "—"}</Fact>
@@ -297,7 +296,7 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
           <Fact label="REACH">
             <span className="inline-flex items-center gap-1.5"><RiskDot level={part.reach === "COMPLIANT" ? "green" : "amber"} />{REACH_LABEL[part.reach]}</span>
           </Fact>
-          <Fact label="Moisture sensitivity">{part.msl ? `MSL ${MSL_LABEL[part.msl]}` : "—"}</Fact>
+          <Fact label="MSL">{part.msl ? MSL_LABEL[part.msl] : "—"}</Fact>
           <Fact label="Datasheet">
             {datasheet ? (
               <a href={datasheet} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 hover:underline">
@@ -310,28 +309,28 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
         </dl>
         <a
           href="#risk"
-          className="block rounded-md border bg-muted/30 p-4 outline-none transition-colors duration-150 hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring sm:col-span-2 xl:col-span-1"
+          className="block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring sm:col-span-2 xl:col-span-1 xl:border-l xl:pl-6"
+          title={risk.summary}
         >
-          <span className="flex items-center gap-2 text-xs text-muted-foreground">
-            <ShieldAlert className="size-3.5" aria-hidden /> Risk analysis
-          </span>
-          <span className="mt-2 flex items-baseline gap-2">
-            <span className={cn("num text-3xl font-semibold tracking-tight", risk.level === "green" ? "text-risk-green" : risk.level === "amber" ? "text-risk-amber" : "text-risk-red")}>{risk.score}</span>
+          <span className="flex items-baseline gap-2">
+            <span className={cn("text-5xl leading-none font-semibold tracking-tight tabular-nums", risk.level === "green" ? "text-risk-green" : risk.level === "amber" ? "text-risk-amber" : "text-risk-red")}>{risk.score}</span>
             <span className="text-sm text-muted-foreground">/ 100</span>
           </span>
-          <span className="mt-1 block text-sm">{risk.summary}</span>
-          {risk.factors.filter((f) => f.action).slice(0, 2).map((f) => (
-            <span key={f.key} className="mt-2 block text-xs text-muted-foreground">→ {f.action}</span>
-          ))}
+          <span className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <ShieldAlert className="size-3.5" aria-hidden /> Risk analysis
+          </span>
+          <span className="mt-3 block h-2 overflow-hidden rounded-sm bg-muted" aria-hidden>
+            <span className={cn("block h-full", risk.level === "green" ? "bg-risk-green" : risk.level === "amber" ? "bg-risk-amber" : "bg-risk-red")} style={{ width: `${risk.score}%` }} />
+          </span>
         </a>
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-6">
-          <section aria-labelledby="availability" className="rounded-lg border bg-card">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
-              <h2 id="availability" className="text-base font-medium">Availability</h2>
-              <span className="text-xs text-muted-foreground">Prices in {currency}; landed = freight + duty, net of GST credit</span>
+          <section aria-labelledby="availability" className="overflow-hidden rounded-xl border bg-card">
+            <div className="flex min-h-14 flex-wrap items-center justify-between gap-2 border-b px-5 py-3">
+              <h2 id="availability" className="text-base font-semibold">Availability</h2>
+              <span className="text-xs text-muted-foreground" title="Landed = freight + duty, net of GST credit">{currency}</span>
             </div>
             <div className="grid grid-cols-2 divide-x border-b text-center sm:grid-cols-4">
               {[
@@ -340,11 +339,11 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
                 ["Distributors (online)", total(suppliers), suppliers.length],
                 ["Marketplace", total(market), market.length],
               ].map(([label, qty, count], i) => (
-                <a key={String(label)} href={`#tier-${i + 1}`} className="px-2 py-3 transition-colors duration-150 hover:bg-muted/40">
-                  <span className="block text-xs text-muted-foreground">
+                <a key={String(label)} href={`#tier-${i + 1}`} className={cn("px-2 py-4 outline-none transition-colors duration-150 hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset", i < 2 && "border-b sm:border-b-0")}>
+                  <span className={cn("block text-2xl leading-none font-semibold tracking-tight tabular-nums", Number(qty) === 0 && "text-muted-foreground/60")}>{Number(qty).toLocaleString("en-IN")}</span>
+                  <span className="mt-1.5 block text-xs text-muted-foreground">
                     {i + 1} · {label}
                   </span>
-                  <span className="num mt-0.5 block text-lg font-medium">{Number(qty).toLocaleString("en-IN")}</span>
                   <span className="block text-[11px] text-muted-foreground">
                     {count} {Number(count) === 1 ? "source" : "sources"}
                   </span>
@@ -383,7 +382,7 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
                   </tbody>
                 </table>
               ) : (
-                <p className="px-4 py-3 text-sm text-muted-foreground">None in our stores or consignment.</p>
+                <p className="px-4 pb-3 text-sm text-muted-foreground">None.</p>
               )}
             </Tier>
 
@@ -421,7 +420,7 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
                   </tbody>
                 </table>
               ) : (
-                <p className="px-4 py-3 text-sm text-muted-foreground">No channel partner or agent lists this part.</p>
+                <p className="px-4 pb-3 text-sm text-muted-foreground">None.</p>
               )}
             </Tier>
 
@@ -471,7 +470,7 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
                   </tbody>
                 </table>
               ) : (
-                <p className="px-4 py-3 text-sm text-muted-foreground">No distributor offers yet{buyer ? " — use Refresh offers above" : ""}.</p>
+                <p className="px-4 pb-3 text-sm text-muted-foreground">None yet{buyer ? " — Refresh offers" : ""}.</p>
               )}
             </Tier>
 
@@ -495,7 +494,7 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
                         <td className="px-4 py-2.5"><SupplierTierBadge kind={x.kind} /><span className="mt-1 block text-xs">{x.name}</span></td>
                         <td className="px-4 py-2.5 text-xs text-muted-foreground">
                           {x.detail}
-                          {x.kind === "BROKER" ? <span className="mt-0.5 block text-risk-amber">Independent seller — require CoC and inspection</span> : null}
+                          {x.kind === "BROKER" ? <span className="mt-0.5 block text-risk-amber">Require CoC and inspection</span> : null}
                         </td>
                         <td className="num px-4 py-2.5 text-right">{x.qty.toLocaleString("en-IN")}</td>
                         <td className="num px-4 py-2.5 text-right whitespace-nowrap">{money(x.unit)}</td>
@@ -520,12 +519,12 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
                   </tbody>
                 </table>
               ) : (
-                <p className="px-4 py-3 text-sm text-muted-foreground">No excess or broker listings.</p>
+                <p className="px-4 pb-3 text-sm text-muted-foreground">None.</p>
               )}
             </Tier>
           </section>
 
-          <Section title="Alternates & form-fit-function">
+          <Section title="Alternates">
             {part.alternatesFrom.length ? (
               <ul className="divide-y">
                 {part.alternatesFrom.map((a) => (
@@ -540,16 +539,16 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
                     {engineer ? <RemoveAlternateButton partId={part.id} altPartId={a.altPartId} mpn={a.altPart.mpn} /> : null}
                     <p className="w-full text-xs text-muted-foreground">
                       {a.notes ? `${a.notes} ` : ""}
-                      {a.approvedAt ? `Approved by ${a.approvedBy ?? "engineering"} on ${a.approvedAt.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.` : "Recorded automatically: same category, package and critical parameters."}
+                      {a.approvedAt ? `Approved by ${a.approvedBy ?? "engineering"} on ${a.approvedAt.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.` : "Recorded automatically."}
                     </p>
                   </li>
                 ))}
               </ul>
             ) : (
-              <EmptyState title="No alternates recorded">Approve one of the suggestions below, or add one when a BoM brings in a second source.</EmptyState>
+              <EmptyState title="No alternates recorded" />
             )}
             <div className="border-t">
-              <h3 className="px-4 pt-3 text-xs text-muted-foreground">Suggested from parameters — other parts in this category, compared value by value</h3>
+              <h3 className="px-5 pt-4 text-sm font-semibold" title="Other parts in this category, compared value by value">Suggested from parameters</h3>
               {suggestions.length ? (
                 <ul className="divide-y">
                   {suggestions.map((s) => (
@@ -577,7 +576,7 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
                   ))}
                 </ul>
               ) : (
-                <p className="px-4 pt-1.5 pb-3 text-sm text-muted-foreground">No other catalogue part meets every parameter of this one yet.</p>
+                <p className="px-5 pt-1.5 pb-4 text-sm text-muted-foreground">None yet.</p>
               )}
             </div>
           </Section>
@@ -586,20 +585,25 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
         <div className="min-w-0 space-y-6">
           <div id="risk" className="scroll-mt-20">
             <Section title="Risk analysis" action={<span className="num text-xs text-muted-foreground">{risk.score} / 100 at {REF.toLocaleString("en-IN")} pcs</span>}>
-              <p className="px-4 pt-3 text-sm">{risk.summary}</p>
-              <ul className="mt-1 divide-y">
+              <p className="px-5 pt-4 text-sm">{risk.summary}</p>
+              <ul className="mt-2 divide-y">
                 {risk.factors.map((f) => (
-                  <li key={f.key} className="px-4 py-2.5">
-                    <div className="flex items-center gap-2 text-sm">
-                      <RiskDot level={f.level} />
-                      <span className="font-medium">{f.label}</span>
-                      <span className="num ml-auto text-xs text-muted-foreground">{f.score}</span>
-                    </div>
-                    <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
-                      <div className={cn("h-full rounded-full", f.level === "green" ? "bg-risk-green" : f.level === "amber" ? "bg-risk-amber" : "bg-risk-red")} style={{ width: `${f.score}%` }} />
-                    </div>
-                    <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{f.reason}</p>
-                    {f.action ? <p className="mt-1 text-xs leading-relaxed"><span className="font-medium">Do:</span> {f.action}</p> : null}
+                  <li key={f.key} className="px-5 py-3">
+                    <details className="group">
+                      <summary className="cursor-pointer list-none rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                        <span className="flex items-center gap-2 text-sm">
+                          <RiskDot level={f.level} />
+                          <span className="font-medium">{f.label}</span>
+                          <span className="num ml-auto font-semibold">{f.score}</span>
+                          <ChevronDown className="size-3.5 text-muted-foreground transition-transform duration-200 group-open:rotate-180" aria-hidden />
+                        </span>
+                        <span className="mt-2 block h-1.5 overflow-hidden rounded-sm bg-muted">
+                          <span className={cn("block h-full", f.level === "green" ? "bg-risk-green" : f.level === "amber" ? "bg-risk-amber" : "bg-risk-red")} style={{ width: `${f.score}%` }} />
+                        </span>
+                      </summary>
+                      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{f.reason}</p>
+                    </details>
+                    {f.action ? <p className="mt-2 text-xs leading-relaxed"><span className="font-semibold">Do:</span> {f.action}</p> : null}
                   </li>
                 ))}
               </ul>
@@ -625,17 +629,10 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
           </Section>
 
           {kind && KindIcon ? (
-            <Section
-              title="About this kind of part"
-              action={
-                <Link href={`/knowledge/dictionary/${kind.slug}`} className="text-xs text-muted-foreground hover:text-foreground">
-                  Dictionary
-                </Link>
-              }
-            >
-              <div className="px-4 py-3">
+            <Folded title="About this kind of part" note={kind.name}>
+              <div className="px-5 py-4">
                 <Link href={`/knowledge/dictionary/${kind.slug}`} className="group flex items-center gap-2.5">
-                  <span className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/8 text-primary">
+                  <span className="grid size-8 shrink-0 place-items-center rounded-md bg-part-soft text-primary">
                     <KindIcon className="size-4" aria-hidden />
                   </span>
                   <span className="text-sm font-medium group-hover:underline">{kind.name}</span>
@@ -651,12 +648,12 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
                   ))}
                 </ul>
               </div>
-            </Section>
+            </Folded>
           ) : null}
 
           {learn.length || part.package ? (
-            <Section title="Learn about this part">
-              <div className="flex gap-4 px-4 py-3">
+            <Folded title="Learn" note={learn.length ? `${learn.length} article${learn.length === 1 ? "" : "s"}` : undefined}>
+              <div className="flex gap-4 px-5 py-4">
                 {part.package ? <PackageDrawing pkg={part.package} size={88} /> : null}
                 <ul className="min-w-0 flex-1 space-y-2 text-sm">
                   {learn.map((a) => (
@@ -669,7 +666,7 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
                   ))}
                 </ul>
               </div>
-            </Section>
+            </Folded>
           ) : null}
 
           <Section title="Parameters">
@@ -683,16 +680,16 @@ export default async function PartPage({ params }: { params: Promise<{ id: strin
             </dl>
           </Section>
 
-          <Section title="Compliance & logistics">
+          <Folded title="Compliance & logistics" note={`${facts.length} facts`}>
             <dl className="divide-y text-sm">
               {facts.map(([k, v]) => (
-                <div key={k} className="flex justify-between gap-4 px-4 py-2">
+                <div key={k} className="flex justify-between gap-4 px-5 py-2">
                   <dt className="text-muted-foreground">{k}</dt>
                   <dd className="text-right">{v}</dd>
                 </div>
               ))}
             </dl>
-          </Section>
+          </Folded>
 
           {part.bomLines.length ? (
             <Section title="Used in">
@@ -736,13 +733,26 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
+/** A right-column section that stays shut until asked for. */
+function Folded({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+  return (
+    <details className="group/fold rounded-xl border bg-card">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-xl px-5 outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+        <h2 className="shrink-0 text-base font-semibold">{title}</h2>
+        <span className="min-w-0 flex-1 truncate text-right text-xs text-muted-foreground group-open/fold:invisible">{note}</span>
+        <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open/fold:rotate-180" aria-hidden />
+      </summary>
+      <div className="border-t">{children}</div>
+    </details>
+  );
+}
+
 function Tier({ id, n, title, hint, children }: { id: string; n: number; title: string; hint: string; children: React.ReactNode }) {
   return (
     <div id={id} className="scroll-mt-20 border-b last:border-b-0">
-      <div className="flex items-baseline gap-2 px-4 pt-3 pb-1">
-        <span className="num grid size-5 shrink-0 place-items-center rounded-full bg-primary/10 text-[11px] font-medium text-primary">{n}</span>
-        <h3 className="text-sm font-medium">{title}</h3>
-        <span className="hidden truncate text-xs text-muted-foreground sm:inline">{hint}</span>
+      <div className="flex items-center gap-2.5 px-4 pt-4 pb-2" title={hint}>
+        <span className="grid size-6 shrink-0 place-items-center rounded bg-primary text-[11px] font-semibold text-primary-foreground">{n}</span>
+        <h3 className="text-sm font-semibold">{title}</h3>
       </div>
       <div className="overflow-x-auto pb-1">{children}</div>
     </div>

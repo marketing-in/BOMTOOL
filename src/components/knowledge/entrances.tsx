@@ -11,7 +11,7 @@ function PictureCard({ href, icon, title, meta, art, children }: { href: string;
   return (
     <Link
       href={href}
-      className="group flex flex-col rounded-lg border bg-card outline-none transition-[border-color,box-shadow] duration-150 hover:border-foreground/20 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring"
+      className="group flex flex-col overflow-hidden rounded-xl border bg-card outline-none transition-colors duration-150 hover:border-foreground/20 focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div className="grid h-32 place-items-center border-b bg-muted/30 px-4">{art}</div>
       <div className="flex flex-1 flex-col p-4">

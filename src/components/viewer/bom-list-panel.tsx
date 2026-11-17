@@ -35,7 +35,7 @@ export function BomListPanel({ parts, selectedLine, onPick }: { parts: ViewerPar
   const short = rows.filter((r) => r.supply && !r.dnp && r.supply.ours + r.supply.partners + r.supply.suppliers + r.supply.market === 0).length;
 
   return (
-    <section aria-labelledby="bom-list" className="rounded-lg border bg-card">
+    <section aria-labelledby="bom-list" className="overflow-hidden rounded-xl border bg-card">
       <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
         <h2 id="bom-list" className="flex items-center gap-1.5 text-sm font-medium">
           <ListTree className="size-4 text-muted-foreground" aria-hidden /> BoM on this board

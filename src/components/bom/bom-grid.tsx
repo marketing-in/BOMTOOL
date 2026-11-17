@@ -338,16 +338,16 @@ export function BomGrid({ rows, currency, editable, canBuy }: { rows: GridRow[];
   ];
 
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="rounded-xl border bg-card">
       <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2.5">
         <div className="relative min-w-52 flex-1 sm:max-w-xs">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <input
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            placeholder="Filter MPN, maker, RefDes…"
+            placeholder="Filter"
             aria-label="Filter lines"
-            className="h-9 w-full rounded-md border bg-background pr-3 pl-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-9 w-full rounded-md border bg-card pr-3 pl-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
         <div role="radiogroup" aria-label="Quick filter" className="flex flex-wrap gap-1">
@@ -359,7 +359,7 @@ export function BomGrid({ rows, currency, editable, canBuy }: { rows: GridRow[];
               onClick={() => setQuick(c.key)}
               className={cn(
                 "inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-xs transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                quick === c.key ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
+                quick === c.key ? "bg-part-soft font-semibold text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
               {c.level ? <RiskDot level={c.level} /> : null}

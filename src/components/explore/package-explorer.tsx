@@ -7,7 +7,7 @@ import { CHIP_PACKAGES, ELEMENT_INFO, chipPackage, type ChipPackage, type Packag
 import { cn } from "@/lib/utils";
 import { ControlGroup, EXTRUDE, ExploreCanvas, Segmented, Slider, Toggle, ViewButtons, useEased, useReducedMotion, type Vec3 } from "./scene";
 
-const SELECT = new THREE.Color("#3b82f6");
+const SELECT = new THREE.Color("#5a2f96");
 type View = "angled" | "side" | "under";
 
 /** Box: centre x/y, z from z0 to z1. */
@@ -321,7 +321,7 @@ export default function PackageExplorer({ initial }: { initial?: string }) {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="relative h-[420px] overflow-hidden rounded-lg border bg-gradient-to-b from-muted/30 to-muted/70 sm:h-[560px]">
+      <div className="relative h-[420px] overflow-hidden rounded-xl border bg-muted/60 sm:h-[560px]">
         <ExploreCanvas cut={cut} camera={views[view]} target={[0, 0, 0.6]} label={`${pkg.label} package cut-away in 3D`}>
           <group onPointerMissed={() => setSelected(null)}>
             {pkg.elements.map((el) => {
@@ -349,7 +349,7 @@ export default function PackageExplorer({ initial }: { initial?: string }) {
         <p className="pointer-events-none absolute right-3 bottom-2 text-[11px] text-muted-foreground">Drag to turn · scroll to zoom · click a part</p>
       </div>
 
-      <div className="space-y-5 rounded-lg border bg-card p-4">
+      <div className="space-y-5 rounded-xl border bg-card p-5">
         <ControlGroup title="Package">
           <Segmented
             label="Package"
@@ -370,7 +370,7 @@ export default function PackageExplorer({ initial }: { initial?: string }) {
           </div>
         </ControlGroup>
         <ControlGroup title="What’s inside">
-          <ul className="space-y-px overflow-hidden rounded-md border">
+          <ul className="-mx-2">
             {pkg.elements.map((el) => {
               const on = selected === el;
               return (
@@ -389,7 +389,7 @@ export default function PackageExplorer({ initial }: { initial?: string }) {
             })}
           </ul>
         </ControlGroup>
-        <div className="rounded-md bg-muted/50 p-3 text-sm leading-relaxed" aria-live="polite">
+        <div className="border-t pt-4 text-sm leading-relaxed" aria-live="polite">
           {info ? (
             <>
               <div className="font-medium">{info.label}</div>

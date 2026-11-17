@@ -32,7 +32,7 @@ export default async function MarketSearchPage({ searchParams }: { searchParams:
 
   return (
     <>
-      <PageHeader title="Parts catalogue" description="Every part we know, every category, and live search across the distributors' full ranges." />
+      <PageHeader title="Parts catalogue" />
       <PartsTabs current="market" />
 
       <Form action="/parts/market" className="relative mb-3 max-w-2xl">
@@ -46,24 +46,31 @@ export default async function MarketSearchPage({ searchParams }: { searchParams:
           className="h-11 w-full rounded-md border bg-card pr-3 pl-9 text-sm outline-none focus-visible:border-primary/50 focus-visible:ring-3 focus-visible:ring-ring/30"
         />
       </Form>
-      <p className="mb-6 text-xs text-muted-foreground">
-        {mockEnabled() && !live.length
-          ? "No distributor keys are set: results come from the simulated market."
-          : `Searches ${live.map((a) => a.label).join(" and ")} live — one call to each per new search, reused for 15 minutes.`}
-        {budgets.length ? ` Today: ${budgets.map(({ a, s }) => `${a.label} ${s.callsToday}/${a.dailyLimit}`).join(" · ")}.` : null}
+      <p className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        {mockEnabled() && !live.length ? (
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-risk-amber-soft px-2 py-1 font-medium text-foreground" title="No distributor keys are set: results come from the simulated market.">
+            <RiskDot level="amber" /> Simulated market
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5" title="One call to each per new search, reused for 15 minutes.">
+            <RiskDot level="green" /> Live: {live.map((a) => a.label).join(", ")}
+          </span>
+        )}
+        {budgets.map(({ a, s }) => (
+          <span key={a.key} className="num" title="API calls today">{a.label} {s.callsToday}/{a.dailyLimit}</span>
+        ))}
       </p>
 
       {!allowed ? (
-        <div className="rounded-lg border bg-card">
-          <EmptyState title="Live search is for engineering and purchasing">It spends distributor API calls. Browse our catalogue and categories instead, or ask a buyer.</EmptyState>
+        <div className="rounded-xl border bg-card">
+          <EmptyState title="Live search is for engineering and purchasing" />
         </div>
       ) : !query ? (
-        <div className="rounded-lg border bg-card px-4 py-6">
-          <p className="text-sm text-muted-foreground">Try:</p>
-          <ul className="mt-2 flex flex-wrap gap-2">
+        <div>
+          <ul className="flex flex-wrap gap-2" aria-label="Example searches">
             {EXAMPLES.map((x) => (
               <li key={x}>
-                <Link href={`/parts/market?q=${encodeURIComponent(x)}`} className="inline-flex h-8 items-center rounded-md border bg-muted/40 px-3 text-sm transition-colors duration-150 hover:bg-muted">
+                <Link href={`/parts/market?q=${encodeURIComponent(x)}`} className="inline-flex h-9 items-center rounded-md border bg-card px-3 text-[13px] outline-none transition-colors duration-150 hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring">
                   {x}
                 </Link>
               </li>
@@ -83,8 +90,8 @@ export default async function MarketSearchPage({ searchParams }: { searchParams:
           {data.results.length ? (
             <ul className="space-y-3">
               {data.results.map((r) => (
-                <li key={r.key} className="rounded-lg border bg-card">
-                  <div className="flex flex-wrap gap-4 p-4">
+                <li key={r.key} className="overflow-hidden rounded-xl border bg-card">
+                  <div className="flex flex-wrap gap-5 p-5">
                     <span className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-md border bg-white p-1">
                       <PartPhoto src={r.imageUrl} alt="" className="max-h-full max-w-full" fallback={<span className="text-[10px] text-muted-foreground">No photo</span>} />
                     </span>
@@ -110,8 +117,8 @@ export default async function MarketSearchPage({ searchParams }: { searchParams:
                       </p>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-2 text-right">
-                      <span className="num text-sm">{r.totalStock.toLocaleString("en-IN")} in stock</span>
-                      <span className="num text-xs text-muted-foreground">from {money(r.best1k)} @1k</span>
+                      <span className="text-2xl leading-none font-semibold tracking-tight tabular-nums">{r.totalStock.toLocaleString("en-IN")}</span>
+                      <span className="num text-xs text-muted-foreground">in stock · from {money(r.best1k)} @1k</span>
                       {r.partId ? (
                         <Link href={`/parts/${r.partId}`} className="inline-flex h-8 items-center rounded-md border px-3 text-sm transition-colors duration-150 hover:bg-muted">
                           In our catalogue
@@ -160,8 +167,8 @@ export default async function MarketSearchPage({ searchParams }: { searchParams:
               ))}
             </ul>
           ) : (
-            <div className="rounded-lg border bg-card">
-              <EmptyState title="Nothing found">Try fewer words, or the manufacturer part number.</EmptyState>
+            <div className="rounded-xl border bg-card">
+              <EmptyState title="Nothing found" />
             </div>
           )}
         </>

@@ -18,7 +18,7 @@ const LEVEL_WORD: Record<Level, string> = { green: "OK", amber: "Watch", red: "B
  */
 export function GateStepper({ gates }: { gates: GateState[] }) {
   return (
-    <ol className="flex rounded-lg border bg-card px-2 py-4 sm:px-4" aria-label="The nine gates, in order">
+    <ol className="flex rounded-xl border bg-card px-2 py-5 sm:px-4" aria-label="The nine gates, in order">
       {gates.map((g, i) => {
         const signed = g.status === "signed";
         const open = g.status === "open";
@@ -39,8 +39,8 @@ export function GateStepper({ gates }: { gates: GateState[] }) {
             >
               <span
                 className={cn(
-                  "relative grid size-9 place-items-center rounded-full border-2 text-sm font-semibold transition-transform duration-150 group-hover:scale-105",
-                  signed ? "border-risk-green bg-risk-green text-white" : open ? "border-primary bg-primary text-primary-foreground shadow-[0_0_0_4px] shadow-primary/20" : "border-border bg-card text-muted-foreground",
+                  "relative grid size-9 place-items-center rounded-md border-2 text-sm font-semibold",
+                  signed ? "border-risk-green bg-risk-green text-white" : open ? "border-primary bg-primary text-primary-foreground ring-4 ring-primary/15" : "border-border bg-card text-muted-foreground",
                 )}
               >
                 {signed ? <Lock className="size-4" aria-hidden /> : g.n}
@@ -64,11 +64,11 @@ export function Gate({ g, revisionId, qty, canSign, canWaive }: { g: GateState; 
   const reds = g.checks.filter((c) => c.level === "red");
   return (
     <li id={`gate-${g.key}`} className="scroll-mt-24">
-      <details open={g.status === "open"} className={cn("group rounded-lg border bg-card", g.status === "open" && "border-primary/50 shadow-sm", g.status === "waiting" && "opacity-75")}>
-        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-lg px-3 py-2 outline-none select-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+      <details open={g.status === "open"} className={cn("group rounded-xl border bg-card", g.status === "open" && "border-foreground/40", g.status === "waiting" && "opacity-75")}>
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2 outline-none select-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
           <span
             className={cn(
-              "grid size-7 shrink-0 place-items-center rounded-full border text-xs font-medium",
+              "grid size-7 shrink-0 place-items-center rounded-md border text-xs font-medium",
               g.status === "signed" ? "border-risk-green bg-risk-green text-white" : g.status === "open" ? "border-primary bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
             )}
           >
@@ -83,7 +83,7 @@ export function Gate({ g, revisionId, qty, canSign, canWaive }: { g: GateState; 
               </>
             ) : g.status === "open" ? (
               <span className="inline-flex items-center gap-1 font-medium text-foreground">
-                <CircleDot className="size-3 text-primary" aria-hidden /> Check and sign
+                <CircleDot className="size-3" aria-hidden /> To sign
               </span>
             ) : (
               "Waiting"
@@ -100,7 +100,7 @@ export function Gate({ g, revisionId, qty, canSign, canWaive }: { g: GateState; 
         <div className="border-t px-3 py-3 sm:pl-[3.25rem]">
           <p className="mb-2 text-xs text-muted-foreground">
             {g.what}
-            {s ? ` · signed ${when(s.at)} · locked${s.waived.length ? ` · ${s.waived.length} waived` : ""}` : g.status === "waiting" ? " · opens when the gates before it are signed" : ""}
+            {s ? ` · signed ${when(s.at)} · locked${s.waived.length ? ` · ${s.waived.length} waived` : ""}` : ""}
           </p>
           <ul className="space-y-2">
             {rows.map((c) => (
@@ -109,7 +109,7 @@ export function Gate({ g, revisionId, qty, canSign, canWaive }: { g: GateState; 
                 <span className="min-w-0">
                   <span className="font-medium">{c.label}</span> <span className="text-muted-foreground">— {c.detail}</span>
                   {c.fix && c.level !== "green" ? (
-                    <Link href={c.fix.href} className="ml-2 inline-flex items-center gap-0.5 text-xs text-primary hover:underline">
+                    <Link href={c.fix.href} className="ml-2 inline-flex items-center gap-0.5 text-xs font-medium underline decoration-border hover:decoration-foreground">
                       {c.fix.label} <ArrowRight className="size-3" aria-hidden />
                     </Link>
                   ) : null}

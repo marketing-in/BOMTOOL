@@ -52,7 +52,7 @@ export function ExploreCanvas({ children, cut, camera, target = [0, 0, 0], label
       <Rig position={camera} target={target} />
       <Clip on={cut} />
       <ambientLight intensity={0.75} />
-      <hemisphereLight args={["#ffffff", "#40444f", 0.8]} />
+      <hemisphereLight args={["#ffffff", "#464644", 0.8]} />
       <directionalLight position={[40, -60, 90]} intensity={1.9} />
       <directionalLight position={[-60, 40, 30]} intensity={0.55} />
       {children}
@@ -152,7 +152,7 @@ export function Slider({ value, onChange, label }: { value: number; onChange: (v
 /** Camera presets as small buttons over the canvas. */
 export function ViewButtons<T extends string>({ value, options, onChange }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
   return (
-    <div className="absolute top-3 left-3 flex gap-1 rounded-md border bg-card/90 p-0.5 shadow-sm backdrop-blur">
+    <div className="absolute top-3 left-3 flex gap-1 rounded-md border bg-card/90 p-0.5 backdrop-blur">
       {options.map((o) => (
         <button
           key={o.value}
@@ -160,7 +160,7 @@ export function ViewButtons<T extends string>({ value, options, onChange }: { va
           aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(
-            "h-7 rounded px-2 text-xs outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
+            "h-7 rounded-md px-2 text-xs outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
             value === o.value ? "bg-primary/10 text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
         >

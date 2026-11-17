@@ -15,15 +15,12 @@ export default async function PriceListsPage() {
   const names = new Map(suppliers.map((s) => [s.id, s.name]));
   return (
     <>
-      <PageHeader
-        title="Supplier price lists"
-        description="For vendors without an API — Indian distributors, local stockists, your contracted suppliers. Upload their Excel/CSV and their offers join the sourcing waterfall."
-      />
+      <PageHeader title="Supplier price lists" />
       <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
         {can(user.role, "sourcing.buy") ? (
           <PriceListForm suppliers={suppliers} />
         ) : (
-          <p className="rounded-lg border bg-card px-4 py-6 text-sm text-muted-foreground">Only purchasing can import price lists.</p>
+          <p className="rounded-xl border bg-card px-5 py-6 text-sm text-muted-foreground">Only purchasing can import price lists.</p>
         )}
         <Section title="Loaded price lists">
           {feeds.length ? (
@@ -36,7 +33,7 @@ export default async function PriceListsPage() {
               ))}
             </ul>
           ) : (
-            <EmptyState title="None yet">Columns like MPN, Manufacturer, Stock, MOQ and price columns such as “1+”, “100+”, “@1000” are detected automatically.</EmptyState>
+            <EmptyState title="None yet" />
           )}
         </Section>
       </div>

@@ -11,14 +11,14 @@ import { ControlGroup, ExploreCanvas, Slider, Toggle, ViewButtons, useEased, use
 /** A small square of the die, drawn far out of scale: real wires are nanometres wide. */
 const W = 24;
 const D = 16;
-const SELECT = new THREE.Color("#3b82f6");
+const SELECT = new THREE.Color("#5a2f96");
 type View = "angled" | "side" | "top";
 const VIEWS: Record<View, Vec3> = { angled: [32, -48, 40], side: [0, -60, 12], top: [0, -0.01, 64] };
 
 type Box = { x: number; y: number; z0: number; z1: number; w: number; d: number };
 type Layer = { key: string; color: string; boxes: Box[]; translucent?: number; metal?: boolean };
 
-const COLOR = { si: "#3e4757", nwell: "#5a6a8c", pwell: "#7a6690", oxide: "#e3e9f1", poly: "#b4552e", tungsten: "#9aa3ad", copper: "#c27c43", al: "#cfd4da", sin: "#8fd0bf", ild: "#a9c3e6" };
+const COLOR = { si: "#4a4a4c", nwell: "#5f8a6c", pwell: "#7a6690", oxide: "#ebebe6", poly: "#b4552e", tungsten: "#a3a3a0", copper: "#c27c43", al: "#d2d2ce", sin: "#9ccf9f", ild: "#e6d9b0" };
 
 /** Builds the die bottom-up. Returns drawn layers per DIE_LAYERS key, plus vias and dielectric per metal level. */
 function build() {
@@ -140,7 +140,7 @@ export default function DieExplorer() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="relative h-[420px] overflow-hidden rounded-lg border bg-gradient-to-b from-muted/30 to-muted/70 sm:h-[560px]">
+      <div className="relative h-[420px] overflow-hidden rounded-xl border bg-muted/60 sm:h-[560px]">
         <ExploreCanvas cut={cut} camera={VIEWS[view]} target={[0, 0, 10]} label="Layers inside a silicon die in 3D">
           <group onPointerMissed={() => setSelected(null)}>
             {DIE_LAYERS.map((dl, i) => {
@@ -173,7 +173,7 @@ export default function DieExplorer() {
         <p className="pointer-events-none absolute right-3 bottom-2 text-[11px] text-muted-foreground">Not to scale — a few micrometres of a real die</p>
       </div>
 
-      <div className="space-y-5 rounded-lg border bg-card p-4">
+      <div className="space-y-5 rounded-xl border bg-card p-5">
         <p className="text-sm leading-relaxed text-muted-foreground">
           Transistors are made in the top micrometre of the silicon (front end); up to a dozen copper wiring layers are built on top (back end), finished with bond pads and a sealing passivation.
         </p>
@@ -185,7 +185,7 @@ export default function DieExplorer() {
           </div>
         </ControlGroup>
         <ControlGroup title="Layers, top to bottom">
-          <ul className="space-y-px overflow-hidden rounded-md border">
+          <ul className="-mx-2">
             {[...DIE_LAYERS].reverse().map((l) => {
               const on = selected === l.key;
               return (
@@ -204,14 +204,14 @@ export default function DieExplorer() {
             })}
           </ul>
         </ControlGroup>
-        <div className="rounded-md bg-muted/50 p-3 text-sm leading-relaxed" aria-live="polite">
+        <div className="border-t pt-4 text-sm leading-relaxed" aria-live="polite">
           {info ? (
             <>
               <div className="font-medium">{info.label}</div>
               <p className="mt-1 text-muted-foreground">{info.detail}</p>
             </>
           ) : (
-            <p className="text-muted-foreground">Click a layer to see what it does — and how assembly can damage it (ESD, bond-pad cratering, cracked passivation).</p>
+            <p className="text-muted-foreground">Click a layer</p>
           )}
         </div>
       </div>

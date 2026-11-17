@@ -70,22 +70,23 @@ export function BuildHeader({
           Build &amp; quote — {b.product?.name ?? b.title}
         </h1>
       )}
-      <p className="mt-3 max-w-[75ch] text-sm text-muted-foreground">
-        {section ? "" : `${STEP_TITLE[current]} · `}
-        {b.product?.customer ? `${b.product.customer} · ` : ""}priced at{" "}
-        {b.quantities.map(qtyLabel).join(", ")}.
-      </p>
+      {section ? null : (
+        <p className="mt-2 text-sm text-muted-foreground">
+          {STEP_TITLE[current]} · {b.product?.customer ? `${b.product.customer} · ` : ""}
+          {b.quantities.map(qtyLabel).join(", ")}
+        </p>
+      )}
       {summary ? (
         <section
           aria-label="Your choices so far"
-          className="mt-4 flex flex-wrap items-stretch gap-x-6 gap-y-2 rounded-lg border bg-card px-4 py-3 text-sm"
+          className="mt-4 flex flex-wrap items-end gap-x-8 gap-y-3 rounded-xl border bg-card p-5 text-sm"
         >
           {so.map((s) => (
             <div
               key={s.key}
               className={cn("min-w-0", s.key === current && "font-semibold")}
             >
-              <div className="text-[11px] font-normal text-muted-foreground">
+              <div className="text-xs font-normal text-muted-foreground">
                 {s.label}
                 {s.cost !== null ? (
                   <span className="num"> · {m.unit(s.cost)}</span>
@@ -103,17 +104,17 @@ export function BuildHeader({
             </div>
           ))}
           <div className="ml-auto text-right">
-            <div className="text-[11px] text-muted-foreground">
-              {q ? `At ${qtyLabel(q.qty)}, ex-GST` : "Quote"}
+            <div className="text-3xl leading-none font-semibold tracking-tight tabular-nums">
+              {q ? m.unit(q.unitPrice) : "—"}
             </div>
-            <div className="num text-base font-bold text-primary">
-              {q ? `${m.unit(q.unitPrice)} a board` : "—"}
+            <div className="mt-1.5 text-xs text-muted-foreground">
+              {q ? `a board at ${qtyLabel(q.qty)}, ex-GST` : "Quote"}
             </div>
           </div>
         </section>
       ) : null}
       {summary && b.warnings.length ? (
-        <ul className="mt-3 space-y-1 text-xs text-risk-amber">
+        <ul className="mt-3 space-y-1 text-sm text-risk-amber">
           {b.warnings.map((w) => (
             <li key={w}>• {w}</li>
           ))}

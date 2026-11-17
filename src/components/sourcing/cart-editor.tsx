@@ -76,10 +76,10 @@ export function CartEditor({
     <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
       <div className="space-y-4">
         {grouped.map(([supplier, items]) => (
-          <section key={supplier} className="rounded-lg border bg-card">
-            <div className="flex h-11 items-center justify-between border-b px-4">
-              <h2 className="text-sm font-medium">{supplier}</h2>
-              <span className="num text-xs text-muted-foreground">{formatMoney(items.reduce((s, r) => s + (r.landedTotal ?? 0), 0), currency)} landed</span>
+          <section key={supplier} className="overflow-hidden rounded-xl border bg-card">
+            <div className="flex min-h-12 items-center justify-between gap-3 border-b px-4">
+              <h2 className="text-sm font-semibold">{supplier}</h2>
+              <span className="num text-sm font-semibold" title="Landed">{formatMoney(items.reduce((s, r) => s + (r.landedTotal ?? 0), 0), currency)}</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-sm">
@@ -125,7 +125,7 @@ export function CartEditor({
                             aria-label={`Supplier for ${r.mpn}`}
                             value={r.supplierId ?? ""}
                             onChange={(e) => run(() => updateCartItem(r.id, { supplierId: e.target.value || null }))}
-                            className={`${input} max-w-56 font-sans`}
+                            className={`${input} max-w-56`}
                           >
                             <option value="">Let the RFQ decide</option>
                             {r.choices.map((c) => (
@@ -157,26 +157,21 @@ export function CartEditor({
       </div>
 
       <aside className="space-y-4">
-        <div className="rounded-lg border bg-card p-4">
-          <div className="text-xs text-muted-foreground">Estimated landed total</div>
-          <div className="num mt-1 text-2xl font-medium">{formatMoney(total, currency)}</div>
-          <div className="mt-1 text-xs text-muted-foreground">
-            incl. {formatMoney(duty, currency)} customs duty · net of GST/IGST input credit · indicative duty rates
-          </div>
+        <div className="rounded-xl border bg-card p-5" title="Net of GST/IGST input credit · indicative duty rates">
+          <div className="text-3xl leading-none font-semibold tracking-tight tabular-nums">{formatMoney(total, currency)}</div>
+          <div className="mt-1.5 text-xs text-muted-foreground">Estimated landed total</div>
+          <div className="num mt-3 text-xs text-muted-foreground">incl. {formatMoney(duty, currency)} duty</div>
         </div>
 
         {canRfq ? (
           <form
-            className="space-y-4 rounded-lg border bg-card p-4"
+            className="space-y-4 rounded-xl border bg-card p-5"
             onSubmit={(e) => {
               e.preventDefault();
               run(() => createRfq({ supplierIds: [...chosen], dueDate: due, incoterm, notes }));
             }}
           >
-            <div>
-              <div className="text-sm font-medium">Request quotes</div>
-              <p className="mt-0.5 text-xs text-muted-foreground">All cart lines go to every supplier you tick; each one quotes what they can.</p>
-            </div>
+            <h2 className="text-base font-semibold" title="All cart lines go to every supplier you tick; each one quotes what they can.">Request quotes</h2>
             <fieldset className="max-h-72 space-y-1 overflow-y-auto">
               <legend className="sr-only">Suppliers</legend>
               {[...suppliers]
@@ -206,7 +201,7 @@ export function CartEditor({
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="incoterm">Delivery terms</Label>
-                <input id="incoterm" value={incoterm} onChange={(e) => setIncoterm(e.target.value)} className={`${input} w-full font-sans`} />
+                <input id="incoterm" value={incoterm} onChange={(e) => setIncoterm(e.target.value)} className={`${input} w-full`} />
               </div>
             </div>
             <div className="space-y-1.5">

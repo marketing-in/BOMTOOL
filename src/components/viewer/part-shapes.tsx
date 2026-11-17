@@ -47,7 +47,7 @@ function Relay({ L, W, H, look }: { L: number; W: number; H: number; look: Look 
       {look.tinted ? null : (
         <mesh position={[0, 0, H + 0.01]}>
           <planeGeometry args={[L * 0.72, W * 0.62]} />
-          <meshStandardMaterial color="#e9edf5" roughness={0.75} transparent opacity={look.fade ? 0.1 : 0.14} depthWrite={false} />
+          <meshStandardMaterial color="#ececea" roughness={0.75} transparent opacity={look.fade ? 0.1 : 0.14} depthWrite={false} />
         </mesh>
       )}
     </>
@@ -288,7 +288,7 @@ function Electrolytic({ W, H, look }: { W: number; H: number; look: Look }) {
       {look.tinted ? null : (
         <mesh position={[r + 0.01, 0, 0.5 + (H - 1) / 2]} rotation={[Math.PI / 2, Math.PI / 2, 0]}>
           <planeGeometry args={[r * 0.75, (H - 1) * 0.9]} />
-          <meshStandardMaterial color="#b9c3d6" roughness={0.6} {...look.fade} />
+          <meshStandardMaterial color="#c6c6c2" roughness={0.6} {...look.fade} />
         </mesh>
       )}
     </>

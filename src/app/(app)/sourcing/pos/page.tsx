@@ -14,8 +14,8 @@ export default async function PosPage() {
   });
   return (
     <>
-      <PageHeader title="Purchase-order drafts" description="Created from awarded RFQ lines. Approve, then send from your ERP or email — the app does not email suppliers." />
-      <div className="overflow-hidden rounded-lg border bg-card">
+      <PageHeader title={<span title="Approve, then send from your ERP or email — the app does not email suppliers.">Purchase-order drafts</span>} />
+      <div className="overflow-hidden rounded-xl border bg-card">
         {pos.length ? (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-sm">
@@ -50,7 +50,7 @@ export default async function PosPage() {
             </table>
           </div>
         ) : (
-          <EmptyState title="No PO drafts yet">Award lines on an RFQ, then create PO drafts.</EmptyState>
+          <EmptyState title="No PO drafts yet">Award lines on an <Link href="/sourcing/rfqs" className="underline">RFQ</Link>.</EmptyState>
         )}
       </div>
     </>

@@ -56,8 +56,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         </div>
       ) : null}
       {packages.length ? (
-        <section className="mb-8 rounded-lg border bg-card p-4">
-          <h2 className="mb-3 text-base font-medium">{body.visual?.kind === "packages" ? "Packages on our approved list" : "Examples from our catalogue"}</h2>
+        <section className="mb-8 rounded-xl border bg-card p-5">
+          <h2 className="mb-4 text-lg font-semibold tracking-tight">{body.visual?.kind === "packages" ? "Packages on our approved list" : "Examples from our catalogue"}</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
             {packages.map((p) => (
               <PackageDrawing key={p.id} pkg={p} size={96} />
@@ -70,8 +70,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         <ArticleBody sections={body.sections} />
         <aside className="space-y-6 xl:sticky xl:top-20 xl:self-start">
           {categories.length ? (
-            <section className="rounded-lg border bg-card p-4">
-              <h2 className="mb-2 text-xs font-medium text-muted-foreground uppercase">In our catalogue</h2>
+            <section className="rounded-xl border bg-card p-5">
+              <h2 className="mb-2 text-sm font-semibold">In our catalogue</h2>
               <ul className="space-y-1 text-sm">
                 {categories.map((c) => (
                   <li key={c.slug}>
@@ -85,8 +85,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
             </section>
           ) : null}
           {body.standards.length ? (
-            <section className="rounded-lg border bg-card p-4">
-              <h2 className="mb-2 text-xs font-medium text-muted-foreground uppercase">Standards</h2>
+            <section className="rounded-xl border bg-card p-5">
+              <h2 className="mb-2 text-sm font-semibold">Standards</h2>
               <ul className="space-y-2 text-sm">
                 {body.standards.map((s) => (
                   <li key={s.code}>
@@ -98,8 +98,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
             </section>
           ) : null}
           {related.length ? (
-            <section className="rounded-lg border bg-card p-4">
-              <h2 className="mb-2 text-xs font-medium text-muted-foreground uppercase">Related</h2>
+            <section className="rounded-xl border bg-card p-5">
+              <h2 className="mb-2 text-sm font-semibold">Related</h2>
               <ul className="space-y-2 text-sm">
                 {related.map((r) => (
                   <li key={r.slug}>

@@ -10,7 +10,7 @@ export function ViewTabs({ base, views, active }: { base: string; views: { key: 
           key={v.key}
           href={i === 0 ? base : `${base}?view=${v.key}`}
           aria-current={active === v.key ? "page" : undefined}
-          className={cn("rounded-[5px] px-3 py-1.5 text-sm transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring", active === v.key ? "bg-card font-medium shadow-sm" : "text-muted-foreground hover:text-foreground")}
+          className={cn("rounded-[5px] px-3 py-1.5 text-sm transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring", active === v.key ? "bg-card font-medium ring-1 ring-border" : "text-muted-foreground hover:text-foreground")}
         >
           {v.label}
           {v.count !== undefined ? <span className="num ml-1.5 text-xs text-muted-foreground">{v.count}</span> : null}

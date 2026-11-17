@@ -18,7 +18,7 @@ export default async function UsersPage() {
     return (
       <>
         <PageHeader title="Users" />
-        <EmptyState title="Only administrators can manage users">Ask an administrator to add an account or change a role.</EmptyState>
+        <EmptyState title="Only administrators can manage users" />
       </>
     );
   }
@@ -33,29 +33,31 @@ export default async function UsersPage() {
 
   return (
     <>
-      <PageHeader title="Users" description="Who can sign in and what each role can do. Changes apply on the person's next click." />
+      <PageHeader title="Users" />
       <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
         <Section title={`People · ${users.length - inactive} active${inactive ? `, ${inactive} deactivated` : ""}`} className="min-w-0 self-start">
           <UserTable users={rows} />
         </Section>
         <div className="space-y-6">
           <AddUserForm />
-          <Section title="What each role can do">
-            <dl className="divide-y text-sm">
+          <details className="group overflow-hidden rounded-xl border bg-card" title="Every role can view all pages. Changes are recorded in the audit log.">
+            <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-base font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+              Roles <span className="num text-xs font-normal text-muted-foreground">{ROLES.length}</span>
+            </summary>
+            <dl className="divide-y border-t text-sm">
               {ROLES.map((r) => {
                 const perms = permissionsFor(r);
                 return (
-                  <div key={r} className="px-4 py-2.5">
+                  <div key={r} className="px-5 py-2.5">
                     <dt className="font-medium">{ROLE_LABELS[r]}</dt>
                     <dd className="mt-0.5 text-xs text-muted-foreground">
-                      {perms.length ? perms.map((p) => PERMISSION_LABELS[p]).join(" · ") : "Read-only: sees everything, changes nothing"}
+                      {perms.length ? perms.map((p) => PERMISSION_LABELS[p]).join(" · ") : "Read-only"}
                     </dd>
                   </div>
                 );
               })}
             </dl>
-            <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">Every role can view all pages. Changes here are recorded in the audit log.</p>
-          </Section>
+          </details>
         </div>
       </div>
     </>

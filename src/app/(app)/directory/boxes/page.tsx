@@ -28,9 +28,10 @@ export default async function BoxTypesPage({ searchParams }: { searchParams: Pro
   if (view !== "types") {
     return (
       <>
-        <PageHeader title={view === "materials" ? "Enclosure materials" : "Enclosure surface finishes"} description="What boxes are made of and how they are finished: typical values for comparing options — the grade's datasheet and the maker's process decide." />
+        <PageHeader title={view === "materials" ? "Enclosure materials" : "Enclosure surface finishes"} />
         <ViewTabs base="/directory/boxes" views={views} active={view} />
         {view === "materials" ? <MaterialTable /> : <EnclosureFinishList />}
+        <p className="mt-4 text-xs text-muted-foreground">Typical values — the maker&apos;s datasheet decides.</p>
       </>
     );
   }
@@ -38,14 +39,14 @@ export default async function BoxTypesPage({ searchParams }: { searchParams: Pro
   const supply = await supplyByMpn(enclosures.map((e) => e.mpn));
   return (
     <>
-      <PageHeader title="Box types" description="The finished product's housing: what each kind is good for, the enclosures we carry for it (with stock), and the box makers who can supply and machine it." />
+      <PageHeader title="Box types" />
       <ViewTabs base="/directory/boxes" views={views} active="types" />
       <div className="space-y-4">
         {BOX_TYPES.map((b) => {
           const ours = enclosures.filter((e) => b.enclosureStyle && ENCLOSURES[e.mpn]?.style === b.enclosureStyle);
           const fit = boxMakers.map((m) => ({ m, ok: m.capabilities.styles.includes(b.makerStyle) })).sort((x, y) => Number(y.ok) - Number(x.ok));
           return (
-            <details key={b.slug} id={b.slug} open={t === b.slug} className="scroll-mt-24 rounded-lg border bg-card">
+            <details key={b.slug} id={b.slug} open={t === b.slug} className="scroll-mt-24 rounded-xl border bg-card">
               <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
                 <span className="min-w-0 flex-1">
                   <span className="block font-medium">{b.name}</span>
@@ -66,11 +67,11 @@ export default async function BoxTypesPage({ searchParams }: { searchParams: Pro
                 <div>
                   <div className="text-xs text-muted-foreground">Enclosures we carry</div>
                   {ours.length ? (
-                    <ul className="mt-2 divide-y rounded-md border">
+                    <ul className="mt-1 divide-y">
                       {ours.map((e) => {
                         const s = supply.get(normaliseMpn(e.mpn));
                         return (
-                          <li key={e.mpn} className="px-3 py-2 text-sm">
+                          <li key={e.mpn} className="py-2 text-sm">
                             {s ? <Link href={`/parts/${s.partId}`} className="num font-medium hover:underline">{e.mpn}</Link> : <span className="num font-medium">{e.mpn}</span>} <span className="text-xs text-muted-foreground">· {e.manufacturer.name}</span>
                             <span className="block text-xs text-muted-foreground">{e.description}</span>
                             {s ? <span className="num block text-xs">ours {k(s.ours)} · partners {k(s.partners)} · distributors {k(s.distributors)}</span> : null}
@@ -79,14 +80,14 @@ export default async function BoxTypesPage({ searchParams }: { searchParams: Pro
                       })}
                     </ul>
                   ) : (
-                    <p className="mt-2 text-sm text-muted-foreground">None in the catalogue yet — ask a maker for a catalogue size or custom quote.</p>
+                    <p className="mt-2 text-sm text-muted-foreground">None in the catalogue yet</p>
                   )}
                 </div>
                 <div>
                   <div className="text-xs text-muted-foreground">Box makers</div>
-                  <ul className="mt-2 divide-y rounded-md border">
+                  <ul className="mt-1 divide-y">
                     {fit.map(({ m, ok }) => (
-                      <li key={m.id} className={cn("flex items-start gap-2 px-3 py-2 text-sm", !ok && "text-muted-foreground")}>
+                      <li key={m.id} className={cn("flex items-start gap-2 py-2 text-sm", !ok && "text-muted-foreground")}>
                         {ok ? <Check className="mt-0.5 size-4 shrink-0 text-risk-green" aria-label="Makes this type" /> : <X className="mt-0.5 size-4 shrink-0 text-risk-amber" aria-label="Doesn't make this type" />}
                         <span className="min-w-0 flex-1">
                           {m.name}

@@ -46,11 +46,11 @@ export default async function PoPage({ params }: { params: Promise<{ id: string 
         />
       </div>
 
-      <article className="rounded-lg border bg-card p-6 print:border-0 print:p-0">
+      <article className="rounded-xl border bg-card p-6 print:border-0 print:p-0">
         <header className="flex flex-wrap justify-between gap-6 border-b pb-5">
           <div>
             <div className="text-xs text-muted-foreground">Purchase order (draft)</div>
-            <div className="num text-2xl font-semibold">{po.number}</div>
+            <div className="text-3xl leading-tight font-semibold tracking-tight tabular-nums">{po.number}</div>
             <div className="mt-1 text-sm text-muted-foreground">
               {po.createdAt.toISOString().slice(0, 10)}
               {po.rfq ? <> · from <span className="num">{po.rfq.number}</span></> : null}
@@ -103,8 +103,8 @@ export default async function PoPage({ params }: { params: Promise<{ id: string 
         </table>
 
         {b.total ? (
-          <section className="mt-6 max-w-md rounded-md border p-4 text-sm print:break-inside-avoid">
-            <div className="mb-2 text-xs text-muted-foreground">Estimated landed cost, INR (indicative duty rates)</div>
+          <section className="mt-6 max-w-md border-t pt-5 text-sm print:break-inside-avoid">
+            <h2 className="mb-3 text-sm font-semibold" title="Indicative duty rates">Estimated landed cost, INR</h2>
             <dl className="num space-y-1">
               {[
                 ["Goods", b.goods],
@@ -118,24 +118,24 @@ export default async function PoPage({ params }: { params: Promise<{ id: string 
                 .filter(([, v]) => Number(v) > 0)
                 .map(([k, v]) => (
                   <div key={k as string} className="flex justify-between gap-4">
-                    <dt className="font-sans text-muted-foreground">{k}</dt>
+                    <dt className="text-muted-foreground">{k}</dt>
                     <dd>{formatMoney(Number(v), "INR")}</dd>
                   </div>
                 ))}
               <div className="flex justify-between gap-4 border-t pt-1 font-medium">
-                <dt className="font-sans">Cash out</dt>
+                <dt>Cash out</dt>
                 <dd>{formatMoney(b.total, "INR")}</dd>
               </div>
               <div className="flex justify-between gap-4 font-medium">
-                <dt className="font-sans">Cost after input credit</dt>
+                <dt>Cost after input credit</dt>
                 <dd>{formatMoney(b.netTotal, "INR")}</dd>
               </div>
             </dl>
           </section>
         ) : null}
-        <section className="mt-6 rounded-md border p-4 text-sm print:break-inside-avoid" aria-labelledby="services">
+        <section className="mt-6 border-t pt-5 text-sm print:break-inside-avoid" aria-labelledby="services">
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-            <h2 id="services" className="text-xs text-muted-foreground">Order services, INR — transport, finance, storage, test</h2>
+            <h2 id="services" className="text-sm font-semibold" title="Transport, finance, storage, test">Order services, INR</h2>
             {services.length ? (
               <span className="num font-medium">
                 Order total {formatMoney((b.total ?? goodsInr) + servicesTotal(services), "INR")}

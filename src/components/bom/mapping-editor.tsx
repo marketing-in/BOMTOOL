@@ -47,10 +47,10 @@ export function MappingEditor({ revisionId, rows, totalRows, initialHeaderRow, i
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-lg border bg-card px-4 py-3 text-sm">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
         <label className="flex max-w-full min-w-0 items-center gap-2">
           <span className="shrink-0 text-muted-foreground">Header row</span>
-          <select value={headerRow} onChange={(e) => changeHeader(Number(e.target.value))} className="num h-9 max-w-full min-w-0 rounded-md border bg-background px-2 text-sm">
+          <select value={headerRow} onChange={(e) => changeHeader(Number(e.target.value))} className="num h-9 max-w-full min-w-0 rounded-md border bg-card px-2 text-sm">
             {rows.slice(0, 20).map((r, i) => (
               <option key={i} value={i}>
                 {i + 1}: {r.filter(Boolean).slice(0, 3).join(" · ").slice(0, 40)}
@@ -73,7 +73,7 @@ export function MappingEditor({ revisionId, rows, totalRows, initialHeaderRow, i
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg border bg-card">
+      <div className="overflow-hidden rounded-xl border bg-card">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -87,7 +87,7 @@ export function MappingEditor({ revisionId, rows, totalRows, initialHeaderRow, i
                       onChange={(e) => setField(col, e.target.value)}
                       className={cn(
                         "h-9 w-full rounded-md border px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        mapping[col] ? "border-primary/40 bg-primary/5 font-medium" : "bg-background text-muted-foreground",
+                        mapping[col] ? "border-foreground/40 bg-part-soft font-medium" : "bg-card text-muted-foreground",
                       )}
                     >
                       <option value="">Ignore</option>
@@ -116,7 +116,7 @@ export function MappingEditor({ revisionId, rows, totalRows, initialHeaderRow, i
           </table>
         </div>
         <div className="border-t px-4 py-2.5 text-xs text-muted-foreground">
-          Showing {preview.length} of {Math.max(0, totalRows - headerRow - 1)} data rows. Blank rows, section titles and totals are skipped automatically.
+          <span className="num">{preview.length} of {Math.max(0, totalRows - headerRow - 1)}</span> rows shown
         </div>
       </div>
 

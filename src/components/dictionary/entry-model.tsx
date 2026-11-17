@@ -26,7 +26,7 @@ export default function EntryModel({ body }: { body: BodySpec }) {
     <Canvas dpr={[1, 2]} shadows camera={{ fov: 32, near: span / 50, far: span * 60 }} aria-label="3D model of a typical package">
       <Rig span={span} />
       <ambientLight intensity={0.8} />
-      <hemisphereLight args={["#ffffff", "#4b5160", 0.9]} />
+      <hemisphereLight args={["#ffffff", "#505050", 0.9]} />
       <directionalLight position={[span * 2, -span * 3, span * 4]} intensity={2.1} castShadow shadow-mapSize={[1024, 1024]} />
       <directionalLight position={[-span * 3, span * 2, span * 2]} intensity={0.6} />
       <mesh position={[0, 0, -0.8]} receiveShadow>

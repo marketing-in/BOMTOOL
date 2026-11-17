@@ -19,10 +19,10 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
 
   return (
     <>
-      <PageHeader title="Seller chat" description="Talk to channel partners and excess sellers about a listing or an RFQ — date codes, CoC, counter-offers. Kept here with the deal; nothing is e-mailed." />
+      <PageHeader title="Seller chat" />
       <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
-        <nav aria-label="Conversations" className="rounded-lg border bg-card">
-          <div className="border-b px-4 py-3 text-sm font-medium">Conversations</div>
+        <nav aria-label="Conversations" className="overflow-hidden rounded-xl border bg-card">
+          <div className="flex min-h-14 items-center border-b px-5 text-base font-semibold">Conversations</div>
           {contexts.length ? (
             <ul className="divide-y">
               {contexts.map(({ t, c }) => (
@@ -30,7 +30,7 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
                   <Link
                     href={`/sourcing/chat?thread=${encodeURIComponent(t.thread)}`}
                     aria-current={t.thread === ctx?.thread ? "page" : undefined}
-                    className={cn("block px-4 py-3 text-sm hover:bg-muted/40", t.thread === ctx?.thread && "bg-muted")}
+                    className={cn("block px-5 py-3 text-sm outline-none transition-colors duration-150 hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset", t.thread === ctx?.thread && "bg-part-soft")}
                   >
                     <span className="num block font-medium">{c?.title ?? t.thread}</span>
                     <span className="block truncate text-xs text-muted-foreground">{c?.seller} — {t.body}</span>
@@ -39,23 +39,23 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
               ))}
             </ul>
           ) : (
-            <p className="px-4 py-3 text-sm text-muted-foreground">No conversations yet. Start one from a partner or excess listing on a part page.</p>
+            <p className="px-5 py-4 text-sm text-muted-foreground" title="Start one from a partner or excess listing on a part page">None yet.</p>
           )}
         </nav>
 
-        <section aria-labelledby="thread-title" className="flex min-h-[420px] flex-col rounded-lg border bg-card">
+        <section aria-labelledby="thread-title" className="flex min-h-[420px] flex-col rounded-xl border bg-card">
           {ctx ? (
             <>
-              <header className="border-b px-4 py-3">
-                <h2 id="thread-title" className="text-base font-medium">
+              <header className="border-b px-5 py-3">
+                <h2 id="thread-title" className="text-base font-semibold">
                   <Link href={ctx.href} className="num hover:underline">{ctx.title}</Link> · {ctx.seller}
                 </h2>
                 <p className="text-xs text-muted-foreground">{ctx.detail}</p>
               </header>
-              <ol className="flex-1 space-y-3 overflow-y-auto p-4" aria-label="Messages">
+              <ol className="flex-1 space-y-3 overflow-y-auto p-5" aria-label="Messages">
                 {messages.length ? (
                   messages.map((m) => (
-                    <li key={m.id} className={cn("max-w-[80%] rounded-lg px-3 py-2 text-sm", m.fromSeller ? "bg-muted" : "ml-auto bg-primary/10")}>
+                    <li key={m.id} className={cn("max-w-[80%] rounded-lg px-3 py-2 text-sm", m.fromSeller ? "bg-muted" : "ml-auto bg-part-soft")}>
                       <span className="block text-[11px] text-muted-foreground">{m.author} · {time(m.createdAt)}</span>
                       <span className="whitespace-pre-wrap">{m.body}</span>
                     </li>
@@ -67,7 +67,7 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
               {can(user.role, "sourcing.buy") ? <ChatForm thread={ctx.thread} seller={ctx.seller} /> : null}
             </>
           ) : (
-            <EmptyState title={thread ? "Conversation not found" : "Pick a conversation"}>{thread ? "That listing or RFQ no longer exists." : "Or open one from a listing's chat button."}</EmptyState>
+            <EmptyState title={thread ? "Conversation not found" : "Pick a conversation"} />
           )}
         </section>
       </div>

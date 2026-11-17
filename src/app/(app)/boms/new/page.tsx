@@ -30,7 +30,6 @@ export default async function NewBomPage({ searchParams }: { searchParams: Promi
       <PageHeader
         eyebrow={<Link href="/boms" className="hover:text-foreground">BoMs</Link>}
         title={existing ? `New revision of ${existing.name}` : "Upload BoM or Gerbers"}
-        description="Add both files of the board. The footprints in the BoM are checked against the pads on the Gerbers first; when they match, our machines are checked next."
       />
       {can(user.role, "bom.write") ? (
         <UploadForm
@@ -53,7 +52,7 @@ export default async function NewBomPage({ searchParams }: { searchParams: Promi
           }
         />
       ) : (
-        <p className="rounded-lg border bg-card px-4 py-6 text-sm text-muted-foreground">Your role can view BoMs but not upload them. Ask purchasing or engineering.</p>
+        <p className="rounded-xl border bg-card px-4 py-6 text-sm text-muted-foreground">Your role can view BoMs but not upload them.</p>
       )}
     </>
   );

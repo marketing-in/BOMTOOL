@@ -18,8 +18,8 @@ const weeks = (w: number) => (w <= 0 ? "On the shelf" : `${w} week${w === 1 ? ""
 /** A thin bar on a scale shared by the four cards, so cost and wait can be compared by eye. */
 function Scale({ share, best, label }: { share: number; best: boolean; label: string }) {
   return (
-    <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-muted" role="img" aria-label={label}>
-      <span className={cn("block h-full rounded-full", best ? "bg-risk-green" : "bg-primary/60")} style={{ width: `${Math.max(3, Math.min(100, share * 100))}%` }} />
+    <span className="mt-1.5 block h-1.5 overflow-hidden rounded-sm bg-muted" role="img" aria-label={label}>
+      <span className={cn("block h-full", best ? "bg-risk-green" : "bg-primary/60")} style={{ width: `${Math.max(3, Math.min(100, share * 100))}%` }} />
     </span>
   );
 }
@@ -38,9 +38,9 @@ export function SourcingChoice({ sourcing, revisionId, unit, canEdit }: { sourci
   const maxWait = Math.max(1, ...sourcing.strategies.map((s) => s.leadWeeks));
   const minWait = Math.min(...sourcing.strategies.map((s) => s.leadWeeks));
   return (
-    <section aria-labelledby="sourcing-choice" className="mb-6 rounded-lg border bg-card">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2.5">
-        <h2 id="sourcing-choice" className="text-sm font-semibold">How to source the components</h2>
+    <section aria-labelledby="sourcing-choice" className="mb-6 overflow-hidden rounded-xl border bg-card">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-5 py-3">
+        <h3 id="sourcing-choice" className="text-base font-semibold">How to source</h3>
         <Info label="About the four ways to source">
           <p>The four figures are worked out the same way from today&apos;s stock and landed prices, so they compare fairly; left-overs from minimum order quantities are not in them.</p>
           <p>Once you choose, the quote is recalculated in full on every step. Choosing for the whole BoM clears sources chosen by hand.</p>
@@ -60,9 +60,9 @@ export function SourcingChoice({ sourcing, revisionId, unit, canEdit }: { sourci
           const notes = [s.split ? `${s.split} line${s.split === 1 ? "" : "s"} from two or more sources` : null, s.short ? `${s.short} short everywhere` : null].filter(Boolean);
           const mix = BAND.filter((b) => s.mix[b.key]).map((b) => `${s.mix[b.key]} ${b.label}`).join(" · ") || "no lines sourced";
           return (
-            <div key={s.key} className={cn("relative flex flex-col bg-card px-4 py-3.5", active && "shadow-[inset_0_3px_0_0_var(--primary)]")}>
+            <div key={s.key} className={cn("relative flex flex-col bg-card px-4 py-3.5", active && "bg-part-soft")}>
               <div className="flex items-center gap-2 pr-6">
-                <span className={cn("grid size-8 shrink-0 place-items-center rounded-full", active ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary")}>
+                <span className={cn("grid size-8 shrink-0 place-items-center rounded-md", active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
                   <Icon className="size-4" aria-hidden />
                 </span>
                 <h3 className="text-sm font-semibold">{s.label}</h3>
@@ -77,7 +77,7 @@ export function SourcingChoice({ sourcing, revisionId, unit, canEdit }: { sourci
                 <div>
                   <dt className="sr-only">Components a board</dt>
                   <dd className="flex items-baseline justify-between gap-2">
-                    <span className="num text-lg leading-none font-semibold tracking-tight">{unit(s.perBoard)}</span>
+                    <span className="text-2xl leading-none font-semibold tracking-tight tabular-nums">{unit(s.perBoard)}</span>
                     <span className={cn("truncate text-xs", s.key === "order" || Math.abs(diff) < 0.005 ? "text-muted-foreground" : diff < 0 ? "font-medium text-risk-green" : "text-risk-red")}>
                       {s.key === "order" ? "a board" : Math.abs(diff) < 0.005 ? "same" : `${diff < 0 ? "−" : "+"}${unit(Math.abs(diff))}`}
                     </span>
@@ -87,17 +87,17 @@ export function SourcingChoice({ sourcing, revisionId, unit, canEdit }: { sourci
                 <div>
                   <dt className="sr-only">Longest wait</dt>
                   <dd className="flex items-baseline justify-between gap-2">
-                    <span className="num text-lg leading-none font-semibold tracking-tight">{weeks(s.leadWeeks)}</span>
+                    <span className="text-lg leading-none font-semibold tracking-tight tabular-nums">{weeks(s.leadWeeks)}</span>
                     <span className="text-xs text-muted-foreground">longest wait</span>
                   </dd>
                   <dd><Scale share={s.leadWeeks / maxWait} best={s.leadWeeks <= minWait} label={`Longest wait ${weeks(s.leadWeeks)}`} /></dd>
                 </div>
               </dl>
-              <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-muted" role="img" aria-label={`Where the lines come from: ${mix}`} title={mix}>
+              <div className="mt-3 flex h-2 overflow-hidden rounded-sm bg-muted" role="img" aria-label={`Where the lines come from: ${mix}`} title={mix}>
                 {BAND.map((b) => (s.mix[b.key] ? <span key={b.key} className={b.bar} style={{ width: `${(s.mix[b.key] / total) * 100}%` }} /> : null))}
               </div>
               <div className="mt-3 flex flex-1 items-end justify-end">
-                {canEdit ? <ChooseButton act={{ kind: "strategy", revisionId, key: s.key }} chosen={active} label={s.key === "order" ? "Use our order" : `Use ${s.label.toLowerCase()}`} chosenLabel="In use" /> : active ? <span className="text-xs font-medium text-primary">In use</span> : null}
+                {canEdit ? <ChooseButton act={{ kind: "strategy", revisionId, key: s.key }} chosen={active} label={s.key === "order" ? "Use our order" : `Use ${s.label.toLowerCase()}`} chosenLabel="In use" /> : active ? <span className="rounded-md bg-part-soft px-2 py-1 text-xs font-medium">In use</span> : null}
               </div>
             </div>
           );

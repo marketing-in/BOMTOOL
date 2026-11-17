@@ -23,7 +23,7 @@ export function RiskDot({ level, className }: { level: RiskLevel; className?: st
 export function LifecycleBadge({ lifecycle }: { lifecycle: Lifecycle }) {
   const level = LIFECYCLE_RISK[lifecycle];
   return (
-    <span className={cn("inline-flex h-6 items-center gap-1.5 rounded-full px-2 text-xs whitespace-nowrap", PILL[level])}>
+    <span className={cn("inline-flex h-6 items-center gap-1.5 rounded-md px-2 text-xs whitespace-nowrap", PILL[level])}>
       <RiskDot level={level} />
       {LIFECYCLE_LABEL[lifecycle]}
     </span>
@@ -36,7 +36,7 @@ export function ScorePill({ score, label }: { score: number | null | undefined; 
   return (
     <span
       title={label}
-      className={cn("num inline-flex h-6 min-w-10 items-center justify-center gap-1.5 rounded-full px-2 text-xs", PILL[level])}
+      className={cn("num inline-flex h-6 min-w-10 items-center justify-center gap-1.5 rounded-md px-2 text-xs", PILL[level])}
     >
       <RiskDot level={level} />
       {score ?? "—"}
@@ -48,7 +48,7 @@ export function SupplierTierBadge({ kind }: { kind: SupplierKind }) {
   const tier = SUPPLIER_TIER[kind];
   const level: RiskLevel = tier <= 3 ? "green" : tier === 4 ? "grey" : "red";
   return (
-    <span className={cn("inline-flex h-6 items-center gap-1.5 rounded-full px-2 text-xs whitespace-nowrap", PILL[level])}>
+    <span className={cn("inline-flex h-6 items-center gap-1.5 rounded-md px-2 text-xs whitespace-nowrap", PILL[level])}>
       <span className="num text-[10px] opacity-70">T{tier}</span>
       {SUPPLIER_KIND_LABEL[kind]}
     </span>

@@ -59,18 +59,18 @@ export default async function PartsPage({ searchParams }: { searchParams: Promis
     <>
       <PageHeader
         title={categoryName ?? "Parts catalogue"}
-        description="Find the right component. Compare availability, lifecycle and sources in one place."
         eyebrow={categoryName ? <Link href="/parts/browse" className="hover:text-foreground">Browse categories</Link> : undefined}
       />
       <PartsTabs current="catalogue" />
 
       {lcTotal ? (
-        <section aria-label="The catalogue by lifecycle" className="mb-4 rounded-lg border bg-card px-4 py-3">
-          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <span className="text-xs text-muted-foreground">
-              <span className="num text-lg font-semibold text-foreground">{lcTotal.toLocaleString("en-IN")}</span> parts in the catalogue
-            </span>
-            <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+        <section aria-label="The catalogue by lifecycle" className="mb-6 rounded-xl border bg-card p-5">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+            <div>
+              <div className="text-3xl leading-none font-semibold tracking-tight tabular-nums">{lcTotal.toLocaleString("en-IN")}</div>
+              <div className="mt-1.5 text-xs text-muted-foreground">parts</div>
+            </div>
+            <ul className="flex flex-wrap gap-x-5 gap-y-1.5 text-[13px]">
               {LC_ORDER.filter((lc) => lcCount.get(lc)).map((lc) => (
                 <li key={lc}>
                   <Link href={withParam("lifecycle", lifecycle === lc ? null : lc)} aria-current={lifecycle === lc ? "true" : undefined} className={cn("inline-flex items-center gap-1.5 rounded-sm outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring", lifecycle === lc && "font-semibold")}>
@@ -126,7 +126,7 @@ export default async function PartsPage({ searchParams }: { searchParams: Promis
       </Form>
 
       {kinds.length ? (
-        <p className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-card px-4 py-2.5 text-sm">
+        <p className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border bg-card px-4 py-2.5 text-sm">
           <LibraryBig className="size-4 text-primary" aria-hidden />
           <span className="text-muted-foreground">In the dictionary:</span>
           {kinds.map(({ entry: e }, i) => (
@@ -135,7 +135,6 @@ export default async function PartsPage({ searchParams }: { searchParams: Promis
               {i < kinds.length - 1 ? <span className="text-muted-foreground">,</span> : null}
             </span>
           ))}
-          <span className="text-muted-foreground">— how it works, how to choose one and what can replace it.</span>
         </p>
       ) : null}
 
@@ -144,7 +143,7 @@ export default async function PartsPage({ searchParams }: { searchParams: Promis
         <aside aria-label="Filters" className="space-y-4 text-sm">
           <FacetList title="Manufacturer" facets={facets.makers} active={sp.maker} href={(v) => withParam("maker", v)} />
           <FacetList title="Package" facets={facets.packages} active={sp.pkg} href={(v) => withParam("pkg", v)} />
-          <div className="rounded-lg border bg-card p-3">
+          <div className="rounded-xl border bg-card px-4 py-3">
             <Link href={withParam("stock", sp.stock === "1" ? null : "1")} className="flex items-center gap-2" aria-pressed={sp.stock === "1"}>
               <span className={cn("grid size-4 place-items-center rounded border", sp.stock === "1" && "border-primary bg-primary text-primary-foreground")} aria-hidden>
                 {sp.stock === "1" ? "✓" : null}
@@ -154,7 +153,7 @@ export default async function PartsPage({ searchParams }: { searchParams: Promis
           </div>
         </aside>
       ) : null}
-      <div className="min-w-0 overflow-hidden rounded-lg border bg-card">
+      <div className="min-w-0 overflow-hidden rounded-xl border bg-card">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[960px] text-sm">
             <thead className="text-left text-xs text-muted-foreground">
@@ -208,13 +207,7 @@ export default async function PartsPage({ searchParams }: { searchParams: Promis
         </div>
         {rows.length === 0 ? (
           <EmptyState title="No parts match">
-            Try a shorter MPN fragment or clear the filters
-            {sp.q ? (
-              <>
-                {" "}— or <Link href={`/parts/market?q=${encodeURIComponent(sp.q)}`} className="underline">search the distributors for “{sp.q}”</Link>
-              </>
-            ) : null}
-            .
+            {sp.q ? <Link href={`/parts/market?q=${encodeURIComponent(sp.q)}`} className="underline">Search the distributors for “{sp.q}”</Link> : null}
           </EmptyState>
         ) : null}
         <div className="flex items-center justify-between border-t px-4 py-2.5 text-xs text-muted-foreground">
@@ -237,8 +230,8 @@ export default async function PartsPage({ searchParams }: { searchParams: Promis
 function FacetList({ title, facets, active, href }: { title: string; facets: { value: string; count: number }[]; active?: string; href: (v: string | null) => string }) {
   if (!facets.length) return null;
   return (
-    <section className="rounded-lg border bg-card">
-      <h2 className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">{title}</h2>
+    <section className="overflow-hidden rounded-xl border bg-card">
+      <h2 className="border-b px-4 py-2.5 text-sm font-semibold">{title}</h2>
       <ul className="max-h-64 overflow-y-auto py-1">
         {facets.map((f) => {
           const on = active === f.value;
@@ -247,7 +240,7 @@ function FacetList({ title, facets, active, href }: { title: string; facets: { v
               <Link
                 href={href(on ? null : f.value)}
                 aria-current={on ? "true" : undefined}
-                className={cn("flex items-center justify-between gap-2 px-3 py-1.5 transition-colors duration-150 hover:bg-muted/50", on && "bg-primary/8 font-medium")}
+                className={cn("flex items-center justify-between gap-2 px-4 py-1.5 transition-colors duration-150 hover:bg-muted/50", on && "bg-part-soft font-semibold")}
               >
                 <span className="truncate">{f.value}</span>
                 <span className="num shrink-0 text-xs text-muted-foreground">{f.count}</span>

@@ -29,13 +29,11 @@ const n = (x: number) => x.toLocaleString("en-IN");
 
 function Step({ n: num, icon: Icon, title, hint, children }: { n: number; icon: typeof Box; title: string; hint: string; children: React.ReactNode }) {
   return (
-    <section aria-labelledby={`step-${num}`} className="rounded-lg border bg-card">
-      <div className="flex items-start gap-3 border-b px-4 py-3">
-        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"><Icon className="size-4" aria-hidden /></span>
-        <div>
-          <h2 id={`step-${num}`} className="text-base font-medium">{num} · {title}</h2>
-          <p className="text-xs text-muted-foreground">{hint}</p>
-        </div>
+    <section aria-labelledby={`step-${num}`} className="overflow-hidden rounded-xl border bg-card">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-5 py-4">
+        <span className="grid size-8 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground"><Icon className="size-4" aria-hidden /></span>
+        <h2 id={`step-${num}`} className="text-lg font-semibold tracking-tight">{num} · {title}</h2>
+        {hint ? <p className="ml-auto text-xs text-muted-foreground">{hint}</p> : null}
       </div>
       {children}
     </section>
@@ -104,12 +102,11 @@ export default async function SupplyChainPage({ params }: { params: Promise<{ id
     <>
       <PageHeader
         title={`Supply chain — ${data.product?.name ?? data.title}`}
-        description="Everything this product is made of and who can supply it: the bare board, every component (our stock → channel partners → online), and the box."
       />
 
       <nav aria-label="This product in the directory" className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {flow.map((f) => (
-          <Link key={f.step} href={f.href} className="rounded-lg border bg-card p-3 transition-colors duration-150 hover:border-foreground/20">
+          <Link key={f.step} href={f.href} className="rounded-md border bg-card p-3 outline-none transition-colors duration-150 hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring">
             <span className="block text-xs text-muted-foreground">{f.step}</span>
             <span className="block text-sm font-medium">{f.label}</span>
             {f.extra.length ? <span className="block truncate text-xs text-muted-foreground">{f.extra.join(" · ")}</span> : null}
@@ -118,8 +115,8 @@ export default async function SupplyChainPage({ params }: { params: Promise<{ id
       </nav>
 
       <div className="space-y-6">
-        <Step n={1} icon={Layers} title="Bare board (PCB)" hint={`${data.board.source === "gerber" ? "From the uploaded Gerbers" : "From the project's board spec"} · ${production ? "production" : "prototype"} lead times`}>
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-2 border-b px-4 py-3 text-sm sm:grid-cols-6">
+        <Step n={1} icon={Layers} title="Bare board (PCB)" hint={`${data.board.source === "gerber" ? "From Gerbers" : "From project spec"} · ${production ? "production" : "prototype"} lead times`}>
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-b px-5 py-4 text-sm sm:grid-cols-6">
             {[
               ["Size", `${data.board.width.toFixed(1)} × ${data.board.height.toFixed(1)} mm`],
               ["Layers", data.board.layerCount],
@@ -129,8 +126,8 @@ export default async function SupplyChainPage({ params }: { params: Promise<{ id
               ["IPC class", "2 (assumed)"],
             ].map(([k, v]) => (
               <div key={String(k)}>
-                <dt className="text-xs text-muted-foreground">{k}</dt>
-                <dd className="num">{v}</dd>
+                <dd className="text-base font-semibold tabular-nums">{v}</dd>
+                <dt className="mt-0.5 text-xs text-muted-foreground">{k}</dt>
               </div>
             ))}
           </dl>
@@ -157,17 +154,16 @@ export default async function SupplyChainPage({ params }: { params: Promise<{ id
                 ))}
               </tbody>
             </table>
-            {!fabs.length ? <p className="px-4 py-3 text-sm text-muted-foreground">No PCB fabricators on file — run <code>npm run vendors:sync</code> or add your approved vendors.</p> : null}
+            {!fabs.length ? <p className="px-4 py-3 text-sm text-muted-foreground">No PCB fabricators on file.</p> : null}
           </div>
         </Step>
 
-        <Step n={2} icon={Cpu} title="Components" hint="Each line, in sourcing order. Click a part for every offer, its risk and its alternates.">
+        <Step n={2} icon={Cpu} title="Components" hint="">
           <div className="grid grid-cols-2 divide-x border-b text-center sm:grid-cols-5">
             {tiers.map(([label, v], i) => (
-              <div key={label} className="px-2 py-3">
-                <span className="block text-xs text-muted-foreground">{i < 4 ? `${i + 1} · ` : ""}{label}</span>
-                <span className={cn("num mt-0.5 block text-lg font-medium", i === 4 && v ? "text-risk-red" : undefined)}>{v}</span>
-                <span className="block text-[11px] text-muted-foreground">lines covered first here</span>
+              <div key={label} className="px-2 py-4">
+                <span className={cn("block text-2xl leading-none font-semibold tracking-tight tabular-nums", i === 4 && v ? "text-risk-red" : undefined)}>{v}</span>
+                <span className="mt-1.5 block text-xs text-muted-foreground" title="Lines covered first here">{i < 4 ? `${i + 1} · ` : ""}{label}</span>
               </div>
             ))}
           </div>
@@ -217,8 +213,8 @@ export default async function SupplyChainPage({ params }: { params: Promise<{ id
               </tbody>
             </table>
           </div>
-          <p className="px-4 py-2 text-xs text-muted-foreground">
-            Verdict: {report.verdict.title}. <Link href={`/boms/${id}/analysis`} className="underline-offset-2 hover:underline">Deep analysis →</Link>
+          <p className="border-t px-5 py-3 text-xs text-muted-foreground">
+            {report.verdict.title} · <Link href={`/boms/${id}/analysis`} className="underline decoration-border hover:decoration-foreground">Analysis →</Link>
           </p>
         </Step>
 
@@ -226,14 +222,14 @@ export default async function SupplyChainPage({ params }: { params: Promise<{ id
           {enc ? (
             <>
               <div className="border-b px-4 py-3 text-sm">
-                <span className="text-xs text-muted-foreground">The enclosure itself: </span>
+                
                 {encLine?.part ? (
                   <>
                     <Link href={`/parts/${encLine.part.id}`} className="num font-medium hover:underline">{encLine.part.mpn}</Link>
                     <span className="num text-muted-foreground"> · ours {n(encLine.internalQty)} · partners {n(encLine.partnerQty)} · distributors {n(encLine.authorisedStock)}</span>
                   </>
                 ) : (
-                  <span className="text-risk-amber">{enc.mpn} is not on the BoM — add it so it gets bought.</span>
+                  <span className="text-risk-amber">{enc.mpn} is not on the BoM.</span>
                 )}
               </div>
               <div className="overflow-x-auto">
@@ -277,11 +273,11 @@ export default async function SupplyChainPage({ params }: { params: Promise<{ id
               ) : null}
             </>
           ) : (
-            <p className="px-4 py-3 text-sm text-muted-foreground">Add an enclosure to the project&apos;s board spec to plan the box build.</p>
+            <p className="px-4 py-3 text-sm text-muted-foreground">No enclosure in the project spec.</p>
           )}
         </Step>
 
-        <p className="text-xs text-muted-foreground">Vendors marked “— sample” are placeholders from the seed: replace them with the plant&apos;s approved vendor list. Fit checks use each vendor&apos;s stated range; confirm with a quote.</p>
+        <p className="text-xs text-muted-foreground">Vendors marked “— sample” are placeholders.</p>
       </div>
     </>
   );

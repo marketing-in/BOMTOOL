@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import { sectionHref } from "@/lib/bom/workflow";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/rbac";
@@ -7,6 +8,7 @@ import { lineTimeFor } from "@/server/line-time";
 import { CHIP_ORDER, kindOf, readSpecs } from "@/lib/ops/machines";
 import { PageHeader } from "@/components/data/page-header";
 import { LineFitPanel } from "@/components/ops/line-fit";
+import { Figures } from "@/components/bom/figures";
 import { cn } from "@/lib/utils";
 
 
@@ -16,13 +18,17 @@ const day = (d: Date) => d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata
 const h1 = (n: number) => n.toLocaleString("en-IN", { maximumFractionDigits: 1 });
 const pair = (p?: [number, number]) => (p ? `${p[0]} × ${p[1]}` : "—");
 
-function Head({ n, title, note }: { n: string; title: string; note?: React.ReactNode }) {
+/** A table that is not needed at first glance: its title and headline, opened on a tap. */
+function Fold({ title, note, hint, children, open }: { title: string; note?: React.ReactNode; hint?: string; children: React.ReactNode; open?: boolean }) {
   return (
-    <div className="mb-4 flex flex-wrap items-baseline gap-x-4 gap-y-1 border-t pt-6">
-      <span className="num w-12 text-xs text-muted-foreground">{n}</span>
-      <h2 className="text-base font-semibold">{title}</h2>
-      {note ? <span className="text-sm text-muted-foreground">{note}</span> : null}
-    </div>
+    <details open={open} className="group rounded-xl border bg-card">
+      <summary title={hint} className="flex min-h-14 cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 rounded-xl px-5 py-3 outline-none select-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+        <h3 className="text-base font-semibold">{title}</h3>
+        {note ? <span className="ml-auto text-sm text-muted-foreground">{note}</span> : null}
+        <ChevronDown className={cn("size-4 text-muted-foreground transition-transform duration-150 group-open:rotate-180", !note && "ml-auto")} aria-hidden />
+      </summary>
+      <div className="border-t px-5 py-3">{children}</div>
+    </details>
   );
 }
 
@@ -44,15 +50,15 @@ export default async function LineFitSection({ id, searchParams }: { id: string;
     .sort((a, b) => a.now.finishAt.getTime() - b.now.finishAt.getTime())[0];
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-5">
       <PageHeader level={2}
         title="Line fit"
-        description={`Can our lines build ${t.product?.name ?? t.title}, and how long it takes: ${placements.toLocaleString("en-IN")} placements a board on ${t.job.sides.length === 2 ? "both sides" : "one side"}, ${t.qty.toLocaleString("en-IN")} boards.`}
+        eyebrow={<span className="num">{placements.toLocaleString("en-IN")} placements · {t.job.sides.length === 2 ? "both sides" : "one side"} · {t.qty.toLocaleString("en-IN")} boards</span>}
         actions={
           t.quantities.length > 1 ? (
-            <nav aria-label="Lot size" className="flex gap-1 text-sm">
+            <nav aria-label="Lot size" className="inline-flex gap-1 rounded-lg border bg-card p-1 text-sm">
               {t.quantities.map((q) => (
-                <Link key={q} href={sectionHref(id, "lines", { qty: String(q) })} aria-current={q === t.qty ? "true" : undefined} className={cn("num rounded-sm px-2.5 py-1.5", q === t.qty ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}>
+                <Link key={q} href={sectionHref(id, "lines", { qty: String(q) })} aria-current={q === t.qty ? "true" : undefined} className={cn("num inline-flex h-8 items-center rounded-md px-3 outline-none focus-visible:ring-2 focus-visible:ring-ring", q === t.qty ? "bg-primary font-semibold text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
                   {q.toLocaleString("en-IN")}
                 </Link>
               ))}
@@ -62,33 +68,20 @@ export default async function LineFitSection({ id, searchParams }: { id: string;
       />
 
       {best ? (
-        <section aria-label="Earliest finish" className="grid gap-6 border-y py-5 sm:grid-cols-4">
-          <div>
-            <div className="text-xs text-muted-foreground">Best line</div>
-            <div className="mt-1 text-xl font-semibold">{best.e.code}</div>
-          </div>
-          <div>
-            <div className="text-xs text-muted-foreground">Running time</div>
-            <div className="num mt-1 text-xl font-semibold">{h1(best.e.fromHistory?.totalHours ?? best.e.totalHours)} h</div>
-          </div>
-          <div>
-            <div className="text-xs text-muted-foreground">Line free</div>
-            <div className="mt-1 text-xl font-semibold">{when(best.now.freeAt)}</div>
-          </div>
-          <div>
-            <div className="text-xs text-muted-foreground">Lot finishes</div>
-            <div className="mt-1 text-xl font-semibold text-primary">{when(best.now.finishAt)}</div>
-          </div>
-        </section>
+        <Figures
+          label="Earliest finish"
+          items={[
+            { label: "Best line", value: best.e.code },
+            { label: "Running time", value: h1(best.e.fromHistory?.totalHours ?? best.e.totalHours), unit: "h" },
+            { label: "Line free", value: when(best.now.freeAt) },
+            { label: "Lot finishes", value: when(best.now.finishAt) },
+          ]}
+        />
       ) : null}
 
-      <section>
-        <Head n="5.2.1" title="Machines against this board" note="each station judged with its own limits" />
-        <LineFitPanel plant={t.plant} canEdit={canEdit} />
-      </section>
+      <LineFitPanel plant={t.plant} canEdit={canEdit} />
 
-      <section>
-        <Head n="5.2.2" title="Machine details" note={canEdit ? <Link href="/operations/lines" className="text-primary hover:underline">Edit, or look up a machine by brand and year with AI →</Link> : undefined} />
+      <Fold title="Machine details" note={canEdit ? <Link href="/operations/lines" className="underline decoration-border hover:decoration-foreground">Edit</Link> : undefined}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[60rem] text-sm">
             <thead>
@@ -117,7 +110,7 @@ export default async function LineFitSection({ id, searchParams }: { id: string;
                       <td className="py-2 pr-4 text-muted-foreground">{kindOf(m.type).label}</td>
                       <td className="py-2 pr-4">
                         {m.vendor} {m.model}
-                        {source?.by === "claude" ? <span className="ml-2 text-xs text-primary" title={source.notes}>AI · {source.confidence}</span> : source?.by === "typical" ? <span className="ml-2 text-xs text-muted-foreground">typical</span> : null}
+                        {source?.by === "claude" ? <span className="ml-2 text-xs text-muted-foreground" title={source.notes}>AI · {source.confidence}</span> : source?.by === "typical" ? <span className="ml-2 text-xs text-muted-foreground">typical</span> : null}
                       </td>
                       <td className="num py-2 pr-4 text-right">{year ?? "—"}</td>
                       <td className="num py-2 pr-4 text-right">{chipIdx >= 0 ? specs.minChip : "—"}</td>
@@ -133,10 +126,13 @@ export default async function LineFitSection({ id, searchParams }: { id: string;
             </tbody>
           </table>
         </div>
-      </section>
+      </Fold>
 
-      <section>
-        <Head n="5.2.3" title="Running time on each line" note={`${t.qty.toLocaleString("en-IN")} boards · ${h1(t.rates.hoursPerShift)} productive hours a shift`} />
+      <Fold
+        title="Running time on each line"
+        note={`${t.qty.toLocaleString("en-IN")} boards · ${h1(t.rates.hoursPerShift)} h a shift`}
+        hint={`Estimate: placements ÷ (line CPH × ${Math.round(t.rates.smtEfficiency * 100)} % efficiency), at least ${t.rates.smtMinCycleSec} s a side, plus ${t.rates.smtSetupHoursPerSide} h set-up a side and the lot's through-hole, test and box hours. From older jobs: the whole lot at the seconds per placement the line really took on finished work orders.`}
+      >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[48rem] text-sm">
             <thead>
@@ -172,13 +168,9 @@ export default async function LineFitSection({ id, searchParams }: { id: string;
             </tbody>
           </table>
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Estimate: placements ÷ (line CPH × {Math.round(t.rates.smtEfficiency * 100)} % efficiency), at least {t.rates.smtMinCycleSec} s a side, plus {t.rates.smtSetupHoursPerSide} h set-up a side and the lot&apos;s through-hole, test and box hours. From older jobs: the whole lot at the seconds per placement the line really took on finished work orders (set-up and every stage included).
-        </p>
-      </section>
+      </Fold>
 
-      <section>
-        <Head n="5.2.4" title="Older projects" note="finished work orders, this product first" />
+      <Fold title="Older projects" note={<span className="num">{t.history.length}</span>}>
         {t.history.length ? (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[52rem] text-sm">
@@ -197,8 +189,8 @@ export default async function LineFitSection({ id, searchParams }: { id: string;
               <tbody>
                 {t.history.slice(0, 12).map((h) => (
                   <tr key={h.id} className="border-b">
-                    <td className="py-2 pr-4"><Link href={`/operations/work-orders/${h.id}`} className="font-mono text-xs text-primary hover:underline">{h.number}</Link></td>
-                    <td className="py-2 pr-4">{h.project} <span className="text-muted-foreground">rev {h.revision}</span>{h.sameProject ? <span className="ml-2 text-xs font-medium text-primary">this product</span> : null}</td>
+                    <td className="py-2 pr-4"><Link href={`/operations/work-orders/${h.id}`} className="num text-xs underline decoration-border hover:decoration-foreground">{h.number}</Link></td>
+                    <td className="py-2 pr-4">{h.project} <span className="text-muted-foreground">rev {h.revision}</span>{h.sameProject ? <span className="ml-2 rounded-md bg-part-soft px-1.5 py-0.5 text-xs font-medium">this product</span> : null}</td>
                     <td className="py-2 pr-4">{h.lineCode ?? "—"}</td>
                     <td className="num py-2 pr-4 text-right">{h.qty.toLocaleString("en-IN")}</td>
                     <td className="py-2 pr-4">{day(h.end)}{h.basis === "planned" ? <span className="ml-1 text-xs text-muted-foreground">(planned)</span> : null}</td>
@@ -211,13 +203,13 @@ export default async function LineFitSection({ id, searchParams }: { id: string;
             </table>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No finished work orders yet. Once a work order is set to In progress and then Done, its real running time appears here and re-prices new boards.</p>
+          <p className="text-sm text-muted-foreground">No finished work orders yet.</p>
         )}
-      </section>
+      </Fold>
 
-      <section>
-        <Head n="5.2.5" title="Lines now" note="in progress and queued" />
-        <ul className="divide-y border-y">
+      <section aria-labelledby="lines-now">
+        <h3 id="lines-now" className="mb-3 text-lg font-semibold tracking-tight">Lines now</h3>
+        <ul className="divide-y rounded-xl border bg-card px-5">
           {t.now.map((n) => {
             const line = t.lines.find((l) => l.id === n.lineId)!;
             return (

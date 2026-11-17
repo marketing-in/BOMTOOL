@@ -231,7 +231,7 @@ export function PasteFold({ f, m }: P) {
         </p>
       ) : null}
       <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">
-        Paste = aperture area × stencil thickness × {Math.round(ASSEMBLY.paste.transfer * 100)} % transfer × {ASSEMBLY.paste.densityGPerCm3} g/cm³ (SAC305 type 4). Plant figures: src/data/assembly.ts.
+        Aperture area × stencil thickness × {Math.round(ASSEMBLY.paste.transfer * 100)} % transfer × {ASSEMBLY.paste.densityGPerCm3} g/cm³
       </p>
     </Fold>
   );
@@ -273,7 +273,7 @@ export function ShiftsFold({ f }: P) {
         ))}
       </dl>
       <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">
-        Stages run one after another — the cautious figure. Material arrives first: about {Math.ceil(f.facts.capacity.materialLeadDays / 7)} week{Math.ceil(f.facts.capacity.materialLeadDays / 7) === 1 ? "" : "s"}{f.build.leadDriver ? ` (${f.build.leadDriver})` : ""}.
+        Material first: about {Math.ceil(f.facts.capacity.materialLeadDays / 7)} week{Math.ceil(f.facts.capacity.materialLeadDays / 7) === 1 ? "" : "s"}{f.build.leadDriver ? ` (${f.build.leadDriver})` : ""}.
       </p>
     </Fold>
   );
@@ -300,7 +300,7 @@ export function CostFold({ f, m, id }: P) {
         <Fact label="Total to the client" value={m.whole(f.quote.total)} />
       </dl>
       <p className="border-t px-4 py-2.5 text-xs">
-        <Link href={`/boms/${id}/build/quote`} className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
+        <Link href={`/boms/${id}/build/quote`} className="inline-flex items-center gap-1 font-medium underline decoration-border hover:decoration-foreground">
           Build &amp; quote <ArrowRight className="size-3" aria-hidden />
         </Link>
       </p>
@@ -334,7 +334,7 @@ export function SmtLineFold({ f, id }: P) {
               <li key={st.key} className="grid gap-x-4 gap-y-2 px-4 py-3 lg:grid-cols-[14rem_minmax(0,1fr)]">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className={cn("grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-medium text-white", TONE[st.level].dot)}>{i + 1}</span>
+                    <span className={cn("grid size-6 shrink-0 place-items-center rounded-md text-[11px] font-medium text-white", TONE[st.level].dot)}>{i + 1}</span>
                     <span className="text-sm font-medium">{st.name}</span>
                   </div>
                   <div className="num mt-1 pl-8 text-xs text-muted-foreground">
@@ -372,8 +372,8 @@ export function SmtLineFold({ f, id }: P) {
         </div>
       ))}
       <p className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t px-4 py-2.5 text-xs text-muted-foreground">
-        <span>Station times and the reflow profile are plant settings (src/data/assembly.ts), not readings from the machines. The profile is the SAC305 target; the oven recipe is set by measuring this board.</span>
-        <Link href={`/boms/${id}/line`} className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
+        <span title="Station times and the reflow profile are plant settings, not readings from the machines.">Plant settings, not machine readings</span>
+        <Link href={`/boms/${id}/line`} className="inline-flex items-center gap-1 font-medium underline decoration-border hover:decoration-foreground">
           Watch the line run <ArrowRight className="size-3" aria-hidden />
         </Link>
       </p>
@@ -555,7 +555,7 @@ export function ExpensesFold({ f, m }: P) {
       <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">
         {x.breakEvenMaterialUpPct !== null ? `Material would have to cost ${p1(x.breakEvenMaterialUpPct)} more before this lot makes nothing. ` : ""}
         {x.unpriced ? `${x.unpriced} line${x.unpriced === 1 ? " has" : "s have"} no price, so the real spend is higher. ` : ""}
-        The line rates are the quote&apos;s own (Build &amp; quote → rates); they are plant estimates, not booked costs.
+        Line rates are plant estimates.
       </p>
     </Fold>
   );

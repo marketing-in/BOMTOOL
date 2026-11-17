@@ -64,21 +64,18 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <PageHeader title="Inventory" description="Know what is on hand, where it lives and what needs attention before the next build." />
+      <PageHeader title="Inventory" />
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat icon={Boxes} label="Lots" value={all.length} hint={`${all.filter((l) => l.isConsigned).length} consigned`} />
-        <Stat icon={Wallet} label="Own stock value" value={formatMoneyCompact(value, currency)} hint="At book cost" />
-        <Stat icon={Hourglass} label="MSL bags open" value={openBags} hint="Floor-life clock running" tone={openBags ? "amber" : "plain"} />
-        <Stat icon={TimerReset} label="Floor life < 24 h" value={expiring} hint={expiring ? "Close into dry storage or bake" : "None at risk"} tone={expiring ? "red" : "green"} />
+        <Stat icon={Wallet} label="Own stock value" value={formatMoneyCompact(value, currency)} hint="book cost" />
+        <Stat icon={Hourglass} label="MSL bags open" value={openBags} hint="clock running" tone={openBags ? "amber" : "plain"} />
+        <Stat icon={TimerReset} label="Floor life < 24 h" value={expiring} hint={expiring ? "dry-store or bake" : "none at risk"} tone={expiring ? "red" : "green"} />
       </div>
 
       {clocks.length ? (
-        <section aria-labelledby="clocks" className="mb-6 overflow-hidden rounded-lg border bg-card">
-          <div className="flex items-center justify-between gap-3 border-b px-4 py-2.5">
-            <h2 id="clocks" className="flex items-center gap-2 text-base font-semibold">
-              <span aria-hidden className="h-4 w-1 rounded-full bg-[var(--brand-accent)]" />
-              Floor-life clocks
-            </h2>
+        <section aria-labelledby="clocks" className="mb-8 overflow-hidden rounded-xl border bg-card">
+          <div className="flex min-h-14 items-center justify-between gap-3 border-b px-5 py-3">
+            <h2 id="clocks" className="text-base font-semibold">Floor-life clocks</h2>
             <Link href="/inventory?f=msl" className="text-xs text-muted-foreground hover:text-foreground">All open bags</Link>
           </div>
           <ul className="-mr-px -mb-px flex flex-wrap">
@@ -120,13 +117,13 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
             </Form>
             <nav className="flex flex-wrap gap-1" aria-label="Filter">
               {FILTERS.map((x) => (
-                <Link key={x.key} href={`/inventory?f=${x.key}${q ? `&q=${encodeURIComponent(q)}` : ""}`} aria-current={f === x.key ? "page" : undefined} className={cn("inline-flex h-9 items-center rounded-md px-2.5 text-xs", f === x.key ? "bg-muted font-medium" : "text-muted-foreground hover:text-foreground")}>
+                <Link key={x.key} href={`/inventory?f=${x.key}${q ? `&q=${encodeURIComponent(q)}` : ""}`} aria-current={f === x.key ? "page" : undefined} className={cn("inline-flex h-9 items-center rounded-md px-2.5 text-xs", f === x.key ? "bg-part-soft font-semibold" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
                   {x.label}
                 </Link>
               ))}
             </nav>
           </div>
-          <div className="overflow-hidden rounded-lg border bg-card">
+          <div className="overflow-hidden rounded-xl border bg-card">
             {rows.length ? (
               <div className="relative overflow-x-auto">
                 <table className="w-full min-w-[900px] text-sm">
@@ -173,10 +170,10 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
                 </table>
               </div>
             ) : (
-              <EmptyState title="No lots match">Change the filter or search.</EmptyState>
+              <EmptyState title="No lots match" />
             )}
           </div>
-          {lots.length === 300 ? <p className="mt-2 text-xs text-muted-foreground">Showing the first 300 lots — search to narrow down.</p> : null}
+          {lots.length === 300 ? <p className="mt-2 text-xs text-muted-foreground">First 300 lots shown.</p> : null}
         </div>
         {stores ? <ReceiveForm parts={parts} warehouses={warehouses.map((w) => ({ id: w.id, name: `${w.code} · ${w.name}` }))} customers={customers} /> : null}
       </div>

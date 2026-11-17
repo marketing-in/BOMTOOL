@@ -6,7 +6,7 @@ import { formatMoney, type Currency } from "@/lib/currency";
 export type PriceSeries = { supplier: string; points: { t: number; price: number }[] };
 
 // Distinct, colour-blind-safe-ish hues that read in light and dark.
-const COLORS = ["oklch(0.6 0.15 255)", "oklch(0.65 0.15 155)", "oklch(0.7 0.15 75)", "oklch(0.6 0.18 330)", "oklch(0.6 0.12 200)", "oklch(0.55 0.02 250)"];
+const COLORS = ["var(--chart-1)", "var(--chart-3)", "var(--chart-2)", "var(--chart-4)", "var(--chart-5)", "var(--muted-foreground)"];
 
 export function PriceHistoryChart({ series, currency }: { series: PriceSeries[]; currency: Currency }) {
   const top = series.slice(0, 6);

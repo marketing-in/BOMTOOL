@@ -37,7 +37,7 @@ export function ChooseButton({ act, chosen, label = "Choose", chosenLabel = "Cho
   const [pending, start] = useTransition();
   if (chosen)
     return (
-      <span className="inline-flex h-8 items-center gap-1 rounded-md bg-primary/10 px-2.5 text-xs font-medium text-primary">
+      <span className="inline-flex h-8 items-center gap-1 rounded-md bg-part-soft px-2.5 text-xs font-medium">
         <Check className="size-3.5" aria-hidden /> {chosenLabel}
       </span>
     );
@@ -53,7 +53,7 @@ export function ChooseButton({ act, chosen, label = "Choose", chosenLabel = "Cho
         })
       }
       className={cn(
-        "inline-flex h-8 items-center gap-1.5 rounded-md border bg-card px-2.5 text-xs font-medium outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex h-8 items-center gap-1.5 rounded-md border bg-card px-2.5 text-xs font-medium outline-none transition-colors duration-150 hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
       )}
     >
       {pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : null}

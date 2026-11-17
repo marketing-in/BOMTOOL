@@ -71,12 +71,27 @@ export default async function SourcingPage() {
       />
 
       {mock ? (
-        <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-risk-amber/40 bg-risk-amber-soft px-4 py-3 text-sm">
+        <div className="mb-6 flex items-start gap-2.5 rounded-md border border-risk-amber/40 bg-risk-amber-soft px-4 py-3 text-sm">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-risk-amber" aria-hidden />
-          <span>
-            <strong className="font-medium">Simulated market.</strong> No distributor API keys are set, so prices and stock come from the mock market and move on
-            their own every hour. Add Nexar, DigiKey or Mouser keys to <span className="num">.env</span> to switch to live data — mock offers stay labelled until you purge them.
+          <span title="Prices and stock come from the mock market and move on their own every hour. Mock offers stay labelled until you purge them.">
+            <strong className="font-semibold">Simulated market.</strong> No distributor keys set — add Nexar, DigiKey or Mouser keys to <span className="font-medium">.env</span> for live data.
           </span>
+        </div>
+      ) : null}
+
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat icon={ShoppingCart} label="To buy, landed" value={formatMoneyCompact(toBuy, currency)} hint={`${analyses.length} BoM${analyses.length === 1 ? "" : "s"} · net of GST credit`} />
+        <Stat icon={ListChecks} label="Lines to buy" value={shortages.length} hint="after our stock" />
+        <Stat icon={PackageX} label="Short everywhere" value={short} hint={short ? "no source has enough" : "all can be bought"} tone={short ? "red" : "green"} />
+        <Stat icon={TrendingUp} label="Market changes" value={events.length} hint={`${priceUps} price up · ${stockOuts} out of stock`} tone={priceUps + stockOuts ? "amber" : "plain"} />
+      </div>
+      {toBuy > 0 && analyses.length > 1 ? (
+        <div className="mb-6 rounded-xl border bg-card p-5">
+          <SegBar
+            thick
+            label="To buy, by BoM"
+            segs={analyses.map((a, i) => ({ key: a.revision.id, label: `${a.revision.bom.name} rev ${a.revision.revision}`, value: a.totals.toBuyLanded, color: PALETTE[i % PALETTE.length], text: formatMoneyCompact(a.totals.toBuyLanded, currency) }))}
+          />
         </div>
       ) : null}
 
@@ -87,9 +102,10 @@ export default async function SourcingPage() {
           // An error counts only while it is the latest thing that happened: one that a later good call followed is history.
           const failing = on && !!s.lastError && (!s.lastOkAt || (!!s.lastErrorAt && s.lastErrorAt > s.lastOkAt));
           const Icon = !on ? CircleDashed : failing ? CircleX : CircleCheck;
-          const state = a.kind === "mock" ? (mock ? "Active (no live keys)" : "Off — live adapters configured") : live ? "Live" : `Not configured — set ${a.envVars.join(" + ")}`;
+          const state = a.kind === "mock" ? (mock ? "Active" : "Off") : live ? "Live" : "Not configured";
+          const help = a.kind === "mock" ? (mock ? "No live keys set" : "Live adapters configured") : live ? undefined : `Set ${a.envVars.join(" + ")}`;
           return (
-            <li key={a.key} className={`max-w-full rounded-lg border bg-card px-3 py-2 ${failing ? "border-risk-red/40" : ""}`}>
+            <li key={a.key} title={help} className={`max-w-full rounded-md border bg-card px-3 py-2 ${failing ? "border-risk-red/40" : ""}`}>
               <div className="flex items-center gap-2 text-sm">
                 <Icon className={`size-4 shrink-0 ${!on ? "text-muted-foreground" : Icon === CircleX ? "text-risk-red" : "text-risk-green"}`} aria-hidden />
                 <span className="font-medium">{a.label}</span>
@@ -102,26 +118,10 @@ export default async function SourcingPage() {
         })}
       </ul>
 
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat icon={ShoppingCart} label="To buy, landed" value={formatMoneyCompact(toBuy, currency)} hint={`Across ${analyses.length} active BoM${analyses.length === 1 ? "" : "s"}, net of GST credit`} />
-        <Stat icon={ListChecks} label="Lines to buy" value={shortages.length} hint="After our own stock and excess" />
-        <Stat icon={PackageX} label="Short everywhere" value={short} hint={short ? "Not enough stock at any source" : "Every line can be bought"} tone={short ? "red" : "green"} />
-        <Stat icon={TrendingUp} label="Market changes" value={events.length} hint={`${priceUps} price up · ${stockOuts} out of stock`} tone={priceUps + stockOuts ? "amber" : "plain"} />
-      </div>
-      {toBuy > 0 && analyses.length > 1 ? (
-        <div className="mb-6 rounded-lg border bg-card px-4 py-3">
-          <SegBar
-            thick
-            label="To buy, by BoM"
-            segs={analyses.map((a, i) => ({ key: a.revision.id, label: `${a.revision.bom.name} rev ${a.revision.revision}`, value: a.totals.toBuyLanded, color: PALETTE[i % PALETTE.length], text: formatMoneyCompact(a.totals.toBuyLanded, currency) }))}
-          />
-        </div>
-      ) : null}
-
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
         <Section
-          title={`Buy list across ${analyses.length} active BoMs`}
-          action={<span className="text-xs text-muted-foreground">landed, net of GST credit</span>}
+          title="Buy list"
+          action={<span className="text-xs text-muted-foreground" title="Landed, net of GST credit">landed</span>}
         >
           {shortages.length ? (
             <div className="overflow-x-auto">
@@ -163,7 +163,7 @@ export default async function SourcingPage() {
               </table>
               {buyer ? (
                 <div className="flex flex-wrap items-center gap-2 border-t px-4 py-3">
-                  <span className="mr-auto text-xs text-muted-foreground">Add a whole BoM’s shortages to your cart:</span>
+                  <span className="mr-auto text-xs text-muted-foreground">Add to cart</span>
                   {analyses.map((a) => (
                     <AddShortagesButton key={a.revision.id} revisionId={a.revision.id} label={`${a.revision.bom.name} rev ${a.revision.revision}`} />
                   ))}
@@ -171,7 +171,7 @@ export default async function SourcingPage() {
               ) : null}
             </div>
           ) : (
-            <EmptyState title="Nothing to buy">Every active BoM is covered from our stock.</EmptyState>
+            <EmptyState title="Nothing to buy" />
           )}
         </Section>
 
@@ -206,7 +206,7 @@ export default async function SourcingPage() {
                 })}
               </ul>
             ) : (
-              <EmptyState title="No changes yet">Price moves, stock-outs and lifecycle changes appear here after each refresh.</EmptyState>
+              <EmptyState title="No changes yet" />
             )}
           </Section>
 
@@ -215,7 +215,7 @@ export default async function SourcingPage() {
               <ul className="divide-y text-sm">
                 {openRfqs.map((r) => (
                   <li key={r.id}>
-                    <Link href={`/sourcing/rfqs/${r.id}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/50">
+                    <Link href={`/sourcing/rfqs/${r.id}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-part-soft">
                       <span className="num font-medium">{r.number}</span>
                       <span className="text-xs text-muted-foreground">{r._count.lines} lines</span>
                       <span className="num ml-auto text-xs text-muted-foreground">{r._count.quotes}/{r._count.suppliers} quoted</span>
@@ -224,7 +224,7 @@ export default async function SourcingPage() {
                 ))}
               </ul>
             ) : (
-              <EmptyState title="No open RFQs">Build one from your cart.</EmptyState>
+              <EmptyState title="No open RFQs" />
             )}
           </Section>
         </div>
@@ -281,7 +281,7 @@ export default async function SourcingPage() {
             </table>
           </div>
         ) : (
-          <EmptyState title="No refresh has run yet">The scheduler starts within a minute of the server starting.</EmptyState>
+          <EmptyState title="No refresh has run yet" />
         )}
       </Fold>
     </>

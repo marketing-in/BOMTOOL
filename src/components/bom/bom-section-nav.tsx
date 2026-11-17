@@ -31,7 +31,7 @@ export function BomSectionNav({ id, name, states }: { id: string; name: string; 
 
   const tab = (on: boolean) =>
     cn(
-      "inline-flex h-11 items-center gap-2 rounded-lg px-3 text-sm whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
+      "inline-flex h-11 items-center gap-2 rounded-md px-3 text-sm whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
       on ? "bg-primary font-semibold text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
     );
 

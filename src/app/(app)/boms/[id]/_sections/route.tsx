@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertTriangle, ArrowRight, ChevronDown, Factory, ListChecks, Repeat2, ShieldHalf, TriangleAlert } from "lucide-react";
+import { AlertTriangle, ArrowRight, ChevronDown, ShieldHalf } from "lucide-react";
 import { getDisplayCurrency } from "@/lib/prefs";
 import { getViewerData } from "@/server/board-view";
 import { processCheckFor } from "@/server/lines";
 import type { Level } from "@/lib/ops/machines";
 import { STAGE_LABEL, refList, type RouteStage } from "@/lib/ops/route";
 import { PageHeader } from "@/components/data/page-header";
-import { Kpi } from "@/components/viz/kpi";
+import { Figures } from "@/components/bom/figures";
 import { ProcessFlow, type FlowNode } from "@/components/viz/process-flow";
 import { stepIcon } from "@/components/viz/step-icon";
 import { cn } from "@/lib/utils";
@@ -54,56 +54,56 @@ export default async function RouteSection({ id }: { id: string }) {
 
   return (
     <>
-      <PageHeader level={2} title={`Process route${data.product ? ` — ${data.product.name}` : ""}`} description="From bare board to packed product, on our lines." />
+      <PageHeader level={2} title={`Process route${data.product ? ` — ${data.product.name}` : ""}`} />
 
-      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi icon={ListChecks} label="Steps" value={steps.length} />
-        <Kpi
-          icon={Factory}
-          label="Lines, in order"
-          value={
-            lines.length ? (
-              <span className="flex flex-wrap items-center gap-x-1 gap-y-0.5 text-base whitespace-normal">
+      <Figures
+        className="mb-6"
+        items={[
+          { label: "Steps", value: steps.length },
+          {
+            label: "Lines, in order",
+            value: lines.length ? (
+              <span className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
                 {lines.map((l, i) => (
                   <span key={l} className="inline-flex items-center gap-1">
                     {i ? <ArrowRight className="size-3.5 text-muted-foreground" aria-hidden /> : null}
-                    <span className="rounded-md bg-primary px-1.5 py-0.5 text-xs font-bold text-primary-foreground">{l}</span>
+                    <span className="rounded-md bg-primary px-1.5 py-1 text-sm leading-none font-semibold tracking-normal text-primary-foreground">{l}</span>
                   </span>
                 ))}
               </span>
             ) : (
               "—"
-            )
-          }
-        />
-        <Kpi icon={Repeat2} label="SMT passes" value={smtPasses || "none"} unit={smtPasses === 2 ? "both sides" : smtPasses === 1 ? "one side" : undefined} />
-        <Kpi icon={TriangleAlert} label="Watch-outs" value={watch.length} tone={watch.length ? "amber" : "green"} />
-      </div>
+            ),
+          },
+          { label: "SMT passes", value: smtPasses || "none", unit: smtPasses === 2 ? "both sides" : smtPasses === 1 ? "one side" : undefined },
+          { label: "Watch-outs", value: watch.length, tone: watch.length ? "amber" : "green" },
+        ]}
+      />
 
-      <div className="mb-8 rounded-lg border bg-card p-4">
+      <div className="mb-8 rounded-xl border bg-card p-5">
         <ProcessFlow nodes={nodes} />
       </div>
 
       <div className="space-y-6">
         {stages.map((stage) => (
           <section key={stage} aria-labelledby={`stage-${stage}`}>
-            <h2 id={`stage-${stage}`} className="mb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">{STAGE_LABEL[stage]}</h2>
+            <h3 id={`stage-${stage}`} className="mb-2 text-sm font-semibold text-muted-foreground">{STAGE_LABEL[stage]}</h3>
             <ol className="space-y-1.5">
               {steps
                 .filter((s) => s.stage === stage)
                 .map((s) => {
                   const Icon = stepIcon(s.key);
                   return (
-                    <li key={s.key} id={s.key} className="scroll-mt-24 rounded-lg target:ring-2 target:ring-primary/50">
-                      <details open={!!s.watch} className="group rounded-lg border bg-card">
-                        <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-lg px-3 py-2 outline-none select-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
-                          <span className="num grid size-6 shrink-0 place-items-center rounded-full bg-muted text-[11px] font-medium">{number.get(s.key)}</span>
-                          <span className={cn("grid size-9 shrink-0 place-items-center rounded-full border-2", NODE[levelOf(s.key, !!s.watch)])}>
+                    <li key={s.key} id={s.key} className="scroll-mt-24 rounded-xl target:ring-2 target:ring-primary/50">
+                      <details open={!!s.watch} className="group rounded-xl border bg-card">
+                        <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2 outline-none select-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                          <span className="num grid size-6 shrink-0 place-items-center rounded-md bg-muted text-[11px] font-medium">{number.get(s.key)}</span>
+                          <span className={cn("grid size-9 shrink-0 place-items-center rounded-md border-2", NODE[levelOf(s.key, !!s.watch)])}>
                             <Icon className="size-[18px]" aria-hidden />
                           </span>
-                          <h3 className="min-w-0 flex-1 truncate text-sm font-medium">{s.title}</h3>
+                          <h4 className="min-w-0 flex-1 truncate text-sm font-medium">{s.title}</h4>
                           {s.masking?.needed ? (
-                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-risk-amber/40 bg-risk-amber-soft px-2 py-0.5 text-[11px] font-medium">
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-risk-amber/40 bg-risk-amber-soft px-2 py-0.5 text-[11px] font-medium">
                               <ShieldHalf className="size-3 text-risk-amber" aria-hidden /> Masking
                             </span>
                           ) : null}

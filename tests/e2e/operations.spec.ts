@@ -15,7 +15,7 @@ async function login(page: Page, email = "admin@ems.local") {
 test("3D viewer renders the GW-200 board from Gerbers and switches modes", async ({ page }) => {
   await login(page);
   await page.goto("/viewer");
-  const card = page.locator("div.rounded-lg", { hasText: "GW-200 Main Board" }).first();
+  const card = page.locator("div.rounded-xl", { hasText: "GW-200 Main Board" }).first();
   await expect(card.getByText(/Gerbers loaded \(4 layers\)/)).toBeVisible();
   await expect(card.getByText(/76 placements from centroid/)).toBeVisible();
   await card.getByRole("link", { name: "Open 3D" }).click();

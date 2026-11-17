@@ -12,7 +12,7 @@ export function BuildQtyForm({ revisionId, value, disabled }: { revisionId: stri
   const dirty = Number(qty) !== value;
   return (
     <form
-      className="mt-1 flex items-center gap-2"
+      className="flex items-center gap-2"
       onSubmit={(e) => {
         e.preventDefault();
         start(async () => {
@@ -30,7 +30,7 @@ export function BuildQtyForm({ revisionId, value, disabled }: { revisionId: stri
         value={qty}
         disabled={disabled || pending}
         onChange={(e) => setQty(e.target.value)}
-        className="num h-9 w-full min-w-0 rounded-md border bg-background px-2 text-xl font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="h-10 w-full min-w-0 rounded-md border bg-card px-2 text-2xl font-semibold tracking-tight tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring"
       />
       {dirty ? (
         <Button type="submit" size="sm" className="h-9" disabled={pending}>

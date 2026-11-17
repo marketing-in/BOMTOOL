@@ -42,7 +42,7 @@ export const ELEMENT_INFO: Record<PackageElement, { label: string; color: string
   },
   die: {
     label: "Silicon die",
-    color: "#4a5a78",
+    color: "#5b5d63",
     detail: "The chip itself, typically 0.1–0.4 mm thick. Bond pads around its edge connect to the outside world.",
   },
   attach: {

@@ -6,6 +6,7 @@ import { getDisplayCurrency } from "@/lib/prefs";
 import { getReverse } from "@/server/reverse";
 import type { Block } from "@/lib/reverse";
 import { moneyIn } from "@/components/build/format";
+import { PageHeader } from "@/components/data/page-header";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Reverse engineering" };
@@ -35,25 +36,22 @@ export default async function ReversePage({ params }: { params: Promise<{ id: st
 
   return (
     <>
-      <div className="mb-5">
-        <h1 className="text-2xl leading-tight font-bold tracking-tight">Reverse engineering — {data.product?.name ?? data.title}</h1>
-        <p className="mt-1 max-w-[75ch] text-sm text-muted-foreground">
-          What this product is and how it works, read from its parts: every component sorted into the job it does, the interfaces and supply rails, the parts that define it, and what is still missing before it could be rebuilt.
-        </p>
-      </div>
+      <PageHeader title={`Reverse engineering — ${data.product?.name ?? data.title}`} />
 
-      <section aria-label="What it is" className="rounded-lg border bg-card px-5 py-4">
+      <section aria-label="What it is" className="rounded-xl border bg-card p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="text-xs text-muted-foreground">Most likely</div>
-            <div className="mt-0.5 text-xl font-semibold tracking-tight">{r.identity.title}</div>
+            <div className="mt-0.5 text-2xl leading-tight font-semibold tracking-tight">{r.identity.title}</div>
             <p className="mt-1 text-sm">{r.identity.summary}</p>
           </div>
-          <span className={cn("shrink-0 rounded-full border px-2.5 py-1 text-xs", r.identity.confidence === "high" ? "border-risk-green/50 text-risk-green" : r.identity.confidence === "medium" ? "border-risk-amber/50 text-risk-amber" : "border-risk-red/50 text-risk-red")}>
+          <span className={cn("shrink-0 rounded-md border px-2.5 py-1 text-xs font-medium", r.identity.confidence === "high" ? "border-risk-green/50 text-risk-green" : r.identity.confidence === "medium" ? "border-risk-amber/50 text-risk-amber" : "border-risk-red/50 text-risk-red")}>
             {CONFIDENCE[r.identity.confidence]}
           </span>
         </div>
-        <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
+        <details className="group mt-3">
+          <summary className="cursor-pointer list-none text-sm font-medium outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">Why <span className="num text-xs font-normal text-muted-foreground group-open:hidden">{r.identity.why.length}</span></summary>
+        <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
           {r.identity.why.map((w) => (
             <li key={w} className="flex gap-2">
               <span className="mt-2 size-1 shrink-0 rounded-full bg-muted-foreground" aria-hidden />
@@ -61,15 +59,16 @@ export default async function ReversePage({ params }: { params: Promise<{ id: st
             </li>
           ))}
         </ul>
+        </details>
         {r.counts.guessed ? (
-          <Link href={`/boms/${id}/build/parts`} className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground outline-none hover:brightness-110 focus-visible:ring-2 focus-visible:ring-ring">
+          <Link href={`/boms/${id}/build/parts`} className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground outline-none hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring">
             Choose the {r.counts.guessed.toLocaleString("en-IN")} parts <ArrowRight className="size-4" aria-hidden />
           </Link>
         ) : null}
         {r.features.length ? (
           <ul className="mt-3 flex flex-wrap gap-1.5">
             {r.features.map((f) => (
-              <li key={f.key} className="rounded-md border bg-muted/40 px-2 py-1 text-xs" title={f.refs.join(", ")}>
+              <li key={f.key} className="rounded-md border px-2 py-1 text-xs" title={f.refs.join(", ")}>
                 {f.label} <span className="num text-muted-foreground">· {refs(f.refs, 3)}</span>
               </li>
             ))}
@@ -77,7 +76,7 @@ export default async function ReversePage({ params }: { params: Promise<{ id: st
         ) : null}
       </section>
 
-      <section aria-label="Counts" className="mt-4 grid gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Counts" className="mt-4 grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2 xl:grid-cols-4">
         <Tile label="Fitted parts" value={r.counts.fitted.toLocaleString("en-IN")} hint={`${r.counts.partNumbers} different part numbers${r.counts.dnp ? ` · ${r.counts.dnp} not populated` : ""}`} />
         <Tile label="Active parts" value={r.counts.active.toLocaleString("en-IN")} hint={`chips, transistors, sensors, modules · ${r.counts.passive} passives`} />
         <Tile label="Functional blocks" value={String(r.blocks.filter((b) => b.column !== "support").length)} hint={`${r.counts.recognised} of ${r.counts.fitted} parts given a job`} />
@@ -85,36 +84,32 @@ export default async function ReversePage({ params }: { params: Promise<{ id: st
       </section>
 
       <section aria-labelledby="blocks" className="mt-6">
-        <div className="mb-3">
-          <h2 id="blocks" className="text-base font-semibold tracking-tight">Block diagram</h2>
-          <p className="text-sm text-muted-foreground">Signals run left to right. Built from the kinds of part on the board — not traced from the copper.</p>
-        </div>
-        <div className="grid gap-3 lg:grid-cols-3">
+        <h2 id="blocks" className="mb-3 text-lg font-semibold tracking-tight" title="Built from the kinds of part on the board — not traced from the copper.">Block diagram</h2>
+        <div className="grid gap-6 lg:grid-cols-3">
           {COLUMNS.map((c, ci) => (
-            <div key={c.key} className="relative rounded-lg border bg-muted/30 p-3">
+            <div key={c.key} className="relative">
               <div className="mb-2 flex items-baseline justify-between gap-2">
-                <h3 className="text-sm font-medium">{c.title}</h3>
+                <h3 className="text-sm font-semibold">{c.title}</h3>
                 <span className="text-xs text-muted-foreground">{c.hint}</span>
               </div>
               <div className="space-y-2">
                 {r.blocks.filter((b) => b.column === c.key).map((b) => (
                   <BlockCard key={b.key} b={b} unit={m.unit} />
                 ))}
-                {!r.blocks.some((b) => b.column === c.key) ? <p className="rounded-md border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">Nothing here on this board</p> : null}
+                {!r.blocks.some((b) => b.column === c.key) ? <p className="rounded-md border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">None</p> : null}
               </div>
-              {ci < COLUMNS.length - 1 ? <ArrowRight className="absolute top-1/2 -right-[1.05rem] z-10 hidden size-5 -translate-y-1/2 rounded-full border bg-card p-0.5 text-muted-foreground lg:block" aria-hidden /> : null}
+              {ci < COLUMNS.length - 1 ? <ArrowRight className="absolute top-0.5 -right-[1.1rem] z-10 hidden size-4 text-muted-foreground lg:block" aria-hidden /> : null}
             </div>
           ))}
         </div>
         {support.length ? (
           <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {support.map((b) => (
-              <div key={b.key} className="rounded-lg border bg-card px-3 py-2.5">
+              <div key={b.key} className="rounded-md border bg-card px-3 py-2.5" title={b.does}>
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-sm font-medium">{b.label}</span>
                   <span className="num text-xs text-muted-foreground">{b.parts} parts</span>
                 </div>
-                <p className="mt-0.5 text-xs text-muted-foreground">{b.does}</p>
               </div>
             ))}
           </div>
@@ -122,8 +117,8 @@ export default async function ReversePage({ params }: { params: Promise<{ id: st
       </section>
 
       <div className="mt-6 grid gap-6 2xl:grid-cols-2">
-        <section aria-labelledby="key" className="rounded-lg border bg-card">
-          <h2 id="key" className="border-b px-4 py-3 text-base font-medium">The parts that define the product</h2>
+        <section aria-labelledby="key" className="overflow-hidden rounded-xl border bg-card">
+          <h2 id="key" className="border-b px-5 py-4 text-base font-semibold">Key parts</h2>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
               <thead className="text-left text-xs text-muted-foreground">
@@ -160,8 +155,8 @@ export default async function ReversePage({ params }: { params: Promise<{ id: st
           {!r.keyParts.length ? <p className="px-4 py-3 text-sm text-muted-foreground">No active part has a part number yet.</p> : null}
         </section>
 
-        <section aria-labelledby="power" className="rounded-lg border bg-card">
-          <h2 id="power" className="border-b px-4 py-3 text-base font-medium">Power — from the input to the rails</h2>
+        <section aria-labelledby="power" className="overflow-hidden rounded-xl border bg-card">
+          <h2 id="power" className="border-b px-5 py-4 text-base font-semibold">Power</h2>
           <div className="px-4 py-3 text-sm">
             <span className="text-muted-foreground">Input: </span>
             {r.powerInputs.length ? r.powerInputs.join(" · ") : "not identified from the connectors"}
@@ -181,11 +176,11 @@ export default async function ReversePage({ params }: { params: Promise<{ id: st
           ) : (
             <p className="border-t px-4 py-3 text-sm text-muted-foreground">No regulator or converter found: the board runs straight from its input.</p>
           )}
-          <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">Voltages are the ones named in each part&apos;s description — its ratings and outputs — not measured rails.</p>
+          <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">Voltages from part descriptions, not measured.</p>
         </section>
 
-        <section aria-labelledby="rebuild" className="rounded-lg border bg-card">
-          <h2 id="rebuild" className="border-b px-4 py-3 text-base font-medium">What it takes to rebuild it</h2>
+        <section aria-labelledby="rebuild" className="overflow-hidden rounded-xl border bg-card">
+          <h2 id="rebuild" className="border-b px-5 py-4 text-base font-semibold">To rebuild it</h2>
           <ul className="divide-y">
             {r.findings.map((f) => {
               const L = LEVEL[f.level];
@@ -202,9 +197,9 @@ export default async function ReversePage({ params }: { params: Promise<{ id: st
           </ul>
         </section>
 
-        <section aria-labelledby="made" className="rounded-lg border bg-card">
+        <section aria-labelledby="made" className="overflow-hidden rounded-xl border bg-card">
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-b px-4 py-3">
-            <h2 id="made" className="text-base font-medium">How it is made</h2>
+            <h2 id="made" className="text-base font-semibold">How it is made</h2>
             <Link href={`/boms/${id}/feasibility`} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
               Can we build it? <ArrowRight className="size-3" aria-hidden />
             </Link>
@@ -226,10 +221,10 @@ export default async function ReversePage({ params }: { params: Promise<{ id: st
 
 function Tile({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <div className="bg-card px-5 py-4">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="num mt-1 text-3xl font-semibold tracking-tight">{value}</div>
-      <div className="mt-1 text-xs text-muted-foreground">{hint}</div>
+    <div className="min-w-0 bg-card p-5">
+      <div className="text-3xl leading-none font-semibold tracking-tight tabular-nums">{value}</div>
+      <div className="mt-1.5 text-xs text-muted-foreground">{label}</div>
+      <div className="mt-0.5 truncate text-xs text-muted-foreground/80" title={hint}>{hint}</div>
     </div>
   );
 }
@@ -237,12 +232,12 @@ function Tile({ label, value, hint }: { label: string; value: string; hint: stri
 function BlockCard({ b, unit }: { b: Block; unit: (v: number | null | undefined) => string }) {
   return (
     <details className="group rounded-md border bg-card">
-      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
         <span className="min-w-0">
           <span className="block text-sm font-medium">{b.label}</span>
           <span className="block truncate text-xs text-muted-foreground">{b.items.slice(0, 2).map((i) => i.mpn ?? i.what).join(" · ")}</span>
         </span>
-        <span className="num shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs">{b.parts}</span>
+        <span className="num shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs font-medium">{b.parts}</span>
       </summary>
       <div className="border-t px-3 py-2">
         <p className="text-xs text-muted-foreground">{b.does}</p>

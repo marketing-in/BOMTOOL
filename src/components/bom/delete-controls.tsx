@@ -172,8 +172,7 @@ export function RemoveBoardFilesButton({ revisionId }: { revisionId: string }) {
       title="Remove the board files?"
       body={
         <>
-          <p>The Gerbers, the board drawn from them and every part position (from the Gerbers or the pick-and-place file) are deleted. The BoM lines, sources and quotes stay.</p>
-          <p>The board then falls back to the project spec until you upload the files again.</p>
+          <p>The Gerbers, the board drawn from them and every part position are deleted. The BoM lines, sources and quotes stay.</p>
         </>
       }
       confirmLabel="Remove board files"

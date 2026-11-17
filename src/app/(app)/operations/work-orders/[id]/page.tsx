@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2, Factory, Gauge, PackageCheck, ShoppingCart, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, Factory, Gauge, PackageCheck, ShoppingCart, XCircle } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/rbac";
@@ -60,7 +60,7 @@ export default async function WorkOrderPage({ params }: { params: Promise<{ id: 
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat icon={Gauge} tone={ctb.pct >= 100 ? "green" : ctb.pct >= 80 ? "amber" : "red"} label="Clear to build" value={`${ctb.pct}%`} hint={`${ctb.blocking.length} line${ctb.blocking.length === 1 ? "" : "s"} blocking`} />
-        <Stat icon={ShoppingCart} label="To buy, landed" value={formatMoneyCompact(shortageValue, currency)} hint="After our stock and excess" />
+        <Stat icon={ShoppingCart} label="To buy, landed" value={formatMoneyCompact(shortageValue, currency)} hint="after our stock" />
         <Stat icon={PackageCheck} label="Reserved picks" value={wo.reservations.length} hint={`${wo.reservations.filter((x) => x.issued).length} issued to line`} />
         <Stat icon={Factory} label="Line" value={wo.line?.code ?? "—"} hint={wo.plannedStart ? `starts ${wo.plannedStart.toISOString().slice(0, 10)}` : "not scheduled"} />
       </div>
@@ -83,16 +83,16 @@ export default async function WorkOrderPage({ params }: { params: Promise<{ id: 
                 })}
               </ul>
             ) : (
-              <EmptyState title="Clear to build">Every line is covered by stock we hold or have reserved.</EmptyState>
+              <EmptyState title="Clear to build" />
             )}
             {ctb.blocking.length ? (
-              <div className="border-t px-4 py-2.5 text-xs text-muted-foreground">
-                Buy the gap from <Link href={`/boms/${wo.bomRevisionId}`} className="underline">the BoM</Link> → Add shortages to cart.
+              <div className="border-t px-4 py-2.5 text-sm">
+                <Link href={`/boms/${wo.bomRevisionId}`} className="font-medium underline decoration-border hover:decoration-foreground" title="Open the BoM and use Add shortages to cart">Buy the gap →</Link>
               </div>
             ) : null}
           </Section>
 
-          <Section title={`Kitting list (${kit.length})`} action={kit.length ? <span className="text-xs text-muted-foreground">sorted by bin</span> : null}>
+          <Section title={`Kitting list (${kit.length})`} action={kit.length ? <span className="text-xs text-muted-foreground">by bin</span> : null}>
             {kit.length ? (
               <div className="relative overflow-x-auto">
                 <table className="w-full min-w-[640px] text-sm">
@@ -130,7 +130,7 @@ export default async function WorkOrderPage({ params }: { params: Promise<{ id: 
                 </table>
               </div>
             ) : (
-              <EmptyState title="Nothing reserved yet">Reserve stock to build the kitting list.</EmptyState>
+              <EmptyState title="Nothing reserved yet" />
             )}
           </Section>
         </div>
@@ -156,22 +156,26 @@ export default async function WorkOrderPage({ params }: { params: Promise<{ id: 
               ))}
             </ul>
           </Section>
-          <Section title="Job needs (from the BoM)">
-            <dl className="num grid grid-cols-2 gap-x-3 gap-y-1.5 px-4 py-3 text-sm">
-              <dt className="font-sans text-muted-foreground">Smallest chip</dt>
+          <details className="group rounded-xl border bg-card">
+            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-5 text-base font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+              Job needs
+              <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 group-open:rotate-180" aria-hidden />
+            </summary>
+            <dl className="num grid grid-cols-2 gap-x-3 gap-y-1.5 border-t px-5 py-4 text-sm" title="From the BoM">
+              <dt className="text-muted-foreground">Smallest chip</dt>
               <dd className="text-right">{needs.smallestChip ?? "—"}</dd>
-              <dt className="font-sans text-muted-foreground">Finest pitch</dt>
+              <dt className="text-muted-foreground">Finest pitch</dt>
               <dd className="text-right">{needs.finestPitchMm ? `${needs.finestPitchMm} mm` : "—"}</dd>
-              <dt className="font-sans text-muted-foreground">BGA / LGA</dt>
+              <dt className="text-muted-foreground">BGA / LGA</dt>
               <dd className="text-right">{needs.hasBga ? "yes" : "no"}</dd>
-              <dt className="font-sans text-muted-foreground">Double-sided</dt>
+              <dt className="text-muted-foreground">Double-sided</dt>
               <dd className="text-right">{needs.doubleSided ? "yes" : "no"}</dd>
-              <dt className="font-sans text-muted-foreground">Through-hole</dt>
+              <dt className="text-muted-foreground">Through-hole</dt>
               <dd className="text-right">{needs.hasTht ? "yes" : "no"}</dd>
-              <dt className="font-sans text-muted-foreground">Board</dt>
+              <dt className="text-muted-foreground">Board</dt>
               <dd className="text-right">{needs.boardMm ? `${needs.boardMm.join(" × ")} mm` : "—"}</dd>
             </dl>
-          </Section>
+          </details>
         </div>
       </div>
     </>

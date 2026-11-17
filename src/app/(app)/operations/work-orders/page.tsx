@@ -6,6 +6,7 @@ import { PageHeader, EmptyState } from "@/components/data/page-header";
 import { RiskDot } from "@/components/data/badges";
 import { WoCreateForm } from "@/components/ops/wo-create-form";
 import { WO_STATUS } from "@/lib/ops/labels";
+import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Work orders" };
 
@@ -21,9 +22,9 @@ export default async function WorkOrdersPage() {
   ]);
   return (
     <>
-      <PageHeader title="Work orders" description="Builds planned on our lines, with clear-to-build from stock and reservations." />
+      <PageHeader title="Work orders" />
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
-        <div className="overflow-hidden rounded-lg border bg-card">
+        <div className="overflow-hidden rounded-xl border bg-card">
           {wos.length ? (
             <div className="relative overflow-x-auto">
               <table className="w-full min-w-[760px] text-sm">
@@ -51,9 +52,12 @@ export default async function WorkOrdersPage() {
                       <td className="num px-4 py-2.5 text-xs">{w.plannedStart?.toISOString().slice(0, 10) ?? "—"}</td>
                       <td className="px-4 py-2.5 text-xs"><span className="inline-flex items-center gap-1.5"><RiskDot level={WO_STATUS[w.status].level} />{WO_STATUS[w.status].label}</span></td>
                       <td className="num px-4 py-2.5 text-right">
-                        <span className="inline-flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-2">
+                          <span className="hidden h-2 w-16 overflow-hidden rounded-sm bg-muted sm:block" aria-hidden>
+                            <span className={cn("block h-full", (w.clearToBuildPct ?? 0) >= 100 ? "bg-risk-green" : (w.clearToBuildPct ?? 0) >= 80 ? "bg-risk-amber" : "bg-risk-red")} style={{ width: `${Math.min(100, w.clearToBuildPct ?? 0)}%` }} />
+                          </span>
                           <RiskDot level={(w.clearToBuildPct ?? 0) >= 100 ? "green" : (w.clearToBuildPct ?? 0) >= 80 ? "amber" : "red"} />
-                          {w.clearToBuildPct ?? "—"}%
+                          <span className="font-semibold">{w.clearToBuildPct ?? "—"}%</span>
                         </span>
                       </td>
                     </tr>
@@ -62,7 +66,7 @@ export default async function WorkOrdersPage() {
               </table>
             </div>
           ) : (
-            <EmptyState title="No work orders">Create one from a BoM revision.</EmptyState>
+            <EmptyState title="No work orders" />
           )}
         </div>
         {can(user.role, "workorder.write") ? (

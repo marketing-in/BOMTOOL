@@ -72,7 +72,7 @@ export default async function QuotePrintPage({ params, searchParams }: { params:
           <PrintButton />
         </span>
       </div>
-      <div className="rounded-lg border bg-card p-8 print:border-0 print:p-0">
+      <div className="rounded-xl border bg-card p-8 print:border-0 print:p-0">
         <header className="flex flex-wrap justify-between gap-6 border-b pb-6">
           <div className="text-sm">
             {company.name ? <div className="text-lg font-semibold tracking-tight">{company.name}</div> : null}

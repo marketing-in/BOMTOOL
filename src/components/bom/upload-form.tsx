@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 const ACCEPT = ".xlsx,.xls,.xlsm,.csv,.tsv,.txt";
 
 const field =
-  "h-10 w-full rounded-md border bg-card px-3 text-sm outline-none transition-[box-shadow,border-color] duration-150 focus-visible:border-primary/50 focus-visible:ring-3 focus-visible:ring-ring/30";
+  "h-10 w-full rounded-md border bg-card px-3 text-sm outline-none transition-[box-shadow,border-color] duration-150 focus-visible:ring-2 focus-visible:ring-ring";
 
 type Props = {
   customers: { id: string; name: string }[];
@@ -73,8 +73,8 @@ export function UploadForm({ customers, projects, defaults, preview }: Props) {
   // The flow in one picture: what is in so far lights up.
   const flow = [
     { icon: FileSpreadsheet, title: "1 · Upload", text: "The BoM and the Gerbers, together", done: hasBom && hasBoard, part: hasBom || hasBoard },
-    { icon: ScanSearch, title: "2 · Footprints match", text: "Every designator: BoM package against the board's pads", done: false, part: false },
-    { icon: Factory, title: "3 · Machines can build it", text: "Each process step on our lines, then the quote", done: false, part: false },
+    { icon: ScanSearch, title: "2 · Footprints", text: "Every designator: BoM package against the board's pads", done: false, part: false },
+    { icon: Factory, title: "3 · Machines", text: "Each process step on our lines, then the quote", done: false, part: false },
   ];
 
   return (
@@ -82,16 +82,13 @@ export function UploadForm({ customers, projects, defaults, preview }: Props) {
       <ol aria-label="How it goes" className="grid gap-2 sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-stretch lg:col-span-2">
         {flow.map((f, i) => (
           <li key={f.title} className="contents">
-            <div className={cn("flex items-center gap-3 rounded-lg border bg-card px-4 py-3", f.done ? "border-risk-green/40 bg-risk-green-soft" : f.part ? "border-primary/40" : i ? "opacity-75" : "")}>
-              <span className={cn("grid size-10 shrink-0 place-items-center rounded-full", f.done ? "bg-risk-green text-white" : "bg-primary/10 text-primary")}>
-                {f.done ? <Check className="size-5" aria-hidden /> : <f.icon className="size-5" aria-hidden />}
+            <div title={f.text} className={cn("flex items-center gap-3 rounded-md border bg-card px-3 py-2.5", f.done ? "border-risk-green/40 bg-risk-green-soft" : f.part ? "border-foreground/40" : i ? "opacity-60" : "")}>
+              <span className={cn("grid size-8 shrink-0 place-items-center rounded-md", f.done ? "bg-risk-green text-white" : "bg-muted text-muted-foreground")}>
+                {f.done ? <Check className="size-4" aria-hidden /> : <f.icon className="size-4" aria-hidden />}
               </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold">{f.title}</span>
-                <span className="block text-xs text-muted-foreground">{f.text}</span>
-              </span>
+              <span className="min-w-0 truncate text-sm font-semibold">{f.title}</span>
             </div>
-            {i < flow.length - 1 ? <ArrowRight className="hidden size-5 self-center text-muted-foreground sm:block" aria-hidden /> : null}
+            {i < flow.length - 1 ? <ArrowRight className="hidden size-4 self-center text-muted-foreground sm:block" aria-hidden /> : null}
           </li>
         ))}
       </ol>
@@ -100,14 +97,14 @@ export function UploadForm({ customers, projects, defaults, preview }: Props) {
           <fieldset className="mb-4 grid gap-2 sm:grid-cols-2">
             <legend className="sr-only">Where the BoM comes from</legend>
             {[
-              { value: true, title: `Use the ${preview.components.parts} components found on the board`, note: `${preview.components.lines} lines${preview.components.guessed ? " guessed from the pads — you choose each part in Build & quote" : " with their designators from the files"}` },
-              { value: false, title: "Upload the BoM file", note: "Excel or CSV from the customer; the board's Gerbers come with it" },
+              { value: true, title: `Use the ${preview.components.parts} components found on the board`, note: `${preview.components.lines} lines${preview.components.guessed ? " guessed from the pads" : " with designators"}` },
+              { value: false, title: "Upload the BoM file", note: "Excel or CSV" },
             ].map((o) => (
               <label
                 key={String(o.value)}
                 className={cn(
-                  "flex cursor-pointer gap-3 rounded-lg border bg-card px-4 py-3 transition-colors duration-150 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
-                  fromBoard === o.value ? "border-primary bg-primary/5" : "hover:border-foreground/30",
+                  "flex cursor-pointer gap-3 rounded-md border bg-card px-4 py-3 transition-colors duration-150 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
+                  fromBoard === o.value ? "border-foreground bg-part-soft" : "hover:bg-part-soft",
                 )}
               >
                 <input type="radio" name="useFound" value={o.value ? "1" : "0"} checked={fromBoard === o.value} onChange={() => setFromBoard(o.value)} className="mt-1 accent-[var(--primary)]" />
@@ -120,13 +117,11 @@ export function UploadForm({ customers, projects, defaults, preview }: Props) {
           </fieldset>
         ) : null}
         {fromBoard ? (
-          <div className="flex min-h-40 flex-col items-center justify-center gap-3 rounded-lg border bg-card px-6 py-8 text-center">
-            <Cpu className="size-8 text-primary" aria-hidden />
+          <div className="flex min-h-40 flex-col items-center justify-center gap-3 rounded-xl border bg-card px-6 py-8 text-center">
+            <Cpu className="size-8 text-muted-foreground" aria-hidden />
             <div>
               <div className="text-sm font-medium">No BoM file needed</div>
-              <div className="mx-auto max-w-md text-xs text-muted-foreground">
-                One line per footprint{preview?.components?.guessed ? "" : " and value"}, placed where the Gerbers put each part. Lines without a part number open in Build &amp; quote, where you pick the part for each footprint.
-              </div>
+              <div className="mx-auto max-w-md text-xs text-muted-foreground">One line per footprint{preview?.components?.guessed ? "" : " and value"}.</div>
             </div>
           </div>
         ) : (
@@ -143,9 +138,9 @@ export function UploadForm({ customers, projects, defaults, preview }: Props) {
             takeFile(e.dataTransfer.files?.[0]);
           }}
           className={cn(
-            "flex min-h-64 cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed bg-card px-6 py-10 text-center transition-colors duration-150",
+            "flex min-h-64 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed bg-card px-6 py-10 text-center transition-colors duration-150",
             "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
-            dragging ? "border-primary bg-primary/5" : "hover:border-foreground/30",
+            dragging ? "border-foreground bg-part-soft" : "hover:bg-part-soft/50",
           )}
         >
           <input
@@ -159,20 +154,19 @@ export function UploadForm({ customers, projects, defaults, preview }: Props) {
           />
           {file ? (
             <>
-              <FileSpreadsheet className="size-8 text-primary" aria-hidden />
+              <FileSpreadsheet className="size-8 text-risk-green" aria-hidden />
               <div>
                 <div className="num text-sm font-medium">{file.name}</div>
-                <div className="text-xs text-muted-foreground">{formatSize(file.size)} · click to choose another file</div>
+                <div className="text-xs text-muted-foreground">{formatSize(file.size)} </div>
               </div>
             </>
           ) : (
             <>
               <Illustration kind="sheet" />
               <div>
-                <div className="text-base font-medium">Drop the customer&rsquo;s BoM here</div>
-                <div className="text-sm text-muted-foreground">Or tap to choose the file, exactly as they sent it.</div>
-                <div className="mt-1 text-xs text-muted-foreground">Excel or CSV (.xlsx, .xls, .csv, .tsv), up to 10 MB. The first sheet with a table is used.</div>
-                <div className="mt-2 text-xs font-medium text-primary">No BoM? Add only the Gerbers — the parts are read off the board.</div>
+                <div className="text-base font-semibold">BoM</div>
+                <div className="text-sm text-muted-foreground" title=".xlsx, .xls, .csv, .tsv — the first sheet with a table is used">Excel or CSV · up to 10 MB</div>
+                <div className="mt-2 text-xs text-muted-foreground">No BoM? Gerbers alone work.</div>
               </div>
             </>
           )}
@@ -190,28 +184,27 @@ export function UploadForm({ customers, projects, defaults, preview }: Props) {
               takeBoard(e.dataTransfer.files);
             }}
             className={cn(
-              "flex min-h-64 cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed bg-card px-6 py-10 text-center transition-colors duration-150",
+              "flex min-h-64 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed bg-card px-6 py-10 text-center transition-colors duration-150",
               "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
-              draggingBoard ? "border-primary bg-primary/5" : "hover:border-foreground/30",
+              draggingBoard ? "border-foreground bg-part-soft" : "hover:bg-part-soft/50",
             )}
           >
             <input ref={boardRef} type="file" name="boardFiles" multiple className="sr-only" onChange={(e) => takeBoard(e.target.files)} aria-label="Board files" />
             {boardCount ? (
               <>
-                <Layers className="size-8 text-primary" aria-hidden />
+                <Layers className="size-8 text-risk-green" aria-hidden />
                 <div>
                   <div className="text-sm font-medium">{boardCount} board file{boardCount === 1 ? "" : "s"}</div>
                   <div className="num mx-auto max-w-xs truncate text-xs text-muted-foreground">{boardFiles.slice(0, 3).map((f) => f.name).join(", ")}{boardCount > 3 ? ` +${boardCount - 3} more` : ""}</div>
-                  <div className="text-xs text-muted-foreground">{formatSize(boardFiles.reduce((t, f) => t + f.size, 0))} · click to choose other files</div>
+                  <div className="text-xs text-muted-foreground">{formatSize(boardFiles.reduce((t, f) => t + f.size, 0))} </div>
                 </div>
               </>
             ) : (
               <>
                 <CircuitBoard className="size-12 text-muted-foreground/70" strokeWidth={1.25} aria-hidden />
                 <div>
-                  <div className="text-base font-medium">Drop the Gerber files here</div>
-                  <div className="text-sm text-muted-foreground">A zip, or the layer files with drill and pick-and-place.</div>
-                  <div className="mt-1 text-xs text-muted-foreground">They give the board&rsquo;s size and layers, and the footprint under every designator.</div>
+                  <div className="text-base font-semibold">Gerbers</div>
+                  <div className="text-sm text-muted-foreground">Zip, or layers + drill + pick-and-place</div>
                 </div>
               </>
             )}
@@ -232,14 +225,14 @@ export function UploadForm({ customers, projects, defaults, preview }: Props) {
           </button>
         ) : null}
         {preview ? (
-          <p className="mt-4 rounded-lg border bg-card px-4 py-3 text-sm">
+          <p className="mt-4 text-sm">
             <input type="hidden" name="previewId" value={preview.id} />
-            <span className="font-medium">Board from the quick look:</span> {preview.name} <span className="num text-muted-foreground">({preview.summary})</span> — its Gerbers come with this BoM.
+            <span className="font-medium">Board:</span> {preview.name} <span className="num text-muted-foreground">({preview.summary})</span>
           </p>
         ) : null}
       </div>
 
-      <div className="space-y-4 rounded-lg border bg-card p-4">
+      <div className="space-y-4 rounded-xl border bg-card p-5">
         <div className="space-y-1.5">
           <Label htmlFor="customerId">Customer</Label>
           <select id="customerId" name="customerId" value={customerId} onChange={(e) => setCustomerId(e.target.value)} className={field}>
@@ -294,9 +287,9 @@ export function UploadForm({ customers, projects, defaults, preview }: Props) {
         {state?.error ? (
           <p role="alert" className="text-sm text-destructive">{state.error}</p>
         ) : null}
-        {file && !hasBoard ? <p className="text-xs text-muted-foreground">No Gerbers yet: the footprints cannot be checked against the board until you add them.</p> : null}
+        {file && !hasBoard ? <p className="text-xs text-muted-foreground">No Gerbers: footprints cannot be checked yet.</p> : null}
         {gerbersOnly ? (
-          <p className="text-xs text-muted-foreground">No BoM file: the components on the Gerbers become the BoM, then the footprint match and the machine check open.</p>
+          <p className="text-xs text-muted-foreground">No BoM file: the parts on the Gerbers become the BoM.</p>
         ) : null}
         <Button type="submit" className="h-10 w-full" disabled={(!file && !fromBoard && !boardCount) || pending}>
           {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}

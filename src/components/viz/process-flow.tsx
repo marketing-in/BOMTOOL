@@ -118,7 +118,6 @@ export function ProcessFlow({ nodes, className }: { nodes: FlowNode[]; className
         <li className="inline-flex items-center gap-1.5"><span className="grid size-4 place-items-center rounded-full bg-risk-amber text-white" aria-hidden><ShieldHalf className="size-2.5" /></span> masking</li>
         <li className="inline-flex items-center gap-1.5"><span className="size-3.5 rounded-full border-2 border-risk-amber bg-risk-amber-soft" aria-hidden /> to check</li>
         <li className="inline-flex items-center gap-1.5"><span className="size-3.5 rounded-full border-2 border-risk-red bg-risk-red-soft" aria-hidden /> cannot be done</li>
-        <li className="ml-auto hidden sm:block">Tap a step for where it is done.</li>
       </ul>
     </div>
   );

@@ -15,7 +15,7 @@ export function QuickLookForm() {
   const [pending, start] = useTransition();
   return (
     <form
-      className="grid gap-5 rounded-lg border bg-card p-4 lg:grid-cols-[minmax(0,1fr)_280px]"
+      className="grid gap-6 rounded-xl border bg-card p-5 lg:grid-cols-[minmax(0,1fr)_280px]"
       onSubmit={(e) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
@@ -38,7 +38,7 @@ export function QuickLookForm() {
     >
       <div className="space-y-3">
         <label
-          className="flex min-h-56 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-8 text-center transition-colors duration-150 hover:border-foreground/30 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+          className="flex min-h-56 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-8 text-center transition-colors duration-150 hover:border-foreground/30 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
@@ -48,9 +48,12 @@ export function QuickLookForm() {
           <input type="file" name="files" multiple className="sr-only" aria-label="Gerber files or zip" onChange={(e) => setFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])])} />
           <Illustration kind="board" />
           <span className="text-base font-medium">Drop your Gerber files here</span>
-          <span className="text-sm text-muted-foreground">A zip, or the layer and drill files together. Or tap to choose them.</span>
-          <span className="text-xs text-muted-foreground">Altium .GTL/.GBL/.GTS/.GTO/.GKO/.G1… · KiCad *-F_Cu.gbr, *-Edge_Cuts.gbr · Eagle .cmp/.sol · Excellon .DRL/.XLN · a pick-and-place file too, if you have it</span>
+          <span className="text-sm text-muted-foreground">Zip or loose files</span>
         </label>
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer rounded-md outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">Accepted files</summary>
+          <p className="mt-1.5 leading-relaxed">Altium .GTL/.GBL/.GTS/.GTO/.GKO/.G1… · KiCad *-F_Cu.gbr, *-Edge_Cuts.gbr · Eagle .cmp/.sol · Excellon .DRL/.XLN · a pick-and-place file too, if you have it</p>
+        </details>
         {files.length ? (
           <ul className="max-h-40 divide-y overflow-y-auto rounded-md border text-xs">
             {files.map((f, i) => (

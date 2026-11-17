@@ -25,7 +25,7 @@ export function ProcessPlayer({ process }: { process: Process }) {
   const step = process.steps[i];
   return (
     <section
-      className="rounded-lg border bg-card outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="overflow-hidden rounded-xl border bg-card outline-none focus-visible:ring-2 focus-visible:ring-ring"
       tabIndex={0}
       aria-label={`${process.title} process player`}
       onKeyDown={(e) => {
@@ -38,7 +38,7 @@ export function ProcessPlayer({ process }: { process: Process }) {
       }}
     >
       <div className="flex items-center gap-2 border-b px-4 py-2.5">
-        <h2 className="mr-auto text-sm font-medium">{process.title}</h2>
+        <h2 className="mr-auto text-sm font-semibold">{process.title}</h2>
         <span className="num text-xs text-muted-foreground">
           {i + 1}/{n}
         </span>
@@ -134,7 +134,7 @@ function StationStrip({ process, active }: { process: Process; active: number })
       <g style={{ transform: `translateX(${gap * active + gap / 2 - 22}px)`, transition: "transform 300ms ease-out" }}>
         <rect x={0} y={162} width={44} height={14} rx={2} fill="oklch(0.52 0.12 150)" />
         {[6, 16, 26, 34].map((x) => (
-          <rect key={x} x={x} y={159} width={6} height={3} fill="oklch(0.45 0.02 250)" />
+          <rect key={x} x={x} y={159} width={6} height={3} fill="oklch(0.45 0 0)" />
         ))}
       </g>
     </svg>

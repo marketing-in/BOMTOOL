@@ -17,7 +17,7 @@ export function WorkflowFooter({ id, matchBlocked = false }: { id: string; /** T
   return (
     <nav aria-label="Process steps" className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t pt-5 print:hidden">
       {prev ? (
-        <Link href={`${base}${prev.path}`} className={`${link} border bg-card hover:bg-muted`}>
+        <Link href={`${base}${prev.path}`} className={`${link} border bg-card hover:bg-part-soft`}>
           <ArrowLeft className="size-4" aria-hidden /> {prev.n}. {prev.label}
         </Link>
       ) : (
@@ -39,7 +39,7 @@ export function WorkflowFooter({ id, matchBlocked = false }: { id: string; /** T
           {next.optional ? " (optional)" : ""} <ArrowRight className="size-4" aria-hidden />
         </Link>
       ) : (
-        <span className="text-sm text-muted-foreground">Last step — the build goes to work orders from here.</span>
+        <span className="text-sm text-muted-foreground">Last step</span>
       )}
     </nav>
   );

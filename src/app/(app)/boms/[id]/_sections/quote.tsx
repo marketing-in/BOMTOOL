@@ -50,7 +50,7 @@ export default async function QuoteSection({ id }: { id: string }) {
     <>
       <BuildHeader b={b} current="quote" currency={currency} section />
 
-      <section aria-label="Price per board" className="grid gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Price per board" className="grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2 xl:grid-cols-4">
         {b.quotes.map((q) => (
           <div key={q.qty} className={cn("relative bg-card px-5 py-4", q.qty === b.refQty && "before:absolute before:inset-x-0 before:top-0 before:h-0.5 before:bg-primary")}>
             <div className="text-xs text-muted-foreground">{qtyLabel(q.qty)}</div>
@@ -72,24 +72,24 @@ export default async function QuoteSection({ id }: { id: string }) {
         <div className="bg-card px-5 py-4 text-sm">
           <div className="text-xs text-muted-foreground">Delivery</div>
           <div className="num mt-1 text-3xl font-semibold tracking-tight">~{Math.ceil(b.leadDays / 7)} wk</div>
-          <div className="text-xs text-muted-foreground">after order: the longest of bare board, box and parts on order, plus a week on our lines</div>
+          <div className="text-xs text-muted-foreground" title="The longest of bare board, box and parts on order, plus a week on our lines">after order</div>
           {b.leadDriver ? <div className="mt-2 text-xs">Longest: {b.leadDriver}</div> : null}
         </div>
       </section>
 
-      <section aria-label="Quote settings" className="mt-4 space-y-3 rounded-lg border bg-card px-4 py-4">
+      <section aria-label="Quote settings" className="mt-4 space-y-3 rounded-xl border bg-card p-5">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="min-w-0 flex-1">
             <QuantitiesForm revisionId={id} quantities={b.quantities} disabled={!edit} />
           </div>
           <span className="flex flex-wrap items-center gap-2">
-            <Link href={`/boms/${id}/feasibility`} className="inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm hover:bg-muted">
+            <Link href={`/boms/${id}/feasibility`} className="inline-flex h-9 items-center gap-1.5 rounded-md border bg-card px-3 text-sm outline-none hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring">
               <ClipboardCheck className="size-4" aria-hidden /> Can we build it?
             </Link>
-            <Link href={`/boms/${id}/build/print`} className="inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm hover:bg-muted">
+            <Link href={`/boms/${id}/build/print`} className="inline-flex h-9 items-center gap-1.5 rounded-md border bg-card px-3 text-sm outline-none hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring">
               <Printer className="size-4" aria-hidden /> Preview
             </Link>
-            <a href={`/boms/${id}/build/export`} download className="inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm hover:bg-muted">
+            <a href={`/boms/${id}/build/export`} download className="inline-flex h-9 items-center gap-1.5 rounded-md border bg-card px-3 text-sm outline-none hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring">
               <Download className="size-4" aria-hidden /> Excel
             </a>
             <IssueButton revisionId={id} blocked={blocked} />
@@ -99,8 +99,8 @@ export default async function QuoteSection({ id }: { id: string }) {
       </section>
 
       <div className="mt-6 space-y-3">
-        <section aria-labelledby="split" className="rounded-lg border bg-card">
-          <h2 id="split" className="border-b px-4 py-3 text-base font-medium">What one board costs, by quantity</h2>
+        <section aria-labelledby="split" className="rounded-xl border bg-card">
+          <h3 id="split" className="border-b px-5 py-4 text-base font-semibold">What one board costs, by quantity</h3>
           <div className="px-4 py-4">
             <CostStack quotes={b.quotes} format={(v) => m.unit(v)} />
           </div>
@@ -109,8 +109,8 @@ export default async function QuoteSection({ id }: { id: string }) {
         <Fold
           id="process"
           icon={ListChecks}
-          title="Process — every step on our lines"
-          note={`Per board at ${qtyLabel(b.refQty)}, set-up spread over the lot`}
+          title="Process"
+          note={`Per board at ${qtyLabel(b.refQty)}`}
           figure={m.unit(processTotal)}
           visual={<SegBar segs={stageSegs} label="Process cost by stage" legend={false} />}
         >
@@ -128,8 +128,8 @@ export default async function QuoteSection({ id }: { id: string }) {
                       <span className="shrink-0 text-[11px] text-muted-foreground">{STAGE_LABEL[s.stage]}</span>
                     </span>
                     {s.note ? <span className="block truncate text-xs text-muted-foreground">{s.note}</span> : null}
-                    <span className="mt-1 block h-1 overflow-hidden rounded-full bg-muted">
-                      <span className="block h-full rounded-full bg-primary/70" style={{ width: `${(v / maxStep) * 100}%` }} />
+                    <span className="mt-1 block h-1 overflow-hidden rounded-sm bg-muted">
+                      <span className="block h-full bg-primary/70" style={{ width: `${(v / maxStep) * 100}%` }} />
                     </span>
                   </span>
                   <span className="num text-right text-sm">{v > 0 ? m.unit(v) : "—"}</span>
@@ -139,7 +139,7 @@ export default async function QuoteSection({ id }: { id: string }) {
           </ol>
         </Fold>
 
-        <Fold id="breakdown" icon={Table2} title="Cost per board, line by line" note={b.quotes.map((q) => qtyLabel(q.qty)).join(" · ")} figure={refQuote ? m.unit(refQuote.unitPrice) : undefined}>
+        <Fold id="breakdown" icon={Table2} title="Cost per board" note={b.quotes.map((q) => qtyLabel(q.qty)).join(" · ")} figure={refQuote ? m.unit(refQuote.unitPrice) : undefined}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
             <thead className="text-left text-xs text-muted-foreground">
@@ -201,15 +201,15 @@ export default async function QuoteSection({ id }: { id: string }) {
         ) : null}
         </Fold>
 
-        <Fold icon={SlidersHorizontal} title="Rates for this quote" note="Line rate, labour, test, margin, NRE (plant defaults in src/data/costing.ts)">
+        <Fold icon={SlidersHorizontal} title="Rates" note="Line rate, labour, test, margin, NRE">
           <div className="px-4 py-4">
             <RatesForm revisionId={id} rates={b.rates} disabled={!edit} />
           </div>
         </Fold>
       </div>
 
-      <section aria-labelledby="issued" className="mt-6 rounded-lg border bg-card">
-        <h2 id="issued" className="border-b px-4 py-3 text-base font-medium">Issued quotes</h2>
+      <section aria-labelledby="issued" className="mt-6 rounded-xl border bg-card">
+        <h3 id="issued" className="flex items-baseline justify-between border-b px-5 py-4 text-base font-semibold">Issued quotes <span className="num text-xs font-normal text-muted-foreground">{issued.length}</span></h3>
         {issued.length ? (
           <ul className="divide-y text-sm">
             {issued.map((q) => {
@@ -225,7 +225,7 @@ export default async function QuoteSection({ id }: { id: string }) {
             })}
           </ul>
         ) : (
-          <p className="px-4 py-3 text-sm text-muted-foreground">None yet. <em>Issue quote</em> freezes the prices above under a quote number.</p>
+          <p className="px-5 py-4 text-sm text-muted-foreground">None yet.</p>
         )}
       </section>
 

@@ -4,8 +4,8 @@ import { SORT, SORT_KEYS, type Dir, type SortKey } from "@/lib/costing/rank";
 import { cn } from "@/lib/utils";
 
 const seg = "inline-flex h-8 items-center gap-1 rounded px-2.5 text-xs whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring";
-const on = "bg-card font-medium shadow-sm";
-const off = "text-muted-foreground hover:text-foreground";
+const on = "bg-primary font-semibold text-primary-foreground";
+const off = "text-muted-foreground hover:bg-muted hover:text-foreground";
 
 /**
  * Order what is shown — the BoM's lines and each line's sources — by lead time, price, risk or stock, low to high
@@ -15,7 +15,7 @@ export function OrderBy({ label, sort, dir, href, first = SORT.order.label }: { 
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <div role="group" aria-label={label} className="inline-flex flex-wrap rounded-md border bg-muted/60 p-0.5">
+      <div role="group" aria-label={label} className="inline-flex flex-wrap gap-0.5 rounded-md border bg-card p-0.5">
         {SORT_KEYS.map((k) => (
           <Link key={k} href={href({ sort: k })} scroll={false} aria-current={sort === k ? "true" : undefined} className={cn(seg, sort === k ? on : off)}>
             {k === "order" ? first : SORT[k].label}
@@ -23,7 +23,7 @@ export function OrderBy({ label, sort, dir, href, first = SORT.order.label }: { 
         ))}
       </div>
       {sort !== "order" ? (
-        <div role="group" aria-label="Direction" className="inline-flex rounded-md border bg-muted/60 p-0.5">
+        <div role="group" aria-label="Direction" className="inline-flex gap-0.5 rounded-md border bg-card p-0.5">
           {(["asc", "desc"] as const).map((d) => {
             const Icon = d === "asc" ? ArrowUpNarrowWide : ArrowDownWideNarrow;
             return (

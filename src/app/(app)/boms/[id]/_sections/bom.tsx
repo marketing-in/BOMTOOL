@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ClipboardCheck, Download, PackageX, ShoppingCart, Warehouse } from "lucide-react";
+import { Download } from "lucide-react";
 import { RefreshButton } from "@/components/sourcing/refresh-button";
 import { AddShortagesButton } from "@/components/sourcing/cart-buttons";
 import { db } from "@/lib/db";
@@ -11,8 +11,7 @@ import { formatMoneyCompact } from "@/lib/currency";
 import { SCORE_HELP, SCORE_KEYS, SCORE_LABEL } from "@/lib/bom/scores";
 import { analyseRevision } from "@/server/bom-pipeline";
 import { bestOffer } from "@/lib/pricing";
-import { PageHeader, Stat } from "@/components/data/page-header";
-import { ScorePill } from "@/components/data/badges";
+import { PageHeader } from "@/components/data/page-header";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { BomGrid } from "@/components/bom/bom-grid";
@@ -192,38 +191,46 @@ export default async function BomSection({ id }: { id: string }) {
         }
       />
 
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-        {SCORE_KEYS.map((k) => (
-          <Tooltip key={k}>
-            <TooltipTrigger asChild>
-              <div tabIndex={0} className="rounded-lg border bg-card px-4 py-3 outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{SCORE_LABEL[k]}</span>
-                  <ScorePill score={scores?.[k] ?? null} />
-                </div>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={`h-full rounded-full ${(scores?.[k] ?? 0) >= 70 ? "bg-risk-green" : (scores?.[k] ?? 0) >= 40 ? "bg-risk-amber" : "bg-risk-red"}`}
-                    style={{ width: `${scores?.[k] ?? 0}%` }}
-                  />
-                </div>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-64">{SCORE_HELP[k]}</TooltipContent>
-          </Tooltip>
-        ))}
-      </div>
-
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <div className="col-span-2 rounded-lg border bg-card px-4 py-3.5 lg:col-span-1">
-          <div className="text-xs text-muted-foreground">Build quantity</div>
-          <BuildQtyForm revisionId={rev.id} value={rev.buildQty} disabled={!editable} />
+      <dl className="mb-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border lg:grid-cols-5" aria-label="Figures">
+        <div className="col-span-2 bg-card p-5 lg:col-span-1">
+          <dd><BuildQtyForm revisionId={rev.id} value={rev.buildQty} disabled={!editable} /></dd>
+          <dt className="mt-1.5 text-xs text-muted-foreground">Build quantity</dt>
         </div>
-        <Stat icon={ShoppingCart} label="To buy, landed" value={formatMoneyCompact(totals.toBuyLanded, currency)} hint={`Goods ${formatMoneyCompact(totals.toBuy, currency)} + freight & duty, net of GST credit`} />
-        <Stat icon={Warehouse} label="Covered from our stock" value={formatMoneyCompact(totals.fromStock, currency)} hint="Internal + consigned, at book cost" />
-        <Stat icon={PackageX} tone={totals.shortLines ? "red" : "green"} label="Short lines" value={totals.shortLines} hint="Not enough stock anywhere" />
-        <Stat icon={ClipboardCheck} tone={totals.needsReview + totals.unmatched ? "amber" : "green"} label="Needs review" value={totals.needsReview + totals.unmatched} hint={`${totals.unmatched} unmatched · ${totals.needsReview} to confirm`} />
-      </div>
+        {[
+          { label: "To buy, landed", value: formatMoneyCompact(totals.toBuyLanded, currency), tone: "", title: `Goods ${formatMoneyCompact(totals.toBuy, currency)} + freight & duty, net of GST credit` },
+          { label: "Covered from our stock", value: formatMoneyCompact(totals.fromStock, currency), tone: "", title: "Internal + consigned, at book cost" },
+          { label: "Short lines", value: totals.shortLines, tone: totals.shortLines ? "text-risk-red" : "text-risk-green", title: "Not enough stock anywhere" },
+          { label: "Needs review", value: totals.needsReview + totals.unmatched, tone: totals.needsReview + totals.unmatched ? "text-risk-amber" : "text-risk-green", title: `${totals.unmatched} unmatched · ${totals.needsReview} to confirm` },
+        ].map((f) => (
+          <div key={f.label} className="bg-card p-5" title={f.title}>
+            <dd className={`text-2xl leading-10 font-semibold tracking-tight tabular-nums ${f.tone}`}>{f.value}</dd>
+            <dt className="mt-1.5 text-xs text-muted-foreground">{f.label}</dt>
+          </div>
+        ))}
+      </dl>
+
+      <ul className="mb-6 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 xl:grid-cols-5" aria-label="Scores out of 100">
+        {SCORE_KEYS.map((k) => {
+          const v = scores?.[k] ?? null;
+          const tone = v === null ? "bg-risk-grey" : v >= 70 ? "bg-risk-green" : v >= 40 ? "bg-risk-amber" : "bg-risk-red";
+          return (
+            <Tooltip key={k}>
+              <TooltipTrigger asChild>
+                <li tabIndex={0} className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-xs text-muted-foreground">{SCORE_LABEL[k]}</span>
+                    <span className="text-sm font-semibold tabular-nums">{v ?? "—"}</span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-sm bg-muted">
+                    <div className={`h-full ${tone}`} style={{ width: `${v ?? 0}%` }} />
+                  </div>
+                </li>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-64">{SCORE_HELP[k]}</TooltipContent>
+            </Tooltip>
+          );
+        })}
+      </ul>
 
       <BomGrid rows={rows} currency={currency} editable={editable} canBuy={can(user.role, "sourcing.buy")} />
     </>

@@ -5,7 +5,7 @@
 type Pkg = { name: string; family: string; pinCount?: number | null; pitchMm?: number | null; lengthMm?: number | null; widthMm?: number | null };
 
 const BODY = "var(--foreground)";
-const METAL = "oklch(0.75 0.03 250)";
+const METAL = "oklch(0.75 0 0)";
 
 export function PackageDrawing({ pkg, size = 160, label = true }: { pkg: Pkg; size?: number; label?: boolean }) {
   const L = pkg.lengthMm ?? 3;

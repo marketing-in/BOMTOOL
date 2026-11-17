@@ -5,7 +5,7 @@ const yes = (v: boolean, label: string) => (v ? <Check className="mx-auto size-4
 
 export function LaminateTable() {
   return (
-    <div className="overflow-x-auto rounded-lg border bg-card">
+    <div className="overflow-x-auto rounded-xl border bg-card">
       <table className="w-full min-w-[1100px] text-sm">
         <thead className="text-left text-xs text-muted-foreground">
           <tr className="border-b">
@@ -48,7 +48,7 @@ export function LaminateTable() {
 
 export function FinishTable() {
   return (
-    <div className="overflow-x-auto rounded-lg border bg-card">
+    <div className="overflow-x-auto rounded-xl border bg-card">
       <table className="w-full min-w-[1000px] text-sm">
         <thead className="text-left text-xs text-muted-foreground">
           <tr className="border-b">
@@ -91,8 +91,8 @@ export function FeatureList() {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       {groups.map((g) => (
-        <section key={g} className="rounded-lg border bg-card" aria-label={g}>
-          <h2 className="border-b px-4 py-3 text-sm font-medium">{g}</h2>
+        <section key={g} className="rounded-xl border bg-card" aria-label={g}>
+          <h2 className="border-b px-4 py-3 text-base font-semibold">{g}</h2>
           <ul className="divide-y">
             {BOARD_FEATURES.filter((x) => x.group === g).map((x) => (
               <li key={x.slug} className="flex gap-3 px-4 py-2.5 text-sm">

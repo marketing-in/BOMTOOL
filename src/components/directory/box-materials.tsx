@@ -6,7 +6,7 @@ const tone = (v: string) => (v === "good" ? "text-risk-green" : v === "poor" || 
 export function MaterialTable() {
   const families = [...new Set(ENCLOSURE_MATERIALS.map((m) => m.family))];
   return (
-    <div className="overflow-x-auto rounded-lg border bg-card">
+    <div className="overflow-x-auto rounded-xl border bg-card">
       <table className="w-full min-w-[1150px] text-sm">
         <thead className="text-left text-xs text-muted-foreground">
           <tr className="border-b">
@@ -55,7 +55,7 @@ export function EnclosureFinishList() {
   return (
     <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {ENCLOSURE_FINISHES.map((x) => (
-        <li key={x.slug} className="rounded-lg border bg-card p-4 text-sm">
+        <li key={x.slug} className="rounded-xl border bg-card p-4 text-sm">
           <span className="block font-medium">{x.name}</span>
           <span className="block text-xs text-muted-foreground">On {x.on} · {x.conductive ? "conductive (keeps EMC bonding)" : "insulating"}</span>
           <span className="mt-1 block">{x.detail}</span>

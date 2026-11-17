@@ -20,7 +20,6 @@ export default async function ReverseIndexPage() {
     <>
       <PageHeader
         title="Reverse engineering"
-        description="Pick a product and see what it is and how it works, read from its parts: the functional blocks, interfaces and supply rails, the parts that define it, and what is still missing before it could be rebuilt."
         actions={
           edit ? (
             <>
@@ -34,37 +33,29 @@ export default async function ReverseIndexPage() {
           ) : null
         }
       />
-      <ol className="mb-6 grid gap-px overflow-hidden rounded-lg border bg-border text-sm sm:grid-cols-3">
-        {[
-          ["1", "Upload", "A BoM, or Gerbers that you then turn into a BoM with “Quote this board”."],
-          ["2", "Open it here", "Every part is sorted into the job it does and the product is named."],
-          ["3", "Read the gaps", "Firmware, netlist, obsolete parts: what a rebuild still needs from the customer."],
-        ].map(([n, title, text]) => (
-          <li key={n} className="flex gap-3 bg-card px-4 py-3">
-            <span className="num grid size-6 shrink-0 place-items-center rounded-full bg-primary text-xs font-medium text-primary-foreground">{n}</span>
-            <span>
-              <span className="block font-medium">{title}</span>
-              <span className="block text-xs text-muted-foreground">{text}</span>
-            </span>
-          </li>
-        ))}
-      </ol>
-
-      <h2 className="mb-3 text-base font-medium">Products on file</h2>
+      <h2 className="sr-only">Products on file</h2>
       {revisions.length ? (
         <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {revisions.map((r) => (
             <li key={r.id}>
-              <Link href={`/boms/${r.id}/reverse`} className="group flex h-full flex-col rounded-lg border bg-card p-4 outline-none transition-colors duration-150 hover:border-foreground/20 focus-visible:ring-2 focus-visible:ring-ring">
+              <Link href={`/boms/${r.id}/reverse`} className="group flex h-full flex-col rounded-xl border bg-card p-5 outline-none transition-colors duration-150 hover:border-foreground/20 focus-visible:ring-2 focus-visible:ring-ring">
                 <span className="text-xs text-muted-foreground">{r.bom.project.customer.name}</span>
                 <span className="font-medium">
                   {r.bom.name} <span className="num text-sm font-normal text-muted-foreground">rev {r.revision}</span>
                 </span>
-                <span className="num mt-1 text-xs text-muted-foreground">
-                  {r._count.lines} BoM lines · {r.board ? `${r.board.layerCount}-layer board${r.board.source === "gerber" ? " from Gerbers" : ""}` : "no board data"}
-                </span>
-                <span className="mt-3 inline-flex items-center gap-1 text-sm text-primary">
-                  <Microscope className="size-4" aria-hidden /> Reverse engineer <ArrowRight className="size-3.5 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden />
+                <span className="mt-4 flex items-end gap-8">
+                  <span>
+                    <span className="block text-2xl leading-none font-semibold tracking-tight tabular-nums">{r._count.lines}</span>
+                    <span className="mt-1.5 block text-xs text-muted-foreground">BoM lines</span>
+                  </span>
+                  <span>
+                    <span className="block text-2xl leading-none font-semibold tracking-tight tabular-nums">{r.board ? r.board.layerCount : "—"}</span>
+                    <span className="mt-1.5 block text-xs text-muted-foreground">{r.board ? (r.board.source === "gerber" ? "layers, from Gerbers" : "layers") : "no board data"}</span>
+                  </span>
+                  <span className="ml-auto inline-flex items-center gap-1 text-sm text-primary">
+                    <Microscope className="size-4" aria-hidden /> <span className="sr-only">Reverse engineer</span>
+                    <ArrowRight className="size-3.5 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden />
+                  </span>
                 </span>
               </Link>
             </li>

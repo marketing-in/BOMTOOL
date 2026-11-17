@@ -91,9 +91,9 @@ export function RfqWorkbench({ data }: { data: WorkbenchData }) {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-lg border bg-card">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2.5">
-          <h2 className="text-sm font-medium">Suppliers asked</h2>
+      <section className="overflow-hidden rounded-xl border bg-card">
+        <div className="flex min-h-14 flex-wrap items-center justify-between gap-2 border-b px-5 py-2.5">
+          <h2 className="text-base font-semibold">Suppliers</h2>
           {data.editable && data.status === "DRAFT" ? (
             <Button size="sm" variant="outline" className="h-8" disabled={pending} onClick={() => run(() => markRfqSent(data.rfqId))}>
               <Send className="size-3.5" /> Mark as sent
@@ -102,7 +102,7 @@ export function RfqWorkbench({ data }: { data: WorkbenchData }) {
         </div>
         <ul className="divide-y">
           {data.suppliers.map((s) => (
-            <li key={s.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
+            <li key={s.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-2.5">
               <div className="min-w-48 flex-1">
                 <div className="text-sm font-medium">{s.name}</div>
                 <div className="text-xs text-muted-foreground">
@@ -110,7 +110,7 @@ export function RfqWorkbench({ data }: { data: WorkbenchData }) {
                   {s.quoted ? ` · ${s.lines} lines quoted (${s.source?.toLowerCase()})` : " · no quote yet"}
                 </div>
               </div>
-              {s.quoted ? <span className="num text-sm">{money(s.allNet)}</span> : <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><RiskDot level="amber" />waiting</span>}
+              {s.quoted ? <span className="num text-base font-semibold">{money(s.allNet)}</span> : <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><RiskDot level="amber" />waiting</span>}
               {data.editable ? (
                 <div className="flex flex-wrap gap-1">
                   <Button asChild size="sm" variant="ghost" className="h-8">
@@ -132,9 +132,9 @@ export function RfqWorkbench({ data }: { data: WorkbenchData }) {
         </ul>
       </section>
 
-      <section className="rounded-lg border bg-card">
-        <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
-          <h2 className="mr-auto text-sm font-medium">Compare — landed per unit, net of GST/IGST credit</h2>
+      <section className="overflow-hidden rounded-xl border bg-card">
+        <div className="flex min-h-14 flex-wrap items-center gap-2 border-b px-5 py-2.5">
+          <h2 className="mr-auto text-base font-semibold" title="Net of GST/IGST credit">Compare — landed per unit</h2>
           {data.editable && quoted.length ? (
             <>
               <Button size="sm" variant="outline" className="h-8" disabled={pending} onClick={() => run(() => awardBestLanded(data.rfqId))}>
@@ -179,7 +179,7 @@ export function RfqWorkbench({ data }: { data: WorkbenchData }) {
                           <label
                             className={cn(
                               "block cursor-pointer rounded-md border px-2.5 py-1.5 transition-colors duration-150",
-                              selected ? "border-primary bg-primary/5" : best ? "border-risk-green/60" : "border-transparent hover:border-border",
+                              selected ? "border-primary bg-part-soft" : best ? "border-risk-green/60" : "border-transparent hover:border-border",
                               !data.editable && "cursor-default",
                             )}
                           >
@@ -226,23 +226,27 @@ export function RfqWorkbench({ data }: { data: WorkbenchData }) {
                 </tr>
               </tfoot>
             </table>
-            <p className="px-4 pb-3 text-[11px] text-muted-foreground">* HSN not matched in the duty table — a conservative 10 % BCD was assumed. Duty rates are indicative; confirm with the customs broker.</p>
+            <p className="px-4 pb-3 text-[11px] text-muted-foreground">* HSN not in the duty table: 10 % BCD assumed. Indicative — confirm with the customs broker.</p>
           </div>
         ) : (
           <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-            No quotes yet. Download each supplier’s sheet, send it, then import the reply — or price from current offers.
+            No quotes yet.
           </p>
         )}
       </section>
 
       {quoted.length ? (
-        <section className="flex flex-wrap items-center gap-4 rounded-lg border bg-card px-4 py-3">
-          <div>
-            <div className="text-xs text-muted-foreground">Awarded</div>
-            <div className="num text-lg font-medium">
-              {awardedCount}/{data.lines.length} lines · {money(awardedTotal)}
+        <section className="flex flex-wrap items-end gap-x-8 gap-y-4 rounded-xl border bg-card p-5">
+          <dl className="flex gap-8">
+            <div>
+              <dd className="text-3xl leading-none font-semibold tracking-tight tabular-nums">{awardedCount}/{data.lines.length}</dd>
+              <dt className="mt-1.5 text-xs text-muted-foreground">lines awarded</dt>
             </div>
-          </div>
+            <div>
+              <dd className="text-3xl leading-none font-semibold tracking-tight tabular-nums">{money(awardedTotal)}</dd>
+              <dt className="mt-1.5 text-xs text-muted-foreground">landed</dt>
+            </div>
+          </dl>
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {data.pos.map((p) => (
               <Button key={p.id} asChild variant="outline" className="h-10">

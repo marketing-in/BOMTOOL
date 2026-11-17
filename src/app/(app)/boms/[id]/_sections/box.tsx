@@ -62,7 +62,7 @@ export default async function BoxSection({ id, searchParams }: { id: string; sea
           <ViewerLoader key={chosen?.key ?? "none"} data={b.viewer} initialMode="box" compact />
         ) : (
           // No box: the product is the board itself, so the board is the picture.
-          <div className="flex flex-col items-center gap-2 rounded-lg border bg-card px-6 py-6 text-center">
+          <div className="flex flex-col items-center gap-2 rounded-xl border bg-card px-6 py-6 text-center">
             <Link
               href={`/boms/${id}/viewer`}
               aria-label="Open the board in 3D"
@@ -81,17 +81,16 @@ export default async function BoxSection({ id, searchParams }: { id: string; sea
               />
             </Link>
             <p className="text-sm font-medium">Board only — no box chosen.</p>
-            <p className="text-sm text-muted-foreground">Pick a box below to see it in its box.</p>
           </div>
         )}
       </section>
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <section className="rounded-lg border bg-card">
-          <h2 className="border-b px-4 py-3 text-base font-medium">The box{b.box.auto && chosen ? " — from the project spec" : ""}</h2>
+        <section className="rounded-xl border bg-card">
+          <h3 className="flex items-baseline justify-between border-b px-5 py-4 text-base font-semibold">The box{b.box.auto && chosen ? <span className="text-xs font-normal text-muted-foreground">from the project spec</span> : null}</h3>
           {chosen ? (
-            <div className="space-y-3 px-4 py-3 text-sm">
+            <div className="space-y-3 px-5 py-4 text-sm">
               <div>
-                <span className="block font-medium">{chosen.spec.label}</span>
+                <span className="block text-lg leading-tight font-semibold tracking-tight">{chosen.spec.label}</span>
                 <span className="num block text-xs text-muted-foreground">
                   {chosen.spec.length} × {chosen.spec.width} × {chosen.spec.height} mm · {chosen.spec.material} · {chosen.ipRating ?? "IP —"}
                   {chosen.maker ? ` · ${chosen.maker.name}` : ""}
@@ -101,34 +100,34 @@ export default async function BoxSection({ id, searchParams }: { id: string; sea
                 {chosen.fits ? <Check className="mt-0.5 size-3.5 shrink-0" aria-hidden /> : <X className="mt-0.5 size-3.5 shrink-0" aria-hidden />}
                 {chosen.fitText}
               </p>
-              <dl className="num grid grid-cols-2 gap-2 text-xs">
+              <dl className="flex flex-wrap gap-x-8 gap-y-3">
                 {chosen.prices.map((p) => (
                   <div key={p.qty}>
-                    <dt className="font-sans text-muted-foreground">{qtyLabel(p.qty)}</dt>
-                    <dd className="text-sm">{m.unit(p.unit)}</dd>
+                    <dd className="text-2xl leading-none font-semibold tracking-tight tabular-nums">{m.unit(p.unit)}</dd>
+                    <dt className="mt-1.5 text-xs text-muted-foreground">{qtyLabel(p.qty)}</dt>
                   </div>
                 ))}
               </dl>
               <p className="text-xs text-muted-foreground">
-                {chosen.cutouts ? `${chosen.cutouts} connector cut-out${chosen.cutouts === 1 ? "" : "s"} machined (in the price) · ` : ""}
+                {chosen.cutouts ? `${chosen.cutouts} cut-out${chosen.cutouts === 1 ? "" : "s"} · ` : ""}
                 {chosen.prices[0]?.nre ? `${m.whole(chosen.prices[0].nre)} one-off` : "no one-off cost"} · {chosen.leadDays ? `${chosen.leadDays} d lead` : "in stock"}
               </p>
             </div>
           ) : (
-            <p className="px-4 py-3 text-sm text-muted-foreground">Board only.</p>
+            <p className="px-5 py-4 text-sm text-muted-foreground">Board only.</p>
           )}
           {edit ? (
-            <div className="flex flex-wrap gap-2 border-t px-4 py-3">
+            <div className="flex flex-wrap gap-2 border-t px-5 py-3">
               <ChooseButton act={{ kind: "box", revisionId: id, choice: { kind: "none" } }} chosen={b.box.choice?.kind === "none"} label="Board only, no box" chosenLabel="Board only" />
               {!b.box.auto ? <ChooseButton act={{ kind: "box", revisionId: id, choice: null }} chosen={false} label="Back to the project's box" /> : null}
             </div>
           ) : null}
         </section>
         {b.box.kit.length ? (
-          <section className="rounded-lg border bg-card">
-            <h2 className="border-b px-4 py-3 text-base font-medium">Box-build kit</h2>
+          <section className="rounded-xl border bg-card">
+            <h3 className="border-b px-5 py-4 text-base font-semibold">Box-build kit</h3>
             {/* The kit at a glance: how much of it is covered, how much is missing or to check. */}
-            <div className="border-b px-4 py-3">
+            <div className="px-5 py-4">
               <SegBar
                 thick
                 label="Box-build kit by status"
@@ -137,7 +136,11 @@ export default async function BoxSection({ id, searchParams }: { id: string; sea
                   .filter((x) => x.value > 0)}
               />
             </div>
-            <ul className="space-y-1.5 px-4 py-3 text-sm">
+            <details className="group border-t">
+              <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3 text-sm font-medium outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                Items <span className="num text-xs font-normal text-muted-foreground">{b.box.kit.length}</span>
+              </summary>
+            <ul className="space-y-1.5 border-t px-5 py-3 text-sm">
               {b.box.kit.map((k) => (
                 <li key={k.key} className="flex items-start gap-2">
                   <CircleDot className={cn("mt-0.5 size-3.5 shrink-0", KIT[k.status]?.tone)} aria-hidden />
@@ -149,12 +152,13 @@ export default async function BoxSection({ id, searchParams }: { id: string; sea
                 </li>
               ))}
             </ul>
+            </details>
           </section>
         ) : null}
       </div>
 
       <nav aria-label="Box types" className="mt-6">
-        <h2 className="mb-2 text-base font-medium">Box type</h2>
+        <h3 className="mb-3 text-lg font-semibold tracking-tight">Box type</h3>
         <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {[{ slug: "all", name: "All boxes", summary: "Every catalogue box and every box our makers can make to fit." }, ...BOX_TYPES].map((bt) => {
             const active = bt.slug === type;
@@ -165,13 +169,13 @@ export default async function BoxSection({ id, searchParams }: { id: string; sea
                   href={`/boms/${id}/build/box?type=${bt.slug}`}
                   aria-current={active ? "true" : undefined}
                   title={bt.summary}
-                  className={cn("block h-full rounded-lg border bg-card px-3 py-2.5 outline-none transition-colors duration-150 hover:border-foreground/20 focus-visible:ring-2 focus-visible:ring-ring", active && "border-primary bg-primary/[0.04]")}
+                  className={cn("block h-full rounded-md border bg-card px-3 py-2.5 outline-none transition-colors duration-150 hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring", active && "border-foreground bg-part-soft")}
                 >
                   <span className="flex items-baseline justify-between gap-2">
                     <span className="text-sm font-medium">{bt.name}</span>
                     <span className="num text-xs text-muted-foreground">{n}</span>
                   </span>
-                  {bt.slug === b.box.recognisedType ? <span className="mt-0.5 block text-[11px] text-primary">This product&apos;s type</span> : null}
+                  {bt.slug === b.box.recognisedType ? <span className="mt-0.5 block text-[11px] font-medium">This product</span> : null}
                 </Link>
               </li>
             );
@@ -179,18 +183,18 @@ export default async function BoxSection({ id, searchParams }: { id: string; sea
         </ul>
         {t ? (
           <p className="mt-2 text-xs text-muted-foreground">
-            {t.name}: {t.ip[0]}–{t.ip[1]}, shielding {t.shielding}. {t.machining}{" "}
-            <Link href={`/directory/boxes?t=${t.slug}#${t.slug}`} className="underline-offset-2 hover:underline">In the directory →</Link>
+            <span title={t.machining}>{t.ip[0]}–{t.ip[1]} · shielding {t.shielding}</span> ·{" "}
+            <Link href={`/directory/boxes?t=${t.slug}#${t.slug}`} className="underline decoration-border hover:decoration-foreground">In the directory →</Link>
           </p>
         ) : null}
       </nav>
 
-      <section aria-labelledby="catalogue" className="mt-4 rounded-lg border bg-card">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
-          <h2 id="catalogue" className="text-base font-medium">Catalogue boxes — our stock, distributors, marketplace</h2>
+      <section aria-labelledby="catalogue" className="mt-4 overflow-hidden rounded-xl border bg-card">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-4">
+          <h3 id="catalogue" className="text-base font-semibold" title="Unit price per box at each quantity: our stock first at book cost, then the cheapest distributor landed, then the marketplace; connector cut-outs added.">Catalogue boxes <span className="num ml-1 text-xs font-normal text-muted-foreground">{catalogue.length}</span></h3>
           <span className="flex flex-wrap items-center gap-2">
             {buyer && unpriced.length ? <RefreshButton scope={{ partIds: unpriced, label: `${unpriced.length} enclosures` }} label={`Get prices for ${unpriced.length} boxes`} /> : null}
-            <Link href={`/parts/market?q=${encodeURIComponent(t ? `${t.name.replace(/ box$/i, "")} enclosure` : "aluminium enclosure")}`} className="inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs hover:bg-muted">
+            <Link href={`/parts/market?q=${encodeURIComponent(t ? `${t.name.replace(/ box$/i, "")} enclosure` : "aluminium enclosure")}`} className="inline-flex h-8 items-center gap-1.5 rounded-md border bg-card px-2.5 text-xs outline-none hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring">
               <Search className="size-3.5" aria-hidden /> Search distributors
             </Link>
           </span>
@@ -214,7 +218,7 @@ export default async function BoxSection({ id, searchParams }: { id: string; sea
               </thead>
               <tbody className="divide-y">
                 {catalogue.map((o) => (
-                  <tr key={o.key} className={cn(!o.fits && "text-muted-foreground", isChosen(o) && "bg-primary/[0.04]")}>
+                  <tr key={o.key} className={cn(!o.fits && "text-muted-foreground", isChosen(o) && "bg-part-soft/60")}>
                     <td className="px-4 py-2.5">
                       {o.partId ? <Link href={`/parts/${o.partId}`} className="font-medium hover:underline">{o.spec.label}</Link> : <span className="font-medium">{o.spec.label}</span>}
                       <span className="num block text-xs text-muted-foreground">{o.spec.length} × {o.spec.width} × {o.spec.height} mm · {o.ipRating ?? "IP —"}{o.tiers?.mock ? " · simulated prices" : ""}</span>
@@ -237,15 +241,14 @@ export default async function BoxSection({ id, searchParams }: { id: string; sea
             </table>
           </div>
         ) : (
-          <p className="px-4 py-3 text-sm text-muted-foreground">No catalogue boxes of this type — use a box made to fit below, or search the distributors.</p>
+          <p className="px-4 py-3 text-sm text-muted-foreground">No catalogue boxes of this type.</p>
         )}
-        <p className="border-t px-4 py-2 text-xs text-muted-foreground">Unit price per box at each quantity: our stock first at book cost, then the cheapest distributor landed, then the marketplace; connector cut-outs added.</p>
       </section>
 
-      <section aria-labelledby="custom" className="mt-4 rounded-lg border bg-card">
-        <div className="border-b px-4 py-3">
-          <h2 id="custom" className="text-base font-medium">Made to fit by our box makers</h2>
-          <p className="text-xs text-muted-foreground">Sized from the board and its tallest part; an estimate until the maker quotes. Moulded and die-cast boxes need a tool — the one-off cost.</p>
+      <section aria-labelledby="custom" className="mt-4 overflow-hidden rounded-xl border bg-card">
+        <div className="flex items-baseline justify-between gap-2 border-b px-5 py-4">
+          <h3 id="custom" className="text-base font-semibold" title="Sized from the board and its tallest part. Moulded and die-cast boxes need a tool — the one-off cost.">Made to fit <span className="num ml-1 text-xs font-normal text-muted-foreground">{custom.length}</span></h3>
+          <span className="text-xs text-muted-foreground">Estimate until the maker quotes</span>
         </div>
         {custom.length ? (
           <div className="overflow-x-auto">
@@ -263,7 +266,7 @@ export default async function BoxSection({ id, searchParams }: { id: string; sea
               </thead>
               <tbody className="divide-y">
                 {custom.map((o) => (
-                  <tr key={o.key} className={cn(isChosen(o) && "bg-primary/[0.04]")}>
+                  <tr key={o.key} className={cn(isChosen(o) && "bg-part-soft/60")}>
                     <td className="px-4 py-2.5">
                       <span className="font-medium">{o.maker?.name}</span>
                       <span className="block text-xs text-muted-foreground">{o.spec.label} · up to {o.ipRating}</span>
@@ -282,14 +285,14 @@ export default async function BoxSection({ id, searchParams }: { id: string; sea
             </table>
           </div>
         ) : (
-          <p className="px-4 py-3 text-sm text-muted-foreground">None of our box makers makes this type to fit — add one under suppliers, or pick another type.</p>
+          <p className="px-4 py-3 text-sm text-muted-foreground">No maker for this type.</p>
         )}
       </section>
 
       {[...catalogue, ...custom].some((o) => o.fits) ? (
-        <div className="mt-4 rounded-lg border bg-card px-4 py-4">
+        <div className="mt-4 rounded-xl border bg-card p-5">
           <CompareBars
-            caption={`Per box at ${qtyLabel(b.refQty)}, one-off costs spread over the lot — boxes that fit`}
+            caption={`Per box at ${qtyLabel(b.refQty)} — boxes that fit`}
             format={(v) => m.unit(v)}
             rows={[...catalogue, ...custom]
               .filter((o) => o.fits)

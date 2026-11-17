@@ -31,8 +31,8 @@ function MaskBadge({ step }: { step: ProcessStep }) {
     <span
       title={step.masking.what}
       className={cn(
-        "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
-        step.masking.needed ? "border-[var(--risk-amber)]/40 bg-risk-amber-soft" : "border-risk-green/30 bg-risk-green-soft",
+        "inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-medium",
+        step.masking.needed ? "border-risk-amber/40 bg-risk-amber-soft" : "border-risk-green/30 bg-risk-green-soft",
       )}
     >
       {step.masking.needed ? "Masking" : "No masking"}
@@ -58,14 +58,14 @@ export function ProcessCheckPanel({ check, revisionId }: { check: ProcessCheck; 
   return (
     <section id="process-check" aria-labelledby="process-check-title" className="scroll-mt-24 space-y-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h2 id="process-check-title" className="text-base font-semibold tracking-tight">The whole process, step by step</h2>
-        <span className={cn("inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold", TONE[check.level].box)}>
+        <h2 id="process-check-title" className="text-lg font-semibold tracking-tight">The whole process</h2>
+        <span className={cn("inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold", TONE[check.level].box)}>
           <LevelIcon level={check.level} className="size-3.5" /> {check.level === "red" ? "A step cannot be done" : `All ${check.steps.length} steps can be done`}
         </span>
-        <span className={cn("inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold", masked ? TONE.amber.box : "bg-card")}>
+        <span className={cn("inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold", masked ? TONE.amber.box : "bg-card")}>
           <ShieldHalf className={cn("size-3.5", masked ? "text-risk-amber" : "text-muted-foreground")} aria-hidden /> {masked ? `${masked} masking step${masked === 1 ? "" : "s"}` : "No masking"}
         </span>
-        <span className={cn("inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold", orderLevel === "green" ? "bg-card" : TONE[orderLevel].box)}>
+        <span className={cn("inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold", orderLevel === "green" ? "bg-card" : TONE[orderLevel].box)}>
           <ArrowDownUp className={cn("size-3.5", orderLevel === "green" ? "text-risk-green" : TONE[orderLevel].text)} aria-hidden /> {check.order.length ? `${check.order.length} order point${check.order.length === 1 ? "" : "s"}` : "Order correct"}
         </span>
         <Info label="About the process check">
@@ -74,12 +74,12 @@ export function ProcessCheckPanel({ check, revisionId }: { check: ProcessCheck; 
         </Info>
       </div>
 
-      <div className="rounded-lg border bg-card p-4">
+      <div className="rounded-xl border bg-card p-5">
         <ProcessFlow nodes={flowNodes(check)} />
       </div>
 
       {check.order.length ? (
-        <ul className="space-y-1 rounded-lg border bg-card px-4 py-3 text-sm" aria-label="Order of the steps">
+        <ul className="space-y-1.5 rounded-xl border bg-card px-5 py-4 text-sm" aria-label="Order of the steps">
           {check.order.map((o) => (
             <li key={o.text} className="flex items-start gap-2">
               <LevelIcon level={o.level} className="mt-0.5" />
@@ -89,7 +89,7 @@ export function ProcessCheckPanel({ check, revisionId }: { check: ProcessCheck; 
         </ul>
       ) : null}
 
-      <Fold icon={ListChecks} title="Every step, with its machine" note={`${machines} on machines · ${check.steps.length - machines} by hand or bought in`} figure={`${check.steps.length} steps`}>
+      <Fold icon={ListChecks} title="Every step" note={`${machines} on machines · ${check.steps.length - machines} by hand or bought in`} figure={`${check.steps.length} steps`}>
         {stages.map((stage) => (
           <div key={stage}>
             <div className="border-b bg-muted/50 px-4 py-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{STAGE_LABEL[stage]}</div>

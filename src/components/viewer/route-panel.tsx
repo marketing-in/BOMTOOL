@@ -10,14 +10,13 @@ import type { ViewerRouteStep } from "./types";
 export function RoutePanel({ steps, active, onPick, revisionId }: { steps: ViewerRouteStep[]; active: string | null; onPick: (key: string | null) => void; revisionId: string | null }) {
   if (!steps.length) return null;
   return (
-    <section className="rounded-lg border bg-card p-4" aria-labelledby="route-title">
+    <section className="rounded-xl border bg-card p-5" aria-labelledby="route-title">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 id="route-title" className="text-sm font-medium">Process route</h2>
+        <h2 id="route-title" className="text-sm font-medium">Process route <span className="num font-normal text-muted-foreground">{steps.length}</span></h2>
         {revisionId ? (
           <Link href={`/boms/${revisionId}/route`} className="text-xs text-muted-foreground hover:text-foreground">Full route →</Link>
         ) : null}
       </div>
-      <p className="mt-0.5 text-xs text-muted-foreground">{steps.length} steps, bare board to packed product. Pick one to light up the parts it handles.</p>
       <ol className="mt-2">
         {steps.map((s, i) => {
           const open = active === s.key;

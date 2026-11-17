@@ -29,7 +29,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
         <Link href={`/boms/${id}`} className="text-sm text-muted-foreground hover:text-foreground">← Back to BoM</Link>
         <PrintButton />
       </div>
-      <div className="rounded-lg border bg-card p-8 print:border-0 print:p-0">
+      <div className="rounded-xl border bg-card p-8 print:border-0 print:p-0">
         <header className="flex flex-wrap justify-between gap-6 border-b pb-6">
           <div>
             <div className="text-xs text-muted-foreground">Material quote</div>

@@ -67,9 +67,9 @@ export default async function DictionaryEntryPage({ params }: { params: Promise<
       />
 
       <div className={cn("mb-6 grid gap-6", side && "lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)]")}>
-        <div className="rounded-lg border bg-card p-5">
+        <div className="rounded-xl border bg-card p-5">
           <h2 className="flex items-center gap-2 text-base font-medium">
-            <span className="grid size-7 place-items-center rounded-md bg-primary/8 text-primary">
+            <span className="grid size-7 place-items-center rounded-md bg-part-soft text-primary">
               <Icon className="size-3.5" aria-hidden />
             </span>
             What it does
@@ -79,7 +79,7 @@ export default async function DictionaryEntryPage({ params }: { params: Promise<
           <p className="mt-2 max-w-[72ch] text-sm leading-relaxed text-foreground/85">{e.how}</p>
         </div>
         {side === "model" && body ? (
-          <figure className="flex flex-col overflow-hidden rounded-lg border bg-card">
+          <figure className="flex flex-col overflow-hidden rounded-xl border bg-card">
             <div className="h-64 bg-muted/40 sm:h-72">
               <EntryModelLoader body={body} />
             </div>
@@ -107,7 +107,7 @@ export default async function DictionaryEntryPage({ params }: { params: Promise<
       </div>
 
       {e.station ? (
-        <figure className="mb-6 rounded-lg border bg-card">
+        <figure className="mb-6 rounded-xl border bg-card">
           <figcaption className="flex h-11 items-center border-b px-4 text-sm font-medium">Where it sits on our lines</figcaption>
           <div className="overflow-x-auto px-4 py-4">
             <LineStrip station={e.station} className="min-w-[640px]" />
@@ -192,7 +192,7 @@ export default async function DictionaryEntryPage({ params }: { params: Promise<
             </div>
             {e.alternatives.equivalents?.length ? (
               <div className="border-t">
-                <h3 className="px-4 pt-3 text-xs text-muted-foreground">Known equivalents — search our catalogue by clicking a part</h3>
+                <h3 className="px-4 pt-3 text-xs text-muted-foreground">Known equivalents</h3>
                 <div className="overflow-x-auto">
                   <table className="mt-1 w-full min-w-[600px] text-sm">
                     <thead className="text-left text-xs text-muted-foreground">
@@ -342,7 +342,7 @@ export default async function DictionaryEntryPage({ params }: { params: Promise<
                   ))}
                 </ul>
               ) : (
-                <EmptyState title="None in the catalogue yet">Parts of this kind appear here once a BoM brings them in.</EmptyState>
+                <EmptyState title="None in the catalogue yet" />
               )}
               {catalogue.categories.length ? (
                 <div className="flex flex-wrap gap-x-4 gap-y-1 border-t px-4 py-2.5 text-xs">
@@ -383,7 +383,7 @@ export default async function DictionaryEntryPage({ params }: { params: Promise<
           {article ? (
             <Link
               href={`/knowledge/${article.slug}`}
-              className="group block rounded-lg border bg-card p-4 outline-none transition-[border-color,box-shadow] duration-150 hover:border-foreground/20 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring"
+              className="group block rounded-xl border bg-card p-4 outline-none transition-colors duration-150 hover:border-foreground/20 focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className="flex items-center gap-2 text-xs text-muted-foreground">
                 <BookOpen className="size-3.5" aria-hidden /> Deep dive

@@ -106,7 +106,7 @@ function Lane({ c, roles, canEdit }: { c: LineCheck; roles: LineRole[]; canEdit:
           {c.steps.map((s, i) => <Station key={s.stage} s={s} last={i === c.steps.length - 1} />)}
         </ol>
         <div className="flex shrink-0 items-center gap-2">
-          <span className={cn("inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold", TONE[level].box)}>
+          <span className={cn("inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold", TONE[level].box)}>
             <span className={cn("size-2 rounded-full", TONE[level].dot)} aria-hidden />
             {TONE[level].word}
           </span>
@@ -141,14 +141,14 @@ export function LineFitPanel({ plant, canEdit }: { plant: PlantCheck; canEdit: b
     <section id="line-fit" aria-labelledby="line-fit-title" className="scroll-mt-24">
       <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
         <h2 id="line-fit-title" className="text-base font-semibold tracking-tight">Can our machines build it?</h2>
-        <span className={cn("inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold", t.box)}>
+        <span className={cn("inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold", t.box)}>
           <LevelIcon level={plant.level} className="size-3.5" /> {ANSWER[plant.level]}
         </span>
         <Info label="About the machine check">
           <p>{plant.summary}</p>
           <p className="text-xs text-muted-foreground">What this board asks of a line:</p>
           <ul className="flex flex-wrap gap-1 text-xs">
-            {needsList(plant).map((n) => <li key={n} className="rounded-full border bg-muted/50 px-2 py-0.5">{n}</li>)}
+            {needsList(plant).map((n) => <li key={n} className="rounded-md border bg-muted/50 px-2 py-0.5">{n}</li>)}
           </ul>
         </Info>
         <Link href="/operations/lines" className="ml-auto inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border bg-card px-3 text-sm font-medium outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">

@@ -41,14 +41,14 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
           id="kq"
           name="q"
           defaultValue={q}
-          placeholder="Search: MSL baking, ENIG, X7R DC bias, head-in-pillow, IPC class 3…"
+          placeholder="MSL baking, ENIG, X7R DC bias…"
           className="h-11 w-full rounded-md border bg-card pr-3 pl-9 text-sm outline-none focus-visible:border-primary/50 focus-visible:ring-3 focus-visible:ring-ring/30"
         />
       </Form>
 
       {kinds.length ? (
         <section className="mb-6">
-          <h2 className="mb-3 text-base font-medium">In the dictionary</h2>
+          <h2 className="mb-3 text-lg font-semibold tracking-tight">In the dictionary</h2>
           <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {kinds.map(({ entry: e }) => {
               const Icon = GROUP_ICON[e.group];
@@ -56,7 +56,7 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
                 <li key={e.slug}>
                   <Link
                     href={`/knowledge/dictionary/${e.slug}`}
-                    className="flex h-full items-start gap-2.5 rounded-lg border bg-card px-3 py-2.5 transition-colors duration-150 hover:border-foreground/20"
+                    className="flex h-full items-start gap-2.5 rounded-xl border bg-card px-3 py-2.5 transition-colors duration-150 hover:border-foreground/20"
                   >
                     <Icon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
                     <span className="min-w-0">
@@ -73,11 +73,11 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
 
       {hits ? (
         <section className="mb-8">
-          <h2 className="mb-3 text-base font-medium">
+          <h2 className="mb-3 text-lg font-semibold tracking-tight">
             {hits.length} article{hits.length === 1 ? "" : "s"} for “{q}”
           </h2>
           {hits.length ? (
-            <ul className="divide-y rounded-lg border bg-card">
+            <ul className="divide-y overflow-hidden rounded-xl border bg-card">
               {hits.map((h) => (
                 <li key={h.slug}>
                   <Link href={`/knowledge/${h.slug}`} className="block px-4 py-3 hover:bg-muted/40">
@@ -91,8 +91,8 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
               ))}
             </ul>
           ) : (
-            <div className="rounded-lg border bg-card">
-              <EmptyState title="Nothing found">Try a broader word — e.g. “capacitor”, “reflow”, “connector”.</EmptyState>
+            <div className="rounded-xl border bg-card">
+              <EmptyState title="Nothing found">Try a broader word.</EmptyState>
             </div>
           )}
         </section>
@@ -103,10 +103,10 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
       </section>
 
       <section className="mb-8">
-        <h2 className="mb-3 text-base font-medium">Watch how it’s made</h2>
+        <h2 className="mb-3 text-lg font-semibold tracking-tight">How it’s made</h2>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {PROCESSES.map((p) => (
-            <Link key={p.slug} href={`/knowledge/${p.article}`} title={p.summary} className="group rounded-lg border bg-card p-4 outline-none transition-colors duration-150 hover:border-foreground/20 focus-visible:ring-2 focus-visible:ring-ring">
+            <Link key={p.slug} href={`/knowledge/${p.article}`} title={p.summary} className="group rounded-xl border bg-card p-4 outline-none transition-colors duration-150 hover:border-foreground/20 focus-visible:ring-2 focus-visible:ring-ring">
               <div className="flex items-center gap-2">
                 <Factory className="size-4 text-primary" aria-hidden />
                 <span className="text-sm font-medium group-hover:underline">{p.title}</span>
@@ -120,7 +120,8 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
                   </span>
                 ))}
               </div>
-              <p className="num mt-2 text-xs text-muted-foreground">{p.steps.length} steps</p>
+              <p className="mt-3 text-2xl leading-none font-semibold tracking-tight tabular-nums">{p.steps.length}</p>
+              <p className="mt-1 text-xs text-muted-foreground">steps</p>
             </Link>
           ))}
         </div>
@@ -131,10 +132,10 @@ export default async function KnowledgePage({ searchParams }: { searchParams: Pr
           const Icon = ICON[d];
           const list = byDomain.get(d)!;
           return (
-            <section key={d} className="rounded-lg border bg-card">
-              <div className="flex h-11 items-center gap-2 border-b px-4">
+            <section key={d} className="overflow-hidden rounded-xl border bg-card">
+              <div className="flex h-12 items-center gap-2 border-b px-4">
                 <Icon className="size-4 text-muted-foreground" aria-hidden />
-                <h2 className="text-base font-medium">{DOMAIN_LABEL[d]}</h2>
+                <h2 className="text-base font-semibold">{DOMAIN_LABEL[d]}</h2>
                 <span className="num ml-auto text-xs text-muted-foreground">{list.length}</span>
               </div>
               <ul className="max-h-96 divide-y overflow-y-auto">

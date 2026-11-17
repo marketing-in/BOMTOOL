@@ -43,9 +43,9 @@ export default async function BareBoardSection({ id }: { id: string }) {
         <ViewerLoader data={b.viewer} initialMode="bare" compact />
       </section>
       {panel ? (
-        <section aria-label="The panel these Gerbers came as" className="mt-6 rounded-lg border bg-card p-4">
+        <section aria-label="The panel these Gerbers came as" className="mt-6 rounded-xl border bg-card p-5">
           <div className="flex items-center gap-1">
-            <h2 className="text-base font-semibold">Came as a panel</h2>
+            <h3 className="text-base font-semibold">Came as a panel</h3>
             <Info label="About the panel">
               <p>The Gerbers drew the whole fabrication panel. One board was cut out of every layer, and everything on this BoM is measured on that one board.</p>
               <p>Rails are the waste strips the line&apos;s conveyor holds. Tooling holes and fiducials locate the panel in each machine. The boards are broken out after assembly.</p>
@@ -71,7 +71,7 @@ export default async function BareBoardSection({ id }: { id: string }) {
                 ] as [LucideIcon, string, string, string][]
               ).map(([Icon, k, v, note]) => (
                 <div key={k} className="flex items-start gap-2">
-                  <Icon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                  <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
                   <div>
                     <dd className="num text-sm font-semibold">{v}</dd>
                     <dt className="text-xs text-muted-foreground">{k}{note ? ` · ${note}` : ""}</dt>
@@ -83,7 +83,7 @@ export default async function BareBoardSection({ id }: { id: string }) {
         </section>
       ) : null}
       <section aria-label="This board" className="mt-6">
-        <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-4 xl:grid-cols-8">
+        <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-4 xl:grid-cols-8">
           {(
             [
               [Ruler, "Size", `${f.widthMm.toFixed(1)} × ${f.heightMm.toFixed(1)} mm`],
@@ -96,16 +96,18 @@ export default async function BareBoardSection({ id }: { id: string }) {
               [BadgeCheck, "IPC class", `${f.ipcClass ?? 2}${f.ipcClass ? "" : " (assumed)"}`],
             ] as [LucideIcon, string, string][]
           ).map(([Icon, k, v]) => (
-            <div key={k} className="flex flex-col items-center gap-1 bg-card px-2 py-3 text-center">
-              <Icon className="size-5 text-primary" aria-hidden />
-              <dd className="num text-sm font-semibold">{v}</dd>
-              <dt className="text-[11px] text-muted-foreground">{k}</dt>
+            <div key={k} className="bg-card px-4 py-3.5">
+              <dd className="text-base leading-tight font-semibold tabular-nums">{v}</dd>
+              <dt className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Icon className="size-3.5" aria-hidden />
+                {k}
+              </dt>
             </div>
           ))}
         </dl>
         <p className="mt-2 text-xs text-muted-foreground">
-          {f.source === "gerber" ? "Read from the uploaded Gerbers." : "From the project's board spec — upload the Gerbers for the real outline and layers."}{" "}
-          <Link href={`/boms/${id}/board`} className="underline-offset-2 hover:underline">Gerbers &amp; centroid</Link>
+          {f.source === "gerber" ? "From the Gerbers" : "From the project spec"} ·{" "}
+          <Link href={`/boms/${id}/board`} className="underline decoration-border hover:decoration-foreground">Gerbers &amp; centroid</Link>
         </p>
       </section>
 
@@ -134,10 +136,10 @@ export default async function BareBoardSection({ id }: { id: string }) {
           </ul>
       </Fold>
 
-      <section aria-labelledby="board-sources" className="mt-6 rounded-lg border bg-card">
-        <div className="flex flex-wrap items-baseline justify-between gap-2 border-b px-4 py-3">
-          <h2 id="board-sources" className="text-base font-medium">Where the bare board comes from</h2>
-          <span className="text-xs text-muted-foreground">Landed price per board (freight + duty, net of GST/IGST credit); tooling once per design</span>
+      <section aria-labelledby="board-sources" className="mt-6 overflow-hidden rounded-xl border bg-card">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 border-b px-5 py-4">
+          <h3 id="board-sources" className="text-base font-semibold">Where the bare board comes from</h3>
+          <span className="text-xs text-muted-foreground" title="Freight + duty, net of GST/IGST credit; tooling once per design">Landed, per board</span>
         </div>
 
         <Tier n={1} icon={Warehouse} title="Our inventory" hint="Bare boards of this design already in our stores.">
@@ -150,7 +152,7 @@ export default async function BareBoardSection({ id }: { id: string }) {
               {edit ? <ChooseButton act={{ kind: "board", revisionId: id, stockPartId: b.board.stock.partId }} chosen={b.board.chosen?.kind === "stock"} label="Use our stock" /> : null}
             </div>
           ) : (
-            <p className="px-4 py-3 text-sm text-muted-foreground">None of this design in stores — a bare board on the BoM with stock would show here.</p>
+            <p className="px-4 py-3 text-sm text-muted-foreground">None in stores.</p>
           )}
         </Tier>
 
@@ -175,9 +177,8 @@ export default async function BareBoardSection({ id }: { id: string }) {
         ) : null}
       </section>
 
-      <p className="mt-3 text-xs text-muted-foreground">
-        Estimate model: panel area × rate × PCB technology, finish, copper, thickness and IPC class × a volume curve, never below the fab&apos;s minimum lot
-        (<code>src/data/costing.ts</code>). Fabs marked “— sample” are placeholders with sample price levels — replace them with your approved fabs and their quotes.
+      <p className="mt-3 text-xs text-muted-foreground" title="Estimate: panel area × rate × PCB technology, finish, copper, thickness and IPC class × a volume curve, never below the fab's minimum lot.">
+        Fabs marked “— sample” are placeholders with sample prices.
       </p>
 
     </>
@@ -187,14 +188,11 @@ export default async function BareBoardSection({ id }: { id: string }) {
 function Tier({ n, icon: Icon, title, hint, children }: { n: number; icon: typeof Layers; title: string; hint: string; children: React.ReactNode }) {
   return (
     <div className="border-t first:border-t-0">
-      <div className="flex items-start gap-3 px-4 pt-3 pb-1">
-        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+      <div className="flex items-center gap-3 px-5 pt-3.5 pb-1" title={hint}>
+        <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
           <Icon className="size-3.5" aria-hidden />
         </span>
-        <div>
-          <h3 className="text-sm font-medium">{n} · {title}</h3>
-          <p className="text-xs text-muted-foreground">{hint}</p>
-        </div>
+        <h4 className="text-sm font-semibold">{n} · {title}</h4>
       </div>
       {children}
     </div>
@@ -202,7 +200,7 @@ function Tier({ n, icon: Icon, title, hint, children }: { n: number; icon: typeo
 }
 
 function FabTable({ rows, b, edit, m }: { rows: FabOption[]; b: NonNullable<Awaited<ReturnType<typeof getBuild>>>; edit: boolean; m: ReturnType<typeof moneyIn> }) {
-  if (!rows.length) return <p className="px-4 py-3 text-sm text-muted-foreground">None on file — run <code>npm run vendors:sync</code> or add your fabs.</p>;
+  if (!rows.length) return <p className="px-4 py-3 text-sm text-muted-foreground">None on file.</p>;
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[860px] text-sm">
@@ -222,7 +220,7 @@ function FabTable({ rows, b, edit, m }: { rows: FabOption[]; b: NonNullable<Awai
           {rows.map((o) => {
             const chosen = b.board.chosen?.kind === "fab" && b.board.chosen.id === o.id;
             return (
-              <tr key={o.id} className={cn(!o.fits && "text-muted-foreground", chosen && "bg-primary/[0.03]")}>
+              <tr key={o.id} className={cn(!o.fits && "text-muted-foreground", chosen && "bg-part-soft/60")}>
                 <td className="px-4 py-2.5">
                   <span className="font-medium">{o.name}</span>
                   <span className="block text-xs text-muted-foreground">{o.country} · {o.certifications.join(", ")}</span>
@@ -234,7 +232,7 @@ function FabTable({ rows, b, edit, m }: { rows: FabOption[]; b: NonNullable<Awai
                   ) : (
                     <span className="inline-flex items-start gap-1 text-risk-amber"><X className="mt-0.5 size-3.5 shrink-0" aria-hidden /> {o.gaps.join("; ")}</span>
                   )}
-                  {o.quoted ? <span className="mt-1 block text-primary">Their quote</span> : <span className="mt-1 block text-muted-foreground">Estimate{o.minLot ? " · minimum lot" : ""}</span>}
+                  {o.quoted ? <span className="mt-1 block font-medium text-foreground">Their quote</span> : <span className="mt-1 block text-muted-foreground">Estimate{o.minLot ? " · minimum lot" : ""}</span>}
                 </td>
                 <td className="num px-3 py-2.5 text-right">{o.leadDays} d</td>
                 {o.prices.map((p) => (
@@ -248,7 +246,7 @@ function FabTable({ rows, b, edit, m }: { rows: FabOption[]; b: NonNullable<Awai
                       {chosen && b.board.chosen?.auto ? <span className="text-[11px] text-muted-foreground">Suggested</span> : null}
                     </span>
                   ) : chosen ? (
-                    <span className="text-xs text-primary">Chosen</span>
+                    <span className="rounded-md bg-part-soft px-2 py-1 text-xs font-medium">Chosen</span>
                   ) : null}
                 </td>
               </tr>

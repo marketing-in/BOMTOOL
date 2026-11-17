@@ -7,7 +7,7 @@ import { restartReview, signGate } from "@/app/(app)/boms/[id]/feasibility/actio
 
 const field = "w-full rounded-md border bg-card px-2.5 py-2 text-sm outline-none transition-[box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-ring";
 const primary = "inline-flex h-10 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground outline-none transition-[filter] duration-150 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
-const outline = "inline-flex h-9 items-center gap-1.5 rounded-md border bg-card px-3 text-sm outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
+const outline = "inline-flex h-9 items-center gap-1.5 rounded-md border bg-card px-3 text-sm outline-none transition-colors duration-150 hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
 
 /** Sign-off for the one open gate. Signing locks it: there is no edit and no undo. */
 export function GateSign({
@@ -33,7 +33,7 @@ export function GateSign({
 }) {
   const [pending, start] = useTransition();
   const [sure, setSure] = useState(false);
-  if (!canSign) return <p className="text-xs text-muted-foreground">Your role can read this review; engineering, purchasing, planning or quality sign it.</p>;
+  if (!canSign) return <p className="text-xs text-muted-foreground">Your role cannot sign.</p>;
   const blocked = reds.length > 0 && !canWaive;
   return (
     <form
@@ -54,7 +54,7 @@ export function GateSign({
         <div className="space-y-2 rounded-md border border-risk-red/40 bg-risk-red-soft/40 px-3 py-2.5 dark:bg-risk-red/10">
           <p className="text-xs font-medium text-risk-red">
             {reds.length} red check{reds.length === 1 ? "" : "s"} block this gate.{" "}
-            <span className="font-normal text-foreground">{canWaive ? "Clear them, or waive each with a reason — the waiver is recorded with your name." : "Clear them, or ask Quality or an administrator to waive them."}</span>
+            <span className="font-normal text-foreground">{canWaive ? "Clear them, or waive each with a reason." : "Clear them, or ask Quality to waive them."}</span>
           </p>
           {canWaive
             ? reds.map((r) => (
@@ -67,13 +67,13 @@ export function GateSign({
         </div>
       ) : null}
       <label className="block text-xs text-muted-foreground">
-        Note for the record{ambers ? ` — say how the ${ambers} amber point${ambers === 1 ? " is" : "s are"} handled` : " (optional)"}
+        Note{ambers ? ` — how the ${ambers} amber point${ambers === 1 ? " is" : "s are"} handled` : ""}
         <textarea name="note" rows={2} maxLength={1000} className={field} />
       </label>
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex min-h-10 items-center gap-2 text-sm">
           <input type="checkbox" checked={sure} onChange={(e) => setSure(e.target.checked)} className="size-4 accent-[var(--primary)]" disabled={blocked} />
-          I have checked everything in gate {n}. Signing locks it — it cannot be reopened.
+          Checked. Signing locks gate {n} for good.
         </label>
         <button type="submit" disabled={pending || !sure || blocked} className={primary}>
           {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Lock className="size-4" aria-hidden />}
@@ -111,7 +111,7 @@ export function RestartReview({ revisionId }: { revisionId: string }) {
       }}
     >
       <label className="min-w-64 flex-1 text-xs text-muted-foreground">
-        Why a new review is needed — the signed one is kept as superseded
+        Why a new review is needed
         <input name="reason" required minLength={10} maxLength={500} className={field} autoFocus />
       </label>
       <button type="submit" disabled={pending} className={outline}>

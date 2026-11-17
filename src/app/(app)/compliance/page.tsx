@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Download, FlaskConical, Gem, Landmark, Lock, ShieldCheck } from "lucide-react";
+import { Download } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/rbac";
@@ -7,10 +7,11 @@ import { getDisplayCurrency } from "@/lib/prefs";
 import { formatMoneyCompact } from "@/lib/currency";
 import { complianceReport } from "@/server/compliance";
 import { loadDutyRates } from "@/server/bom-pipeline";
-import { PageHeader, Section, Stat, EmptyState } from "@/components/data/page-header";
+import { PageHeader, Section, EmptyState } from "@/components/data/page-header";
 import { RiskDot } from "@/components/data/badges";
 import { Button } from "@/components/ui/button";
 import { DutyTableEditor } from "@/components/ops/duty-table-editor";
+import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Compliance" };
 
@@ -33,7 +34,6 @@ export default async function CompliancePage({ searchParams }: { searchParams: P
     <>
       <PageHeader
         title="Compliance & logistics"
-        description="RoHS, REACH, conflict minerals, export classification, country of origin and India HSN duty — per BoM revision."
         actions={
           rev ? (
             <Button asChild variant="outline" className="h-10">
@@ -43,7 +43,7 @@ export default async function CompliancePage({ searchParams }: { searchParams: P
         }
       />
       <form action="/compliance" className="mb-6 flex flex-wrap items-center gap-2">
-        <label htmlFor="rev" className="text-sm text-muted-foreground">BoM revision</label>
+        <label htmlFor="rev" className="sr-only">BoM revision</label>
         <select id="rev" name="rev" defaultValue={rev} className="h-10 min-w-72 rounded-md border bg-card px-3 text-sm">
           {revisions.map((r) => (
             <option key={r.id} value={r.id}>{r.bom.name} rev {r.revision} — {r.bom.project.customer.name}</option>
@@ -54,16 +54,26 @@ export default async function CompliancePage({ searchParams }: { searchParams: P
 
       {report && s ? (
         <>
-          <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
-            <Stat icon={ShieldCheck} label="RoHS compliant" value={`${s.rohsCompliant}/${s.lines}`} hint={`${s.rohsExempt} with exemption · ${s.rohsNon} not compliant · ${s.rohsUnknown} unknown`} />
-            <Stat icon={FlaskConical} tone={s.reachSvhc ? "amber" : "plain"} label="REACH SVHC" value={s.reachSvhc} hint={`${s.reachUnknown} without declaration`} />
-            <Stat icon={Gem} label="Conflict minerals declared" value={`${s.conflictDeclared}/${s.lines}`} hint="CMRT on file from the maker" />
-            <Stat icon={Lock} tone={s.controlled ? "amber" : "plain"} label="Export-controlled" value={s.controlled} hint="Lines with ECCN other than EAR99" />
-            <Stat icon={Landmark} label="Est. customs duty" value={formatMoneyCompact(s.dutyEstimate, currency)} hint="BCD + SWS on imported buys" />
-          </div>
+          <dl className="mb-8 grid grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-3 lg:grid-cols-5">
+            {(
+              [
+                { label: "RoHS compliant", value: `${s.rohsCompliant}/${s.lines}`, note: `${s.rohsExempt} exempt · ${s.rohsNon} not · ${s.rohsUnknown} unknown`, tone: s.rohsNon ? "text-risk-red" : "", title: "With exemption · not compliant · unknown" },
+                { label: "REACH SVHC", value: s.reachSvhc, note: `${s.reachUnknown} without declaration`, tone: s.reachSvhc ? "text-risk-amber" : "", title: undefined },
+                { label: "Conflict minerals declared", value: `${s.conflictDeclared}/${s.lines}`, note: null, tone: "", title: "CMRT on file from the maker" },
+                { label: "Export-controlled", value: s.controlled, note: null, tone: s.controlled ? "text-risk-amber" : "", title: "Lines with ECCN other than EAR99" },
+                { label: "Est. customs duty", value: formatMoneyCompact(s.dutyEstimate, currency), note: null, tone: "", title: "BCD + SWS on imported buys" },
+              ] as const
+            ).map((k) => (
+              <div key={k.label} title={k.title}>
+                <dd className={cn("text-3xl leading-none font-semibold tracking-tight tabular-nums", k.tone)}>{k.value}</dd>
+                <dt className="mt-1.5 text-xs text-muted-foreground">{k.label}</dt>
+                {k.note ? <dd className="num mt-0.5 text-xs text-muted-foreground">{k.note}</dd> : null}
+              </div>
+            ))}
+          </dl>
 
           <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
-            <div className="overflow-hidden rounded-lg border bg-card">
+            <div className="overflow-hidden rounded-xl border bg-card">
               <div className="relative overflow-x-auto">
                 <table className="w-full min-w-[920px] text-sm">
                   <thead className="text-left text-xs text-muted-foreground">
@@ -101,7 +111,7 @@ export default async function CompliancePage({ searchParams }: { searchParams: P
                   </tbody>
                 </table>
               </div>
-              <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">* No HSN match — conservative 10 % assumed. CoC red = at least one planned source (excess/broker) without a certificate of conformance.</p>
+              <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">* No HSN match: 10 % assumed · CoC red: a planned source has no certificate</p>
             </div>
             <aside className="space-y-6">
               <Section title="Country of origin">
@@ -109,7 +119,7 @@ export default async function CompliancePage({ searchParams }: { searchParams: P
                   {s.coo.map(([c, n]) => (
                     <li key={c} className="grid grid-cols-[3rem_1fr_2rem] items-center gap-2">
                       <span className="num">{c}</span>
-                      <span className="h-1.5 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-primary" style={{ width: `${(n / s.lines) * 100}%` }} /></span>
+                      <span className="h-2 overflow-hidden rounded-sm bg-muted"><span className="block h-full bg-primary" style={{ width: `${(n / s.lines) * 100}%` }} /></span>
                       <span className="num text-right text-xs text-muted-foreground">{n}</span>
                     </li>
                   ))}
@@ -126,7 +136,7 @@ export default async function CompliancePage({ searchParams }: { searchParams: P
           </div>
         </>
       ) : (
-        <div className="rounded-lg border bg-card"><EmptyState title="No BoM revisions yet" /></div>
+        <div className="rounded-xl border bg-card"><EmptyState title="No BoM revisions yet" /></div>
       )}
 
       <Section title="HSN duty table (indicative)" className="mt-6">

@@ -22,7 +22,7 @@ export function PageHeader({
   return (
     <div className={cn("flex flex-wrap items-end justify-between gap-x-8 gap-y-5", level === 1 ? "mb-8" : "mb-6", className)}>
       <div className="min-w-0">
-        <Heading className={cn("page-heading leading-tight font-semibold tracking-tight", level === 1 ? "text-[2rem]" : "text-2xl")}>{title}</Heading>
+        <Heading className={cn("page-heading leading-tight font-semibold tracking-tight", level === 1 ? "" : "text-2xl")}>{title}</Heading>
         {eyebrow ? <div className="mt-2 text-xs text-muted-foreground">{eyebrow}</div> : null}
         {description ? <p className="mt-2 max-w-[72ch] text-sm leading-relaxed text-muted-foreground">{description}</p> : null}
       </div>
@@ -46,7 +46,7 @@ const STAT_TONE: Record<StatTone, { chip: string; value: string }> = {
 export function Stat({ label, value, hint, icon: Icon, tone = "plain" }: { label: string; value: React.ReactNode; hint?: React.ReactNode; icon?: LucideIcon; tone?: StatTone }) {
   const t = STAT_TONE[tone];
   return (
-    <div className="relative min-w-0 rounded-lg border bg-card p-5">
+    <div className="relative min-w-0 rounded-xl border bg-card p-5">
       <div className="mb-3 flex items-center justify-between gap-2">
         <span className="text-xs font-medium text-muted-foreground">{label}</span>
         {Icon ? <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden /> : null}

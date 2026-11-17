@@ -13,8 +13,8 @@ export function WoCreateForm({ revisions, lines }: { revisions: { id: string; la
   const [rev, setRev] = useState(revisions[0]?.id ?? "");
   const qty = revisions.find((r) => r.id === rev)?.buildQty ?? 100;
   return (
-    <form action={action} className="space-y-4 rounded-lg border bg-card p-4">
-      <div className="text-sm font-medium">New work order</div>
+    <form action={action} className="space-y-4 self-start rounded-xl border bg-card p-5">
+      <h2 className="text-base font-semibold">New work order</h2>
       <div className="space-y-1.5">
         <Label htmlFor="bomRevisionId">BoM revision</Label>
         <select id="bomRevisionId" name="bomRevisionId" value={rev} onChange={(e) => setRev(e.target.value)} className={field}>

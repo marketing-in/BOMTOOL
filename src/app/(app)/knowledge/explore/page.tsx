@@ -29,9 +29,8 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           </span>
         }
         title="Inside the board and the chip"
-        description="Take a PCB and a chip apart layer by layer: what each layer is, how it is made and what it means for assembly on our lines."
       />
-      <nav aria-label="Explorers" className="mb-5 grid gap-2 sm:grid-cols-3">
+      <nav aria-label="Explorers" className="mb-6 inline-flex max-w-full flex-wrap gap-1 rounded-lg border bg-card p-1">
         {VIEWS.map((v) => {
           const on = v.key === current;
           const Icon = v.icon;
@@ -40,16 +39,14 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
               key={v.key}
               href={`/knowledge/explore?view=${v.key}`}
               aria-current={on ? "page" : undefined}
+              title={v.blurb}
               className={cn(
-                "flex gap-3 rounded-lg border p-3 outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
-                on ? "border-primary/40 bg-primary/8" : "bg-card hover:border-foreground/20",
+                "flex h-10 items-center gap-2 rounded-md px-3.5 text-sm outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
+                on ? "bg-primary font-semibold text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
-              <Icon className={cn("mt-0.5 size-4 shrink-0", on ? "text-primary" : "text-muted-foreground")} aria-hidden />
-              <span className="min-w-0">
-                <span className="block text-sm font-medium">{v.label}</span>
-                <span className="mt-0.5 line-clamp-2 block text-xs text-muted-foreground">{v.blurb}</span>
-              </span>
+              <Icon className="size-4 shrink-0" aria-hidden />
+              {v.label}
             </Link>
           );
         })}

@@ -12,7 +12,7 @@ export function BoardUploadForm({ revisionId }: { revisionId: string }) {
   const [done, setDone] = useState<string | null>(null);
   return (
     <form
-      className="space-y-4 rounded-lg border bg-card p-4"
+      className="space-y-4 rounded-xl border bg-card p-5"
       onSubmit={(e) => {
         e.preventDefault();
         const fd = new FormData();

@@ -14,8 +14,8 @@ export default async function RfqsPage() {
   });
   return (
     <>
-      <PageHeader title="RFQs" description="Requests for quotation and the quotes that came back." />
-      <div className="overflow-hidden rounded-lg border bg-card">
+      <PageHeader title="RFQs" />
+      <div className="overflow-hidden rounded-xl border bg-card">
         {rfqs.length ? (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-sm">

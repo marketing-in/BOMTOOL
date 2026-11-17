@@ -23,13 +23,17 @@ export default async function BoardTypePage({ params }: { params: Promise<{ id: 
   return (
     <>
       <PageHeader eyebrow={<Link href="/directory/board-types" className="hover:text-foreground">Board types · {BOARD_CATEGORY[t.category] ?? t.category}</Link>} title={t.name} description={t.description} />
-      <p className="mb-5 text-sm text-muted-foreground">Examples: {t.examples.join(" · ")}</p>
+      <ul className="mb-6 flex flex-wrap gap-1.5" aria-label="Examples">
+        {t.examples.map((e) => (
+          <li key={e} className="rounded-md border bg-card px-2.5 py-1 text-[13px]">{e}</li>
+        ))}
+      </ul>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-4">
           {t.sections.map((s) => (
-            <section key={s.name} className="rounded-lg border bg-card" aria-label={s.name}>
+            <section key={s.name} className="overflow-hidden rounded-xl border bg-card" aria-label={s.name}>
               <div className="border-b px-4 py-3">
-                <h2 className="text-base font-medium">{s.name}</h2>
+                <h2 className="text-lg font-semibold tracking-tight">{s.name}</h2>
                 <p className="text-xs text-muted-foreground">{s.purpose}</p>
               </div>
               <div className="overflow-x-auto">
@@ -61,20 +65,20 @@ export default async function BoardTypePage({ params }: { params: Promise<{ id: 
           ))}
         </div>
         <aside className="space-y-4">
-          <section className="rounded-lg border bg-card p-4" aria-labelledby="checks">
-            <h2 id="checks" className="text-base font-medium">Review checks</h2>
+          <section className="rounded-xl border bg-card p-4" aria-labelledby="checks">
+            <h2 id="checks" className="text-lg font-semibold tracking-tight">Review checks</h2>
             <ul className="mt-2 space-y-2 text-sm">
               {t.checks.map((c) => (
                 <li key={c} className="flex gap-2"><CheckCircle2 className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />{c}</li>
               ))}
             </ul>
           </section>
-          <section className="rounded-lg border bg-card p-4 text-sm">
+          <section className="rounded-xl border bg-card p-4 text-sm">
             <div className="text-xs text-muted-foreground">How we recognise it</div>
             <p className="mt-1">{t.signals.layers ? `${t.signals.layers[0]}–${t.signals.layers[1]} layers · ` : ""}{t.signals.partCount ? `${t.signals.partCount[0]}–${t.signals.partCount[1]} parts · ` : ""}{t.signals.sizeMm ? `${t.signals.sizeMm[0]}–${t.signals.sizeMm[1]} mm` : ""}</p>
             {t.signals.connectors?.length ? <p className="mt-1 text-muted-foreground">Connectors: {t.signals.connectors.join(", ")}</p> : null}
           </section>
-          <p className="text-xs text-muted-foreground">From circuitflow&apos;s board-type knowledge base (reviewed: {String((t as { reviewed?: boolean }).reviewed ?? false)}).</p>
+          <p className="text-xs text-muted-foreground">Reference data · {(t as { reviewed?: boolean }).reviewed ? "reviewed" : "not reviewed"}</p>
         </aside>
       </div>
     </>
