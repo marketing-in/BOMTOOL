@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "dev:webpack": "next dev",
-    "serve": "tsx scripts/serve.ts",
-    "online": "tsx scripts/online.ts",
+    "dev": "npm run -s db:ensure && next dev --turbopack",
+    "dev:webpack": "npm run -s db:ensure && next dev",
+    "serve": "npm run -s db:ensure && tsx scripts/serve.ts",
+    "online": "npm run -s db:ensure && tsx scripts/online.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -28,7 +28,8 @@
     "vendors:sync": "tsx scripts/vendors-sync.ts",
     "analyse": "tsx --conditions=react-server scripts/analyse.ts",
     "test:site": "npm run db:e2e:setup && playwright test zzz-site-ui",
-    "test:ui:capture": "tsx scripts/ui-review.ts"
+    "test:ui:capture": "tsx scripts/ui-review.ts",
+    "db:ensure": "tsx --env-file-if-exists=.env scripts/db-ensure.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",

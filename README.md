@@ -78,10 +78,13 @@ http://localhost:3000
 ```bash
 cp .env.example .env      # set NEXTAUTH_SECRET
 npm install
-npm run db:local          # terminal 1 — leave running (stop with Ctrl+C or npm run db:local:stop)
-npm run db:setup          # terminal 2 — migrate + seed (first time only)
-npm run serve             # terminal 2 — the app, fast: http://localhost:3000
+npm run serve             # the app, fast: http://localhost:3000
 ```
+
+`serve`, `dev` and `online` start the database themselves (`npm run db:ensure`): the first time they create
+`.pgdata/`, migrate and load the demo data; after that they start the database in the background if it is
+stopped and apply any new migrations. It keeps running after the app stops — `npm run db:local:stop` stops it.
+`npm run db:local` still runs it in the foreground in its own terminal if you prefer that.
 
 Without Redis the price-refresh scheduler runs inside the web server (`JOBS_MODE=inline`) and caches
 in Postgres; with Redis (Docker) it uses BullMQ and the `worker` service.
@@ -158,6 +161,8 @@ imports their Excel/CSV.
 | `npm run serve [-- --port N] [-- --rebuild]` | The app for daily use: production build in `.next-prod` (rebuilt only when the code changed), then `next start` |
 | `npm run online` | Put the app on the internet from this PC: a free Cloudflare quick tunnel to `serve` on port 3001; prints the `https://….trycloudflare.com` address (new on every start). Needs `.tools/cloudflared.exe`; change the demo passwords first. `start-online.cmd` runs the PowerShell launcher in online mode |
 | `npm run dev` / `npm run dev:webpack` | Development server with Turbopack / with webpack |
+| `npm run db:ensure` | Start the local database if it is stopped (create + seed it the first time), then apply pending migrations |
+| `npm run db:local:stop` | Stop the local database |
 | `npm test` | Vitest unit tests (266) |
 | `npm run test:e2e` | Re-seed the e2e database, then Playwright flows on a production build (port 3100; first run: `npx playwright install chromium`) |
 | `npm run db:e2e:setup` | Create (if missing), migrate and re-seed the e2e database `ems_e2e` |
