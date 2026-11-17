@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import Link from "next/link";
 import { Canvas, useThree } from "@react-three/fiber";
-import { ContactShadows, Environment, Html, Lightformer, OrbitControls } from "@react-three/drei";
+import { ContactShadows, Environment, Html, Lightformer, Line, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { AlertTriangle, BookOpen, Box, CircuitBoard, Cpu, FileText, Hand, Layers, Maximize, Minimize, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import { PartPhoto } from "@/components/data/part-photo";
@@ -19,9 +19,10 @@ import { ProductPanel, fitVerdict } from "./product-panel";
 import { RoutePanel } from "./route-panel";
 import { BomListPanel } from "./bom-list-panel";
 import { seg } from "./ui";
-import { compositeTexture, gerberFace, layerTexture, maskColor, specFace, type Face } from "./textures";
-import { boardArtwork, type Artwork } from "@/lib/board/artwork";
+import { maskColor, type Face } from "./textures";
 import type { ViewerData, ViewerPart } from "./types";
+import { BoardStudio, type StudioMode } from "@/vendor/circuitflow/studio/entry";
+import { useBoardTextures, useStudioBoard } from "./board-textures";
 
 /** bare: the finished board with nothing on it · pcb: its layers pulled apart · pcba: assembled · box: in its enclosure. */
 export type Mode = "bare" | "pcb" | "pcba" | "box";
@@ -131,8 +132,6 @@ function Floor({ z, size }: { z: number; size: number }) {
   );
 }
 
-/** Code 39 carries A-Z, 0-9 and - . space: the board's ID for its barcode sticker. */
-const labelText = (data: ViewerData) => (data.product?.partNumber ?? data.title).toUpperCase().replace(/[^A-Z0-9 .\-]/g, "-").slice(0, 18);
 
 const MASK_EDGE: Record<string, string> = { green: "#0f5a2c", black: "#141416", blue: "#113a7a", red: "#7a1616", white: "#e6e6e0" };
 /**
@@ -171,30 +170,6 @@ function edgeTexture(layers: number, mask: string, turned: boolean): THREE.Canva
   return t;
 }
 
-function useBoardTextures(data: ViewerData) {
-  const [tex, setTex] = useState<{ top: Face; bottom: Face; art: Artwork | null; layers: { key: string; type: string; side: string; index?: number; t: THREE.Texture }[] } | null>(null);
-  useEffect(() => {
-    let alive = true;
-    const { width: w, height: h, top, bottom, layers, maskColor: mask, silkColor: silk } = data.board;
-    // Without Gerbers the board's copper, vias and silkscreen are generated from the placed parts.
-    const art = data.board.source === "gerber" ? null : boardArtwork(data.parts.map((p) => ({ refDes: p.refDes, x: p.x, y: p.y, rotation: p.rotation, side: p.side, body: p.body })), { width: w, height: h }, data.title);
-    const spec = (side: "TOP" | "BOTTOM") => specFace(data, side, art ?? boardArtwork([], { width: w, height: h }, data.title), side === "TOP" ? labelText(data) : null);
-    (async () => {
-      const face = async (side: "top" | "bottom", svg: string | null) =>
-        art ? spec(side === "top" ? "TOP" : "BOTTOM") : ((await gerberFace(data, side)) ?? (svg ? await compositeTexture(svg, w, h) : spec(side === "top" ? "TOP" : "BOTTOM")));
-      const [t, b, ls] = await Promise.all([
-        face("top", top),
-        face("bottom", bottom),
-        Promise.all(layers.filter((l) => l.type !== "outline" && l.type !== "drill").map(async (l) => ({ key: l.key, type: l.type, side: l.side, index: l.index, t: await layerTexture(l.svg, l.type, w, h, mask, silk, data.board.origin) }))),
-      ]);
-      if (alive) setTex({ top: t, bottom: b, art, layers: ls });
-    })().catch(() => alive && setTex({ top: spec("TOP"), bottom: spec("BOTTOM"), art, layers: [] }));
-    return () => {
-      alive = false;
-    };
-  }, [data]);
-  return tex;
-}
 
 let CONTACT: THREE.CanvasTexture | null = null;
 /** A dark patch with a feathered edge: rings of faint black, each a little smaller, add up towards the middle. */
@@ -388,21 +363,26 @@ function AssembledBoard({
           position={[p.x, p.y, p.side === "TOP" ? t / 2 : -t / 2]}
           rotation={[p.side === "BOTTOM" ? Math.PI : 0, 0, (p.rotation * Math.PI) / 180]}
         >
-          <PartBody
-            // three caches an opaque shader per material, so fading in and out needs fresh materials
-            key={p.dnp || (focus && !focus.has(p.refDes)) ? "ghost" : "solid"}
-            body={p.body}
-            marking={p.marking ?? p.mpn}
-            color={overlayColor(p, overlay)}
-            // Not fitted: the pads stay empty, so the part is only hinted at.
-            ghost={p.dnp || (!!focus && !focus.has(p.refDes))}
-            emissive={p.refDes === selected ? "#5a2f96" : selectedLine && p.lineId === selectedLine ? "#7b3fb5" : undefined}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(p.refDes);
-            }}
-            onHover={onHover ? (on) => onHover(p.refDes, on) : undefined}
-          />
+          {p.dnp ? (
+            // Not fitted: only its footprint, dashed on the board. No body, solid or see-through.
+            <Footprint w={p.body.length} h={p.body.width} dashed color={p.refDes === selected ? HIGHLIGHT : "#f4f4ee"} />
+          ) : (
+            <>
+              <PartBody
+                body={p.body}
+                marking={p.marking ?? p.mpn}
+                color={overlayColor(p, overlay)}
+                emissive={p.refDes === selected ? "#5a2f96" : selectedLine && p.lineId === selectedLine ? "#7b3fb5" : undefined}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(p.refDes);
+                }}
+                onHover={onHover ? (on) => onHover(p.refDes, on) : undefined}
+              />
+              {/* The picked process step's parts: a yellow ring on the board around each. Everything stays solid. */}
+              {focus?.has(p.refDes) ? <Footprint w={p.body.length + 1.2} h={p.body.width + 1.2} color={HIGHLIGHT} /> : null}
+            </>
+          )}
         </group>
       ))}
       {bare ? null : tex.art?.holes.map((hole, i) => <Screw key={i} x={hole.x} y={hole.y} z={t / 2} />)}
@@ -420,8 +400,20 @@ function AssembledBoard({
   );
 }
 
+const HIGHLIGHT = "#f7c61b";
+
+/** A rectangle on the board face around a footprint: dashed for a part that is not fitted, solid yellow for focus. */
+function Footprint({ w, h, color, dashed = false }: { w: number; h: number; color: string; dashed?: boolean }) {
+  const pts = useMemo(() => {
+    const x = Math.max(0.3, w) / 2;
+    const y = Math.max(0.3, h) / 2;
+    return [[-x, -y, 0.04], [x, -y, 0.04], [x, y, 0.04], [-x, y, 0.04], [-x, -y, 0.04]] as [number, number, number][];
+  }, [w, h]);
+  return <Line points={pts} color={color} lineWidth={dashed ? 1.2 : 2} dashed={dashed} dashSize={0.5} gapSize={0.35} />;
+}
+
 /** The card beside the part under the cursor: what it is and whether we hold it. */
-function HoverCard({ part: p, quick }: { part: ViewerPart; quick: boolean }) {
+function HoverCard({ part: p, quick, className = "ml-4 w-56 -translate-y-1/2" }: { part: ViewerPart; quick: boolean; className?: string }) {
   const ours = p.supply?.ours ?? 0;
   const stock = p.dnp
     ? { dot: "bg-muted-foreground", text: "Not fitted (DNP)" }
@@ -435,7 +427,7 @@ function HoverCard({ part: p, quick }: { part: ViewerPart; quick: boolean }) {
             ? { dot: "bg-risk-amber", text: `${ours.toLocaleString("en-IN")} in stock · need ${p.required.toLocaleString("en-IN")}` }
             : { dot: "bg-risk-amber", text: "Not in our stock" };
   return (
-    <div className="ml-4 w-56 -translate-y-1/2 rounded-lg border bg-card/95 p-2.5 text-xs backdrop-blur">
+    <div className={cn("rounded-lg border bg-card/95 p-2.5 text-xs backdrop-blur", className)}>
       <div className="flex items-center gap-1.5">
         <span className="num rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold">{p.refDes}</span>
         <span className="truncate text-muted-foreground">{p.kind?.name ?? p.pkg ?? "Component"}</span>
@@ -538,6 +530,10 @@ export default function BoardViewer({
     else void stage.current?.requestFullscreen?.().catch(() => {});
   };
   const tex = useBoardTextures(data);
+  const studio = useStudioBoard(data, tex);
+  const [studioMode, setStudioMode] = useState<StudioMode>("3D");
+  /** The assembled board is drawn by the circuitflow studio; bare board, layers and box stay on the scene below. */
+  const usesStudio = mode === "pcba";
   const stack = useMemo(() => (tex ? buildStack(data, tex) : []), [data, tex]);
   const sel = data.parts.find((p) => p.refDes === selected) ?? null;
   const size = Math.max(data.board.width, data.board.height, data.enclosure && mode === "box" ? data.enclosure.length : 0);
@@ -561,6 +557,17 @@ export default function BoardViewer({
     return -data.board.thickness / 2 - under - 4;
   }, [boxed, mode, shell, data, stack.length, explode]);
   const verdict = boxed ? fitVerdict(data) : null;
+  const tint = useMemo(() => {
+    if (overlay === "real") return null;
+    const out: Record<string, string> = {};
+    for (const p of data.parts) {
+      const c = overlayColor(p, overlay);
+      if (c) out[p.refDes] = c;
+    }
+    return out;
+  }, [data.parts, overlay]);
+  const related = useMemo(() => (sel?.lineId ? data.parts.filter((p) => p.lineId === sel.lineId).map((p) => p.refDes) : null), [data.parts, sel?.lineId]);
+  const focusRefs = useMemo(() => (focus ? [...focus] : null), [focus]);
   const counts = useMemo(() => {
     const c = { green: 0, amber: 0, red: 0, grey: 0 } as Record<RiskLevel, number>;
     for (const p of data.parts) c[p.partId ? scoreToRisk(p.worst) : p.dnp ? "grey" : "red"]++;
@@ -570,7 +577,32 @@ export default function BoardViewer({
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
       <div ref={stage} className="viewer-grid relative h-[66dvh] min-h-[440px] overflow-hidden rounded-xl border [&:fullscreen]:h-dvh [&:fullscreen]:rounded-none [&:fullscreen]:border-0">
-        {/* Renders only when something changes, so a still board costs nothing on a tablet. */}
+        {usesStudio ? (
+          studio ? (
+            <div className="absolute inset-0">
+              <BoardStudio
+                board={studio.board}
+                parts={studio.parts}
+                mode={studioMode}
+                selected={selected}
+                related={related}
+                tint={tint}
+                focus={focusRefs}
+                bottom={view === "bottom"}
+                onSelect={(p) => setSelected(p?.ref ?? null)}
+                renderTip={(p) => {
+                  const vp = data.parts.find((x) => x.refDes === p.ref);
+                  return vp ? <HoverCard part={vp} quick={!data.revisionId} className="w-56" /> : null;
+                }}
+                onToggleFull={toggleFull}
+                full={full}
+              />
+            </div>
+          ) : (
+            <div className="grid h-full place-items-center text-sm text-muted-foreground">Rendering board…</div>
+          )
+        ) : (
+        /* Renders only when something changes, so a still board costs nothing on a tablet. */
         <Canvas frameloop="demand" shadows="soft" dpr={[1, 2]} camera={{ fov: 32, near: 0.5, far: 5000 }} onPointerMissed={() => setSelected(null)} onPointerLeave={() => setHovered(null)} aria-label="3D board view">
           <CameraRig view={view} nonce={nonce} {...fit} />
           <ViewTools api={api} minDistance={Math.min(10, size * 0.35)} maxDistance={size * 6} />
@@ -605,6 +637,7 @@ export default function BoardViewer({
           )}
           <OrbitControls makeDefault enableDamping={!reduced.current} dampingFactor={0.12} minDistance={Math.min(10, size * 0.35)} maxDistance={size * 6} />
         </Canvas>
+        )}
 
         <div className="pointer-events-none absolute inset-x-3 top-3 flex flex-wrap items-start justify-between gap-2">
           <div role="radiogroup" aria-label="View mode" className="pointer-events-auto inline-flex rounded-md border bg-muted/90 p-0.5 backdrop-blur">
@@ -621,15 +654,33 @@ export default function BoardViewer({
               <Box className="size-4" /> Box-build
             </button>
           </div>
-          {/* which view is on, like a CAD tool's view chip */}
-          <span className="inline-flex h-7 items-center gap-1.5 rounded-md border bg-card/90 px-2.5 text-xs font-medium text-muted-foreground backdrop-blur">
-            <span className="size-1.5 rounded-full bg-risk-green" aria-hidden />
-            {mode === "pcb" ? "Layers separated" : VIEW_LABEL[view]}
-            {panning ? " · pan" : ""}
-          </span>
+          {usesStudio ? (
+            <div role="group" aria-label="Drawing" className="pointer-events-auto inline-flex rounded-md border bg-card p-0.5 text-xs">
+              {(["3D", "2D"] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setStudioMode(v)}
+                  aria-pressed={studioMode === v}
+                  title={v === "3D" ? "Turn the board in 3D" : "Flat drawing from above"}
+                  className={cn("h-7 rounded px-2.5 font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring", studioMode === v ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          ) : (
+            /* which view is on, like a CAD tool's view chip */
+            <span className="inline-flex h-7 items-center gap-1.5 rounded-md border bg-card/90 px-2.5 text-xs font-medium text-muted-foreground backdrop-blur">
+              <span className="size-1.5 rounded-full bg-risk-green" aria-hidden />
+              {mode === "pcb" ? "Layers separated" : VIEW_LABEL[view]}
+              {panning ? " · pan" : ""}
+            </span>
+          )}
         </div>
 
-        {/* Floating toolbar, right edge: full screen, zoom, reset, pan. */}
+        {/* Floating toolbar, right edge: full screen, zoom, reset, pan. The studio has its own. */}
+        {usesStudio ? null : (
         <div role="toolbar" aria-label="View tools" aria-orientation="vertical" className="absolute top-1/2 right-3 flex -translate-y-1/2 flex-col gap-0.5 rounded-lg border bg-card/95 p-1 backdrop-blur">
           {(
             [
@@ -656,12 +707,14 @@ export default function BoardViewer({
             </button>
           ))}
         </div>
+        )}
 
         {data.approximateLayout && mode !== "pcb" ? (
           <p className="pointer-events-none absolute top-16 left-3 max-w-[calc(100%-5rem)] rounded-md border bg-card/90 px-2.5 py-1.5 text-xs text-muted-foreground backdrop-blur">
             Approximate layout — no pick-and-place file
           </p>
         ) : null}
+        {usesStudio ? null : (
         <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-end justify-between gap-2">
           <p className="hidden min-w-0 truncate pb-2 text-xs text-muted-foreground sm:block">{panning ? "Drag to pan" : "Drag to orbit"} · Scroll to zoom · {mode === "pcb" || mode === "bare" ? "Right-drag to pan" : "Click to inspect"}</p>
           <div role="radiogroup" aria-label="Camera" className="pointer-events-auto ml-auto inline-flex shrink-0 rounded-md border bg-card/95 p-0.5 backdrop-blur">
@@ -672,6 +725,7 @@ export default function BoardViewer({
             ))}
           </div>
         </div>
+        )}
         {verdict && !verdict.ok ? (
           <p className="absolute top-14 right-16 flex max-w-[calc(100%-6rem)] items-center gap-1.5 rounded-md border border-risk-red/40 bg-risk-red-soft px-2.5 py-1.5 text-xs">
             <AlertTriangle className="size-3.5 shrink-0 text-risk-red" /> {verdict.text}

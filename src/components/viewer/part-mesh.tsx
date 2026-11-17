@@ -69,7 +69,6 @@ export function PartBody({
   color,
   emissive,
   marking,
-  ghost = false,
   onClick,
   onHover,
 }: {
@@ -78,13 +77,10 @@ export function PartBody({
   emissive?: string;
   /** Text printed on the top of ICs (usually the MPN); hidden under a risk overlay. */
   marking?: string | null;
-  /** Fades the part to a see-through outline, so other parts stand out. */
-  ghost?: boolean;
   onClick?: (e: ThreeEvent<MouseEvent>) => void;
   onHover?: (on: boolean) => void;
 }) {
   const [hover, setHover] = useState(false);
-  const fade = ghost ? { transparent: true, opacity: 0.16, depthWrite: false } : null;
   const c = color ?? body.color;
   const em = emissive ?? (hover ? "#3a2a4a" : "#000");
   const L = Math.max(0.3, body.length);
@@ -152,14 +148,14 @@ export function PartBody({
   }, [body, L, W, H]);
   // One material for every lead of the part: a QFP-100 has 300 lead pieces.
   const leadMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: body.kind === "leadless" ? GOLD : "#dfe2e6", metalness: 0.7, roughness: 0.3, ...(ghost ? { transparent: true, opacity: 0.16, depthWrite: false } : {}) }),
-    [body.kind, ghost],
+    () => new THREE.MeshStandardMaterial({ color: body.kind === "leadless" ? GOLD : "#dfe2e6", metalness: 0.7, roughness: 0.3 }),
+    [body.kind],
   );
 
   if (body.shape) {
-    const shaped = ShapedBody({ body, look: { c, em, fade, tinted: !!color } });
+    const shaped = ShapedBody({ body, look: { c, em, fade: null, tinted: !!color } });
     // DIP chips still get their marking, like any other IC.
-    const dipMark = body.shape === "dip" && marking && !color && !ghost ? markingTexture(marking) : null;
+    const dipMark = body.shape === "dip" && marking && !color ? markingTexture(marking) : null;
     if (shaped)
       return (
         <group {...handlers}>
@@ -180,21 +176,21 @@ export function PartBody({
       <group {...handlers}>
         <mesh position={[0, 0, H / 2]} rotation={[Math.PI / 2, 0, 0]} castShadow>
           <cylinderGeometry args={[r, r, H, 32]} />
-          <meshStandardMaterial color={c} emissive={em} metalness={0.3} roughness={0.5} {...fade} />
+          <meshStandardMaterial color={c} emissive={em} metalness={0.3} roughness={0.5} />
         </mesh>
         <mesh position={[0, 0, H + 0.01]}>
           <circleGeometry args={[r * 0.92, 32]} />
-          <meshStandardMaterial color="#d6d8dc" metalness={0.8} roughness={0.3} {...fade} />
+          <meshStandardMaterial color="#d6d8dc" metalness={0.8} roughness={0.3} />
         </mesh>
         {/* The polarity mark printed across one side of the top. */}
         <mesh position={[0, 0, H + 0.02]}>
           <circleGeometry args={[r * 0.92, 24, Math.PI * 0.62, Math.PI * 0.76]} />
-          <meshStandardMaterial color="#17181b" roughness={0.6} {...fade} />
+          <meshStandardMaterial color="#17181b" roughness={0.6} />
         </mesh>
         {body.shape ? null : (
           <mesh position={[0, 0, 0.25]} castShadow>
             <boxGeometry args={[L, W, 0.5]} />
-            <meshStandardMaterial color="#1b1c1f" roughness={0.7} {...fade} />
+            <meshStandardMaterial color="#1b1c1f" roughness={0.7} />
           </mesh>
         )}
       </group>
@@ -205,7 +201,7 @@ export function PartBody({
   const topZ = H + (body.kind === "leadless" ? 0.05 : 0);
   // Chip resistors from 0603 up carry their value code between the end caps.
   const chipMark = body.kind === "chip" && L >= 1.5 && body.color === RES_BLACK;
-  const mark = marking && !color && !ghost && ((MARKED.includes(body.kind) && L >= 1.8 && W >= 1.2) || chipMark) ? markingTexture(marking) : null;
+  const mark = marking && !color && ((MARKED.includes(body.kind) && L >= 1.8 && W >= 1.2) || chipMark) ? markingTexture(marking) : null;
   // Keep the canvas aspect so text is never stretched; shrink to fit narrow bodies.
   let markW = L * (chipMark ? 0.55 : 0.8);
   let markH = markW / MARK_ASPECT;
@@ -225,35 +221,35 @@ export function PartBody({
       {body.kind === "array" ? (
         <mesh position={[0, 0, 0.25]}>
           <boxGeometry args={[L, W, 0.3]} />
-          <meshStandardMaterial color="#1d3b26" {...fade} />
+          <meshStandardMaterial color="#1d3b26" />
         </mesh>
       ) : null}
       {body.kind === "module" ? (
         <mesh position={[0, 0, 0.4]}>
           <boxGeometry args={[L, W, 0.8]} />
-          <meshStandardMaterial color="#1f4f2f" {...fade} />
+          <meshStandardMaterial color="#1f4f2f" />
         </mesh>
       ) : null}
       {moulded ? (
         // A moulded IC body has eased edges: they catch the light the way the real package does.
         <RoundedBox args={[L, W, bodyH]} radius={Math.min(0.14, bodyH * 0.22, Math.min(L, W) * 0.1)} smoothness={3} position={[0, 0, body.kind === "array" ? 0.4 + bodyH / 2 : bodyZ]} castShadow>
-          <meshStandardMaterial color={c} emissive={em} metalness={0.05} roughness={0.55} {...fade} />
+          <meshStandardMaterial color={c} emissive={em} metalness={0.05} roughness={0.55} />
         </RoundedBox>
       ) : body.kind === "chip" && Math.min(W, H) >= 0.4 ? (
         // A chip part is fired ceramic: eased edges, a slight sheen.
         <RoundedBox args={[bodyL, W, H]} radius={Math.min(0.08, H * 0.18, W * 0.12)} smoothness={2} position={[0, 0, bodyZ]} castShadow>
-          <meshStandardMaterial color={c} emissive={em} metalness={0.05} roughness={0.5} {...fade} />
+          <meshStandardMaterial color={c} emissive={em} metalness={0.05} roughness={0.5} />
         </RoundedBox>
       ) : (
         <mesh position={[0, 0, body.kind === "module" ? 0.8 + (H - 0.8) / 2 : bodyZ]} castShadow>
           <boxGeometry args={[body.kind === "module" ? L * 0.92 : bodyL, body.kind === "module" ? W * 0.75 : W, body.kind === "module" ? Math.max(0.5, H - 0.8) : H]} />
-          <meshStandardMaterial color={c} emissive={em} metalness={metallic ? 0.6 : 0.05} roughness={metallic ? 0.32 : 0.6} {...fade} />
+          <meshStandardMaterial color={c} emissive={em} metalness={metallic ? 0.6 : 0.05} roughness={metallic ? 0.32 : 0.6} />
         </mesh>
       )}
       {fillet
         ? [-1, 1].map((s) => (
             <mesh key={`solder${s}`} geometry={wedge()} position={[(s * L) / 2, 0, 0]} rotation={[0, 0, s === 1 ? 0 : Math.PI]} scale={[fillet.reach, fillet.wide, fillet.high]}>
-              <meshStandardMaterial color="#d3d6da" metalness={0.92} roughness={0.2} {...fade} />
+              <meshStandardMaterial color="#d3d6da" metalness={0.92} roughness={0.2} />
             </mesh>
           ))
         : null}
@@ -262,7 +258,7 @@ export function PartBody({
             // The termination wraps round the end of the body: a touch wider and taller than the ceramic.
             <mesh key={s} position={[(s * (L - L * 0.16)) / 2, 0, H / 2]} castShadow>
               <boxGeometry args={[L * 0.16, W * 1.03, H * 1.04]} />
-              <meshStandardMaterial color="#d9dcdf" metalness={0.85} roughness={0.28} {...fade} />
+              <meshStandardMaterial color="#d9dcdf" metalness={0.85} roughness={0.28} />
             </mesh>
           ))
         : null}
@@ -270,20 +266,20 @@ export function PartBody({
         ? [-1, 1].map((s) => (
             <mesh key={s} position={[(s * L) / 2, 0, 0.1]}>
               <boxGeometry args={[0.3, W * 0.6, 0.2]} />
-              <meshStandardMaterial color={METAL} metalness={0.9} roughness={0.3} {...fade} />
+              <meshStandardMaterial color={METAL} metalness={0.9} roughness={0.3} />
             </mesh>
           ))
         : null}
       {body.kind === "power" ? (
         <mesh position={[0, W / 2 + 1.2, 0.5]}>
           <boxGeometry args={[L * 0.85, 2.4, 1]} />
-          <meshStandardMaterial color={METAL} metalness={0.9} roughness={0.3} {...fade} />
+          <meshStandardMaterial color={METAL} metalness={0.9} roughness={0.3} />
         </mesh>
       ) : null}
       {body.kind === "connector" ? (
         <mesh position={[0, -W / 2 + 0.01, H * 0.55]}>
           <boxGeometry args={[L * 0.8, 0.05, H * 0.5]} />
-          <meshStandardMaterial color="#222" {...fade} />
+          <meshStandardMaterial color="#222" />
         </mesh>
       ) : null}
       {mark ? (

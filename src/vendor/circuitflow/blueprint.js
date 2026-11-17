@@ -78,6 +78,50 @@ export function packageSize(pkg='',type='other'){
  return {chip:[5,5,1.2,'dual','box'],transistor:[1.3,2.9,1,'dual','box'],diode:[2.7,1.6,1.1,'ends','box'],led:[1.6,.8,.6,'ends','box'],capacitor:[1.6,.8,.8,'ends','box'],resistor:[1.6,.8,.45,'ends','box'],inductor:[3,3,1.5,'ends','box'],connector:[6,4,5,'none','box'],crystal:[5,3.2,1,'none','box'],switch:[6,6,3.5,'none','box'],fuse:[3.2,1.6,.6,'ends','box'],module:[16,20,3,'none','box'],other:[3,3,1.5,'none','box']}[type]||[3,3,1.5,'none','box'];
 }
 
+// Capacitor bodies at their real size. Ceramic chips keep their case code; electrolytics, tantalums and
+// film capacitors are sized from the footprint name when it carries dimensions, else from capacitance ×
+// voltage (the can grows with the stored charge): radial cans, SMD (V-chip) cans, snap-in cans above
+// about 120 000 µF·V, tantalum cases A–E and film boxes by lead pitch. Returns null for ceramic chips.
+const RADIAL=[[4,7,250],[5,11,800],[6.3,11,1600],[8,11.5,3300],[10,12.5,6000],[10,16,10000],[10,20,14000],[12.5,20,25000],[12.5,25,33000],[16,25,56000],[16,31.5,80000],[18,35.5,120000]];
+const SNAP_IN=[[22,30,200000],[25,40,330000],[30,45,560000],[35,50,Infinity]];
+const SMD_CAN=[[4,5.4,200],[5,5.4,400],[6.3,5.4,700],[6.3,7.7,1200],[8,10,3000],[10,10,6000],[12.5,13.5,12000],[16,16.5,Infinity]];
+const TANTALUM={A:[3.2,1.6,1.6],B:[3.5,2.8,1.9],C:[6,3.2,2.5],D:[7.3,4.3,2.8],E:[7.3,4.3,4.1]};
+const FILM=[[5,7.2,3.5,7],[7.5,10,4,9],[10,13,5,11],[15,18,6,12],[22.5,26.5,8.5,17],[27.5,31.5,11,21]];
+export function capacitance(text=''){
+ const t=String(text).replace(/µ|μ/g,'u');const short=t.match(/(\d+)([pnum])(\d+)/i);
+ const m=short?[0,short[1]+'.'+short[3],short[2]]:t.match(/(\d+(?:\.\d+)?)\s*([pnum])F?(?![a-z])/i);if(!m)return null;
+ return +m[1]*{p:1e-6,n:1e-3,u:1,m:1000}[m[2].toLowerCase()];
+}
+export const ratedVolts=(text='')=>{const m=String(text).match(/(\d+(?:\.\d+)?)\s*V(?:DC)?\b/i);return m?+m[1]:null};
+export function capacitorSize({package:pkg='',value='',mpn=''}={}){
+ const P=String(pkg).toUpperCase().replace(/^.*?:/,'').replace(/[_:,]/g,' '),text=value+' '+mpn,uF=capacitance(value)??capacitance(mpn),V=ratedVolts(text)||ratedVolts(P)||25,cv=(uF||0)*V;
+ const pick=(rows,cvMax)=>rows.find(r=>cvMax<=r[2])||rows[rows.length-1];
+ if(/TANT|\bCP?T\b|CASE[ -]?[A-E]\b/.test(P)||/^(T49\d|TAJ|TPS|T520|TCJ|F93)/i.test(mpn)){
+  const c=(P.match(/CASE[ -]?([A-E])\b/)||[])[1]||{3216:'A',3528:'B',6032:'C',7343:'D'}[(P.match(/\b(3216|3528|6032|7343)\b/)||[])[1]]||(cv<=50?'A':cv<=150?'B':cv<=400?'C':cv<=1000?'D':'E');
+  const [w,d,h]=TANTALUM[c];return {w,d,h,leads:'ends',shape:'box',body:'tantalum'};
+ }
+ if(/FILM|MKP|MKT|\bX[12]\b|\bY[12]\b|\bBOX\b|\bPET\b|POLYPROP/.test(P+' '+String(value).toUpperCase())){
+  const pitch=+(P.match(/\bP(\d+(?:\.\d+)?)/)||[])[1]||(uF>=2.2?15:uF>=.47?10:7.5);const [,w,d,h]=FILM.reduce((a,r)=>Math.abs(r[0]-pitch)<Math.abs(a[0]-pitch)?r:a);
+  return {w,d,h,leads:'none',shape:'box',body:'film'};
+ }
+ const chip=Object.keys(IMPERIAL).some(code=>new RegExp('(?:^|[^0-9])'+code+'(?![0-9])').test(P))||/\d{4}METRIC/.test(P);
+ if(chip||/X[57]R|C0G|NP0|MLCC|CERAMIC/i.test(text+' '+P))return null;
+ const polar=/RADIAL|ELEC|\bCP\b|CPOL|POLAR|ELKO|\bCAN\b|SNAP|ALU|V-?CHIP|\bCE\b/.test(P)||(!P.trim()||/^(CAP|C|SMD|THT)?$/.test(P.trim()))&&uF>=10;
+ if(!polar)return null;
+ const dims=P.match(/\bD(\d+(?:\.\d+)?)\s?(?:MM)?(?:[ X-]*L?(\d+(?:\.\d+)?))?/)||P.match(/(\d+(?:\.\d+)?)X(\d+(?:\.\d+)?)/);
+ const smd=/SMD|SMT|V-?CHIP|ELEC[ -]?\d/.test(P)&&!/RADIAL|THT/.test(P),snap=/SNAP/.test(P)||(!smd&&cv>120000);
+ const rows=smd?SMD_CAN:snap?SNAP_IN:RADIAL;
+ let D,L;if(dims&&+dims[1]>=3&&+dims[1]<=40){D=+dims[1];L=dims[2]&&+dims[2]>=3?+dims[2]:(rows.filter(r=>r[0]===D).find(r=>cv<=r[2])||rows.filter(r=>r[0]<=D).pop()||[D,D*1.6])[1]}
+ else [D,L]=pick(rows,cv);
+ return {w:D,d:D,h:L,leads:'none',shape:'cyl',body:smd?'smd-electrolytic':snap?'snap-in':'electrolytic'};
+}
+
+// Parts saved before capacitor bodies existed get them on load (sizes from the same rules as makePart).
+export function upgradePart(p){
+ if(p.type!=='capacitor'||p.body)return p;const cap=capacitorSize(p);if(!cap)return p;
+ return {...p,body:cap.body,w:p.pads?p.w:cap.w,d:p.pads?p.d:cap.d,h:cap.h,shape:cap.shape,leads:p.pads?p.leads:cap.leads};
+}
+
 // Synthetic pads for boards without copper data (centroid files, spreadsheets). Local coordinates.
 export function partPads(part){
  if(part.pads)return part.pads;const {w,d,leads,type}=part;const pads=[];
@@ -93,12 +137,29 @@ export function partPads(part){
 const normSide=v=>/^(b|bot|bottom|back|bottomlayer|b\.cu|bottom layer|bottom side)$/i.test(String(v).trim())?'bottom':'top';
 const cleanText=v=>String(v??'').replace(/[\u0000-\u001f]/g,'').trim().slice(0,120);
 
+// A value that is really a manufacturer part number (KiCad and Eagle exports often put "STM32F407VGT6",
+// "SS14" or "BSS138" in the Value field). Passive values (10k, 4K7, 100nF, 2.2uH, 16MHz, 3.3V, 1%) and
+// bare package names stay values.
+const PASSIVE=/^[\d.,]+\s*(p|n|u|µ|m|k|K|M|G|R|Ω)?\s*(F|H|Ω|R|ohms?|Hz|V|A|W|%)?(\s*[\/±].*)?$|^\d+[RKMrkm]\d+$|^\d+(\.\d+)?\s*(mhz|khz|ghz|hz|v|mv|a|ma|w|mw|ppm)\b/i;
+const NOT_MPN=/^(dnp|dnf|nc|n\/?c|led|res|cap|ind|diode|fuse|crystal|xtal|conn|header|jumper|testpoint|tp|logo|mounting.?hole|fiducial|net.?tie|sw|button|switch|relay|buzzer|speaker|mic|antenna|battery)\b/i;
+export function looksLikeMpn(v){
+ const s=String(v||'').trim();if(s.length<4||s.length>40||/\s{2,}/.test(s))return false;
+ if(!/[A-Za-z]/.test(s)||!/\d/.test(s)||PASSIVE.test(s)||NOT_MPN.test(s))return false;
+ // KiCad / Eagle library symbol names (Conn_01x04, R_Small, USB_C_Receptacle) are not part numbers.
+ if(/^(conn|r|c|l|d|q|u|led|sw|usb|jack|screw|pin|header|mounting|crystal|fuse|ferrite|polyfuse|battery|test)_/i.test(s))return false;
+ if(/^(0201|0402|0603|0805|1206|1210|1812|2010|2512|sot|soic|sod|qfn|qfp|lqfp|tqfp|bga|dip|tssop|msop|dfn|to-?\d|sma|smb|smc|do-?\d)/i.test(s))return false;
+ if(/\s/.test(s)&&!/^[A-Z0-9][A-Z0-9\-\/.#+]*\s[A-Z0-9\-\/.#+]+$/i.test(s))return false;
+ return true;
+}
 export function makePart(raw){
- const ref=cleanText(raw.ref),pkg=cleanText(raw.package),value=cleanText(raw.value),mpn=cleanText(raw.mpn);
+ const ref=cleanText(raw.ref),pkg=cleanText(raw.package),value=cleanText(raw.value),mpn=cleanText(raw.mpn)||(looksLikeMpn(cleanText(raw.value))?cleanText(raw.value):'');
  const type=raw.type||inferType(ref,pkg,value);
- const [pw,pd,ph,pleads,pshape]=packageSize(pkg,type);
- const w=raw.w>0?raw.w:pw,d=raw.d>0?raw.d:pd,h=raw.h>0?raw.h:ph,leads=raw.leads||pleads,shape=raw.shape||pshape;
- return {ref,value,mpn,package:pkg,type,x:r3(raw.x||0),y:r3(raw.y||0),rot:r3(((raw.rot||0)%360+360)%360),side:raw.side||'top',w:r3(Math.max(.3,w)),d:r3(Math.max(.3,d)),h:r3(Math.max(.15,h)),leads,shape,pads:raw.pads&&raw.pads.length?raw.pads:null};
+ let [pw,pd,ph,pleads,pshape]=packageSize(pkg,type);
+ // Capacitors: the real body (a 1000 µF can is big, a 100 nF chip is small). Footprint geometry from
+ // copper keeps its width and depth; the body type and height still come from the capacitor.
+ const cap=type==='capacitor'?capacitorSize({package:pkg,value,mpn}):null;if(cap){pw=cap.w;pd=cap.d;ph=cap.h;pleads=cap.leads;pshape=cap.shape}
+ const w=raw.w>0?raw.w:pw,d=raw.d>0?raw.d:pd,h=cap?ph:raw.h>0?raw.h:ph,leads=raw.leads||pleads,shape=cap?cap.shape:raw.shape||pshape;
+ return {...(cap?{body:cap.body}:{}),ref,value,mpn,package:pkg,type,x:r3(raw.x||0),y:r3(raw.y||0),rot:r3(((raw.rot||0)%360+360)%360),side:raw.side||'top',w:r3(Math.max(.3,w)),d:r3(Math.max(.3,d)),h:r3(Math.max(.15,h)),leads,shape,pads:raw.pads&&raw.pads.length?raw.pads:null};
 }
 
 function finish(board){
@@ -289,4 +350,5 @@ export function parseBlueprint(text,fileName=''){
  if(/\.kicad_pcb$/i.test(fileName)||/^\s*\(kicad_pcb/.test(String(text).slice(0,200)))return parseKicadPcb(text,fileName);
  return parsePlacementText(text,fileName);
 }
-export const displayName=part=>part.inv?.mpn||part.mpn||part.value||part.package||'Unnamed part';
+// A part without a part number or value is named by what it is: "Resistor · 0805", "Integrated circuit · SOIC-8".
+export const displayName=part=>part.inv?.mpn||part.mpn||part.value||(part.package?`${part.typeLabel||(TYPE_LABELS[part.type]&&part.type!=='other'?TYPE_LABELS[part.type]:'Component')} · ${part.package}`:part.typeLabel||(part.type&&part.type!=='other'?TYPE_LABELS[part.type]:'Unnamed part'));

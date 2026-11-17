@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Box, ChevronDown, Files, Upload } from "lucide-react";
+import { Box, ChevronDown, Files, Layers, Upload } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { boardStackFor } from "@/server/board-thumb";
@@ -11,6 +11,9 @@ import { RemoveBoardFilesButton } from "@/components/bom/delete-controls";
 import { BoardExploded } from "@/components/viz/board-exploded";
 import { Fold } from "@/components/viz/fold";
 import { Figures } from "@/components/bom/figures";
+import { StudioLoader } from "@/components/viewer/studio-loader";
+import { getViewerData } from "@/server/board-view";
+import { getDisplayCurrency } from "@/lib/prefs";
 
 
 /**
@@ -30,7 +33,7 @@ export default async function GerbersSection({ id }: { id: string }) {
   const gerbers = rev.board?.source === "gerber";
   const placements = rev._count.placements;
   const uploaded = gerbers || placements > 0;
-  const stack = uploaded ? await boardStackFor(id).catch(() => null) : null;
+  const [stack, viewer] = uploaded ? await Promise.all([boardStackFor(id).catch(() => null), getDisplayCurrency().then((c) => getViewerData(id, c)).catch(() => null)]) : [null, null];
 
   const onFile = (
     <ul className="space-y-2 text-sm" aria-label="On file">
@@ -88,10 +91,17 @@ export default async function GerbersSection({ id }: { id: string }) {
               },
             ]}
           />
+          {viewer ? (
+            <section aria-label="The assembled board">
+              <StudioLoader data={viewer} />
+            </section>
+          ) : null}
           {stack ? (
-            <figure className="rounded-xl border bg-card p-4 sm:p-6" title={stack.gerbers ? "Each sheet is the customer's own layer drawing. Thicknesses are drawn larger than life." : "No Gerbers yet: the sheets are drawn from the layer count on file."}>
-              <BoardExploded revisionId={id} stack={stack} label="The board pulled apart, top to bottom" className="mx-auto max-w-3xl" />
-            </figure>
+            <Fold icon={Layers} title="Layers" note={stack.gerbers ? "The customer's own layer drawings, pulled apart" : "Drawn from the layer count on file"} open={!viewer}>
+              <figure className="p-4 sm:p-6" title={stack.gerbers ? "Each sheet is the customer's own layer drawing. Thicknesses are drawn larger than life." : "No Gerbers yet: the sheets are drawn from the layer count on file."}>
+                <BoardExploded revisionId={id} stack={stack} label="The board pulled apart, top to bottom" className="mx-auto max-w-3xl" />
+              </figure>
+            </Fold>
           ) : null}
           {onFile}
           {fileList}
