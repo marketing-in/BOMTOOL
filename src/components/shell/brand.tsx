@@ -1,8 +1,9 @@
 import Image from "next/image";
 
 /**
- * The ThinkSemi logo above the product name. `onDark` is for the royal-blue sidebar, which is dark in both themes;
- * elsewhere the blue mark shows on light surfaces and the white one in dark mode.
+ * The ThinkSemi logo above the product name. `onDark` is for a panel that is dark in both themes (the login panel);
+ * elsewhere the ink logo shows on light surfaces and the light one in dark mode. The mark's three strokes wear the
+ * part colours (BoM pink, Factory orange, Engineering purple); no blue, at the user's request (2026-11-17).
  * The SVGs in /public/brand are redrawn from the logo artwork; replace them with the official files when to hand.
  */
 export function Brand({ onDark = false }: { onDark?: boolean }) {
