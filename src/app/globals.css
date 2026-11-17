@@ -18,8 +18,15 @@
   --color-cover-3: var(--cover-3);
   --color-cover-4: var(--cover-4);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-open-sans);
-  --font-display: var(--font-open-sans);
+  --color-part: var(--part);
+  --color-part-soft: var(--part-soft);
+  --color-highlight: var(--highlight);
+  --color-part-bom: var(--part-bom);
+  --color-part-engineering: var(--part-engineering);
+  --color-part-supply: var(--part-supply);
+  --color-part-factory: var(--part-factory);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display-face);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -60,139 +67,149 @@
 }
 
 :root {
-  /* ThinkSemi: navy shell, white working surfaces, cobalt actions and yellow selection. */
-  --radius: 0.75rem;
-  --background: #f2f5fa;
-  --foreground: #172b46;
-  --card: #ffffff;
-  --card-foreground: #172b46;
-  --popover: #ffffff;
-  --popover-foreground: #172b46;
-  --primary: #0649ab;
-  --primary-foreground: #ffffff;
-  --secondary: #e9eff8;
-  --secondary-foreground: #172b46;
-  --muted: #edf1f7;
-  --muted-foreground: #53647b;
-  --accent: #e7effc;
-  --accent-foreground: #172b46;
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: #dce3ed;
-  --input: #b9c7da;
-  --ring: rgb(2 62 153 / 45%);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  /* The sidebar and the BoM band are the site's royal-blue panel; its yellow marks the current item. */
-  --sidebar: #102c50;
-  --sidebar-foreground: #e4edfc;
-  --sidebar-primary: #ffd21f;
-  --sidebar-primary-foreground: #06142b;
-  --sidebar-accent: #214673;
+  /* Warm paper, dark ink, and one strong colour per part of the app. No blue anywhere. */
+  --radius: 0.875rem;
+  --background: #f6f1e7;
+  --foreground: #211c16;
+  --card: #fffdf8;
+  --card-foreground: #211c16;
+  --popover: #fffdf8;
+  --popover-foreground: #211c16;
+  /* The current part's colour (set by data-part on <html>); ink outside the four parts. */
+  --part: #211c16;
+  --part-soft: #ece4d4;
+  --part-ink: #ffffff;
+  --primary: var(--part);
+  --primary-foreground: var(--part-ink);
+  --secondary: #efe8da;
+  --secondary-foreground: #211c16;
+  --muted: #efe8da;
+  --muted-foreground: #675d4f;
+  --accent: var(--part-soft);
+  --accent-foreground: #211c16;
+  --destructive: #c4302b;
+  --border: #e2d8c6;
+  --input: #cbbfa8;
+  --ring: color-mix(in srgb, var(--part) 45%, transparent);
+  --chart-1: #c93a7c;
+  --chart-2: #e0631a;
+  --chart-3: #0b7a5c;
+  --chart-4: #7b3fb5;
+  --chart-5: #e2a400;
+  --sidebar: #211c16;
+  --sidebar-foreground: #f6f1e7;
+  --sidebar-primary: #f7c61b;
+  --sidebar-primary-foreground: #211c16;
+  --sidebar-accent: #3a3228;
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgb(255 255 255 / 16%);
-  --sidebar-ring: #ffd21f;
-  --brand-from: #102c50;
-  --brand-to: #102c50;
-  --brand-accent: #ffd21f;
-  --primary-bright: #0649ab;
+  --sidebar-ring: #f7c61b;
+  --brand-from: #211c16;
+  --brand-to: #211c16;
+  --brand-accent: #f7c61b;
+  --primary-bright: var(--part);
   --page-glow: transparent;
-  --viewer-bg: #eef2f7;
-  --viewer-grid: rgb(30 58 100 / 7%);
-  --viewer-grid-major: rgb(30 58 100 / 12%);
+  --viewer-bg: #f1eadc;
+  --viewer-grid: rgb(60 45 20 / 7%);
+  --viewer-grid-major: rgb(60 45 20 / 12%);
 
-  /* Directory sections: PCB uses risk-green, components the primary; board types teal, boxes slate. */
-  --dir-blue: #0e7490;
-  --dir-slate: #55637a;
-  --risk-green: #117452;
+  /* The four parts. */
+  --part-bom: #c22a6e;
+  --part-bom-soft: #fbe1ec;
+  --part-engineering: #6f38ad;
+  --part-engineering-soft: #ecdff8;
+  --part-supply: #0b7a5c;
+  --part-supply-soft: #d8f0e6;
+  --part-factory: #d2551a;
+  --part-factory-soft: #fde3d0;
+  --highlight: #f7c61b;
+
+  --dir-blue: #0b7a5c;
+  --dir-slate: #675d4f;
+  --risk-green: #177245;
   --risk-amber: #946000;
-  --risk-red: #bb303b;
-  --risk-grey: oklch(0.65 0.01 250);
-  --risk-green-soft: oklch(0.95 0.04 155);
-  --risk-amber-soft: oklch(0.96 0.05 85);
-  --risk-red-soft: oklch(0.95 0.035 27);
+  --risk-red: #b92d2d;
+  --risk-grey: #a3998a;
+  --risk-green-soft: #dcf0e0;
+  --risk-amber-soft: #fbeec4;
+  --risk-red-soft: #f9dcd8;
 
-  /* Supply coverage, an ordered ramp of the brand hue: our stock (strongest) → distributors → marketplace. */
-  --cover-1: #062c73;
-  --cover-2: #1a5fd0;
-  --cover-3: #5b93e6;
-  --cover-4: #a9c6f2;
-  /* Cost groups on the quote (bare board → margin): the validated categorical order, light steps. */
-  --cost-1: #2a78d6;
+  /* Supply coverage: our stock (strongest) → distributors → marketplace. */
+  --cover-1: #06523d;
+  --cover-2: #0f9a73;
+  --cover-3: #6cc7a6;
+  --cover-4: #bfe6d5;
+  --cost-1: #7b3fb5;
   --cost-2: #eb6834;
   --cost-3: #1baf7a;
   --cost-4: #eda100;
   --cost-5: #e87ba4;
   --cost-6: #008300;
-  --cost-7: #6250d6;
+  --cost-7: #8a5a2b;
   --cost-8: #e34948;
 }
 
+:root[data-part="bom"] { --part: var(--part-bom); --part-soft: var(--part-bom-soft); }
+:root[data-part="engineering"] { --part: var(--part-engineering); --part-soft: var(--part-engineering-soft); }
+:root[data-part="supply"] { --part: var(--part-supply); --part-soft: var(--part-supply-soft); }
+:root[data-part="factory"] { --part: var(--part-factory); --part-soft: var(--part-factory-soft); }
+
 .dark {
-  --background: #0d1726;
-  --foreground: #e8eef8;
-  --card: #142338;
-  --card-foreground: #e8eef8;
-  --popover: #192b43;
-  --popover-foreground: #e8eef8;
-  --primary: #6aa5ff;
-  --primary-foreground: #06142b;
-  --secondary: #18263d;
-  --secondary-foreground: #e8eef8;
-  --muted: #18263d;
-  --muted-foreground: #b0bfd2;
-  --accent: #1c2e4a;
-  --accent-foreground: #e8eef8;
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: #2d3f58;
-  --input: #2c3f5c;
-  --ring: rgb(106 165 255 / 55%);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: #0e233e;
-  --sidebar-foreground: #e4edfc;
-  --sidebar-primary: #ffd21f;
-  --sidebar-primary-foreground: #06142b;
+  --background: #17130e;
+  --foreground: #f3ecdf;
+  --card: #211b14;
+  --card-foreground: #f3ecdf;
+  --popover: #29221a;
+  --popover-foreground: #f3ecdf;
+  --part: #f3ecdf;
+  --part-soft: #2e261c;
+  --part-ink: #17130e;
+  --secondary: #2a231a;
+  --secondary-foreground: #f3ecdf;
+  --muted: #2a231a;
+  --muted-foreground: #b9ad9a;
+  --destructive: #f07a70;
+  --border: #3b3226;
+  --input: #4a3f30;
+  --sidebar: #100d09;
   --sidebar-accent: rgb(255 255 255 / 12%);
-  --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgb(255 255 255 / 12%);
-  --sidebar-ring: #ffd21f;
-  --brand-from: #0e233e;
-  --brand-to: #0e233e;
-  --brand-accent: #ffd21f;
-  --primary-bright: #8fbcff;
-  --page-glow: rgb(32 142 253 / 16%);
-  --viewer-bg: #0d1726;
-  --viewer-grid: rgb(150 180 230 / 6%);
-  --viewer-grid-major: rgb(150 180 230 / 11%);
+  --brand-from: #100d09;
+  --brand-to: #100d09;
+  --viewer-bg: #17130e;
+  --viewer-grid: rgb(240 220 180 / 6%);
+  --viewer-grid-major: rgb(240 220 180 / 11%);
 
-  --dir-blue: #5cc3da;
-  --dir-slate: #9fb0c8;
-  --risk-green: oklch(0.72 0.14 155);
-  --risk-amber: oklch(0.8 0.14 80);
-  --risk-red: oklch(0.68 0.18 25);
-  --risk-grey: oklch(0.6 0.01 250);
-  --risk-green-soft: oklch(0.3 0.05 155);
-  --risk-amber-soft: oklch(0.32 0.05 80);
-  --risk-red-soft: oklch(0.3 0.06 25);
+  --part-bom: #f584b5;
+  --part-bom-soft: #3d1a2a;
+  --part-engineering: #c39bf0;
+  --part-engineering-soft: #2c1d40;
+  --part-supply: #5fd0aa;
+  --part-supply-soft: #12332a;
+  --part-factory: #f59a5e;
+  --part-factory-soft: #40220f;
 
-  /* Same ramp, its own steps for the dark card surface (strongest is lightest). */
-  --cover-1: #d3e3fb;
-  --cover-2: #7fb0f5;
-  --cover-3: #3b7be0;
-  --cover-4: #1f4fa3;
-  --cost-1: #3987e5;
+  --dir-blue: #5fd0aa;
+  --dir-slate: #b9ad9a;
+  --risk-green: #6fcf8e;
+  --risk-amber: #e8b84a;
+  --risk-red: #f07a70;
+  --risk-grey: #8a8072;
+  --risk-green-soft: #173323;
+  --risk-amber-soft: #3a2e10;
+  --risk-red-soft: #401c19;
+
+  --cover-1: #c5efdf;
+  --cover-2: #6cc7a6;
+  --cover-3: #1f9a76;
+  --cover-4: #0f5c46;
+  --cost-1: #a77be0;
   --cost-2: #d95926;
   --cost-3: #199e70;
   --cost-4: #c98500;
   --cost-5: #d55181;
   --cost-6: #008300;
-  --cost-7: #9085e9;
+  --cost-7: #b98a58;
   --cost-8: #e66767;
 }
 
@@ -296,7 +313,7 @@
   .workspace-main :where(input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea) { background-color: var(--card); }
   .workspace-main :where(select) { max-width: 100%; }
   .workspace-main :where(p) { overflow-wrap: break-word; }
-  .page-heading { font-size: 2rem; line-height: 1.2; font-weight: 700; letter-spacing: -0.035em; }
+  .page-heading { font-size: 2.5rem; line-height: 1.1; font-weight: 700; letter-spacing: -0.03em; }
   .section-heading { font-size: 1rem; font-weight: 650; letter-spacing: -0.02em; }
   .readiness-fill { transition: width 450ms cubic-bezier(0.16, 1, 0.3, 1); }
   .module-tabs { display:flex; gap:0.25rem; overflow-x:auto; border-bottom:1px solid var(--border); margin-bottom:1.5rem; }

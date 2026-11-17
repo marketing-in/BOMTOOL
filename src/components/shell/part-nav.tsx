@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
@@ -13,10 +14,17 @@ function Pending() {
   return pending ? <LoaderCircle className="size-3.5 shrink-0 animate-spin text-primary" aria-hidden /> : null;
 }
 
-/** The menu: the four parts of the app on one line, the current part underlined in the brand blue. */
+const PART_BG: Record<string, string> = { bom: "bg-part-bom", engineering: "bg-part-engineering", supply: "bg-part-supply", factory: "bg-part-factory" };
+
+/** The menu: the four parts of the app on one line, each in its own colour; the page takes the current part's colour. */
 export function PartMenu() {
   const pathname = usePathname();
   const { part } = locatePage(pathname);
+  const key = part?.key ?? "";
+  useEffect(() => {
+    if (key) document.documentElement.dataset.part = key;
+    else delete document.documentElement.dataset.part;
+  }, [key]);
   return (
     <nav aria-label="Main menu" className="min-w-0">
       <ul className="flex items-stretch gap-1 overflow-x-auto [scrollbar-width:none]">
@@ -28,11 +36,11 @@ export function PartMenu() {
                 href={p.href}
                 aria-current={on ? "page" : undefined}
                 className={cn(
-                  "relative flex h-14 items-center gap-2 px-3 text-sm whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-                  on ? "font-semibold text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-primary" : "text-muted-foreground hover:text-foreground",
+                  "my-2 flex h-10 items-center gap-2 rounded-full py-1 pr-4 pl-1 text-sm whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
+                  on ? cn("font-semibold text-white dark:text-background", PART_BG[p.key]) : "text-foreground/75 hover:bg-muted hover:text-foreground",
                 )}
               >
-                <span className={cn("num text-xs", on ? "text-primary" : "text-muted-foreground/70")}>{p.n}</span>
+                <span className={cn("grid size-8 place-items-center rounded-full text-xs font-bold", on ? "bg-white/25 text-white dark:text-background" : cn("text-white dark:text-background", PART_BG[p.key]))}>{p.n}</span>
                 {p.label}
                 <Pending />
               </Link>
@@ -62,8 +70,8 @@ export function PartTabs({ role }: { role: Role }) {
                 href={i.href}
                 aria-current={on ? "page" : undefined}
                 className={cn(
-                  "flex h-11 items-center gap-2 rounded-sm px-3 text-[13px] whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
-                  on ? "font-semibold text-primary" : "text-muted-foreground hover:text-foreground",
+                  "my-1.5 flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
+                  on ? "bg-part-soft font-semibold text-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 <i.icon className="size-4 shrink-0" aria-hidden />

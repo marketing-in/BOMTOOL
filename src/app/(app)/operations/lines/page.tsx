@@ -1,13 +1,16 @@
-import { Plus, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { loadLines } from "@/server/lines";
-import { kindOf, readSpecs, specCoverage, type EffectiveCapability } from "@/lib/ops/machines";
-import { assistantMode } from "@/server/assistant";
+import type { EffectiveCapability } from "@/lib/ops/machines";
+import { machineCard } from "@/lib/ops/machine-card";
+import { measuredCph } from "@/lib/ops/line-time";
 import { PageHeader } from "@/components/data/page-header";
 import { RiskDot } from "@/components/data/badges";
 import { Button } from "@/components/ui/button";
-import { AddMachineDialog, DuplicateLineButton, EditLineButton, LineDialog, MachineDialog, MachineOrderButtons, RemoveLineButton } from "@/components/ops/line-editor";
+import { AddMachineDialog, DuplicateLineButton, EditLineButton, LineDialog, RemoveLineButton } from "@/components/ops/line-editor";
+import { LineStage } from "@/components/ops/line-stage";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Lines" };
@@ -36,28 +39,24 @@ function capChips(cap: EffectiveCapability): { label: string; fromMachines: bool
   ];
 }
 
-const SOURCE_TAG: Record<string, { label: string; cls: string }> = {
-  claude: { label: "AI", cls: "bg-primary/10 text-primary" },
-  typical: { label: "Typical", cls: "bg-risk-amber-soft text-risk-amber" },
-  manual: { label: "Typed in", cls: "bg-muted text-muted-foreground" },
-};
+const k = (n: number) => (n >= 1000 ? `${Math.round(n / 100) / 10}k` : String(n));
 
-export default async function LinesPage() {
+/** Our lines, one at a time: the line drawn in 3D, and what we know about each machine a click away. */
+export default async function LinesPage({ searchParams }: { searchParams: Promise<{ line?: string }> }) {
   const user = await requireUser();
   const editable = can(user.role, "lines.write");
-  const lines = await loadLines();
-  const mode = assistantMode();
+  const [lines, { line: want }] = await Promise.all([loadLines(), searchParams]);
+  const line = lines.find((l) => l.code === want) ?? lines[0] ?? null;
 
   return (
     <>
       <PageHeader
         title="Lines & machines"
-        description="Our lines, machine by machine. Every BoM and Gerber set is checked against these machines' limits: smallest chip, finest pitch, board size, tallest part, X-ray, wave, coating and test."
         actions={
           editable ? (
             <LineDialog
               trigger={
-                <Button className="h-10">
+                <Button className="h-10 rounded-full">
                   <Plus className="size-4" aria-hidden /> Add line
                 </Button>
               }
@@ -66,137 +65,99 @@ export default async function LinesPage() {
         }
       />
 
-      {editable ? (
-        <p className="mb-5 flex items-start gap-2 rounded-lg border bg-card px-4 py-3 text-sm text-muted-foreground">
-          <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-          <span>
-            Open a machine to set its limits. <span className="font-medium text-foreground">Look up with AI</span> finds them from the maker&apos;s datasheet
-            {mode === "mock" ? " — with no AI key set it offers typical values for that kind of machine instead" : ""}. Nothing is saved until you check the values and press Save.
-          </span>
-        </p>
-      ) : null}
+      {!line ? (
+        <div className="rounded-3xl bg-card px-6 py-12 text-center text-sm text-muted-foreground">No lines yet. {editable ? "Add the first one." : "Ask planning to set them up."}</div>
+      ) : (
+        <>
+          <nav aria-label="Lines" className="mb-6 flex flex-wrap gap-2">
+            {lines.map((l) => {
+              const on = l.id === line.id;
+              const busy = l.workOrders.length > 0;
+              return (
+                <Link
+                  key={l.id}
+                  href={`/operations/lines?line=${l.code}`}
+                  scroll={false}
+                  aria-current={on ? "page" : undefined}
+                  className={cn(
+                    "flex h-12 items-center gap-2.5 rounded-full px-5 text-[15px] outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring",
+                    on ? "bg-primary font-semibold text-primary-foreground" : "bg-card hover:bg-part-soft",
+                    !l.active && "opacity-60",
+                  )}
+                >
+                  <span className="font-display font-bold">{l.code}</span>
+                  <span className="hidden sm:inline">{TYPE_LABEL[l.type] ?? l.type}</span>
+                  <span className={cn("size-2.5 rounded-full", busy ? "bg-risk-green" : "bg-risk-grey", on && "ring-2 ring-white/70")} title={busy ? "Has open work orders" : "No open work orders"} />
+                </Link>
+              );
+            })}
+          </nav>
 
-      {!lines.length ? (
-        <div className="rounded-lg border bg-card px-6 py-12 text-center text-sm text-muted-foreground">No lines yet. {editable ? "Add the first one to start checking BoMs against your machines." : "Ask planning to set them up."}</div>
-      ) : null}
-
-      <div className="space-y-5">
-        {lines.map((line) => {
-          const chips = capChips(line.effective);
-          const smt = line.type === "SMT" || line.type === "MIXED";
-          return (
-            <section key={line.id} id={`line-${line.code}`} className={cn("scroll-mt-24 rounded-lg border bg-card target:ring-2 target:ring-primary/50", !line.active && "opacity-70")}>
-              <div className="flex flex-wrap items-start justify-between gap-3 border-b px-4 py-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-baseline gap-2">
-                    <span className="num rounded bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary">{line.code}</span>
-                    <h2 className="font-semibold">{line.name.replace(/^.*—\s*/, "")}</h2>
-                    <span className="text-xs text-muted-foreground">{TYPE_LABEL[line.type] ?? line.type}</span>
-                    {!line.active ? <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium">Retired</span> : null}
-                  </div>
-                  {line.description ? <p className="mt-0.5 max-w-[75ch] text-sm text-muted-foreground">{line.description}</p> : null}
-                </div>
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                  <dl className="num flex gap-6 text-sm">
-                    {smt && line.capacityCph ? <div><dt className="text-[11px] text-muted-foreground">Capacity</dt><dd>{(line.capacityCph / 1000).toFixed(0)}k CPH</dd></div> : null}
-                    {smt && line.feederSlots ? <div><dt className="text-[11px] text-muted-foreground">Feeder slots</dt><dd>{line.feederSlots}</dd></div> : null}
-                    <div><dt className="text-[11px] text-muted-foreground">Shifts</dt><dd>{line.shiftsPerDay}</dd></div>
-                  </dl>
-                  {editable ? (
-                    <div className="flex items-center gap-1">
-                      <EditLineButton line={{ id: line.id, code: line.code, name: line.name, type: line.type, description: line.description ?? "", shiftsPerDay: line.shiftsPerDay, capacityCph: line.capacityCph, feederSlots: line.feederSlots, active: line.active, capability: (line.capability ?? {}) as Record<string, unknown>, fromMachines: Object.fromEntries(line.effective.fromMachines.map((k) => [k, (line.effective as Record<string, unknown>)[k]])) }} />
-                      <DuplicateLineButton id={line.id} code={line.code} />
-                      <RemoveLineButton id={line.id} code={line.code} hasWorkOrders={line._count.workOrders > 0} />
+          <section id={`line-${line.code}`} aria-label={`Line ${line.code}`}>
+            <div className="mb-5 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+              <div className="min-w-0">
+                <h2 className="font-display text-3xl leading-tight font-semibold tracking-tight">{line.name.replace(/^.*—\s*/, "")}</h2>
+                <ul className="mt-3 flex flex-wrap gap-1.5 text-sm">
+                  {capChips(line.effective).map((c) => (
+                    <li key={c.label} className={cn("rounded-full px-3 py-1", c.fromMachines ? "bg-part-soft" : "bg-muted text-muted-foreground")} title={c.fromMachines ? "From its machines' limits" : "From the line's own summary — set the machines' limits to confirm"}>
+                      {c.label}
+                    </li>
+                  ))}
+                  {!line.active ? <li className="rounded-full bg-muted px-3 py-1 font-medium">Retired</li> : null}
+                </ul>
+              </div>
+              <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
+                <dl className="flex gap-8">
+                  {(() => {
+                    const measured = measuredCph(line.machines);
+                    const cph = measured ?? line.capacityCph;
+                    return cph ? (
+                      <div>
+                        <dd className="font-display text-4xl leading-none font-semibold tracking-tight">{k(cph)}</dd>
+                        <dt className="mt-1.5 text-xs text-muted-foreground">CPH {measured ? "measured" : "rated"}</dt>
+                      </div>
+                    ) : null;
+                  })()}
+                  {line.feederSlots ? (
+                    <div>
+                      <dd className="font-display text-4xl leading-none font-semibold tracking-tight">{line.feederSlots}</dd>
+                      <dt className="mt-1.5 text-xs text-muted-foreground">feeder slots</dt>
                     </div>
                   ) : null}
-                </div>
-              </div>
-
-              {/* The board's path through the line, left to right. */}
-              <ol className="flex items-stretch gap-2 overflow-x-auto px-4 py-4" aria-label={`Machines on ${line.code}, in flow order`}>
-                {line.machines.map((m, i) => {
-                  const { specs, source, extra } = readSpecs(m.specs);
-                  const year = typeof extra.year === "number" ? extra.year : null;
-                  const cover = specCoverage(m.type, specs);
-                  const tag = source ? SOURCE_TAG[source.by] : null;
-                  const label = `${m.vendor} ${m.model}`;
-                  return (
-                    <li key={m.id} className="flex shrink-0 items-center gap-2">
-                      <div className="flex w-48 flex-col rounded-md border bg-background">
-                        <MachineDialog
-                          machine={{ id: m.id, type: m.type, vendor: m.vendor, model: m.model, year, specs, source }}
-                          editable={editable}
-                          trigger={
-                            <button type="button" className="flex-1 rounded-t-md px-3 pt-2 pb-1.5 text-left outline-none transition-colors duration-150 hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring" aria-label={`${label}: open its limits`}>
-                              <div className="flex items-baseline justify-between gap-2">
-                                <span className="truncate text-xs font-semibold">{kindOf(m.type).label}</span>
-                                <span className="num text-[10px] text-muted-foreground">{m.position}</span>
-                              </div>
-                              <div className="mt-0.5 truncate text-[11px] text-muted-foreground" title={label}>{m.vendor}</div>
-                              <div className="truncate text-[11px] text-muted-foreground" title={label}>{m.model}{year ? ` · ${year}` : ""}</div>
-                              {cover.of ? (
-                                <div className="mt-1.5 flex items-center gap-1.5 text-[11px]">
-                                  <RiskDot level={cover.have === cover.of ? "green" : cover.have ? "amber" : "grey"} />
-                                  <span className="text-muted-foreground">{cover.have} of {cover.of} limits</span>
-                                  {tag ? <span className={cn("ml-auto rounded px-1 py-px text-[10px] font-medium", tag.cls)}>{tag.label}</span> : null}
-                                </div>
-                              ) : null}
-                            </button>
-                          }
-                        />
-                        {editable ? (
-                          <div className="flex justify-end border-t px-1">
-                            <MachineOrderButtons id={m.id} first={i === 0} last={i === line.machines.length - 1} label={label} />
-                          </div>
-                        ) : null}
-                      </div>
-                      {i < line.machines.length - 1 ? <span aria-hidden className="h-px w-3 bg-border" /> : null}
-                    </li>
-                  );
-                })}
+                  <div>
+                    <dd className="font-display text-4xl leading-none font-semibold tracking-tight">{line.shiftsPerDay}</dd>
+                    <dt className="mt-1.5 text-xs text-muted-foreground">shifts a day</dt>
+                  </div>
+                </dl>
                 {editable ? (
-                  <li className="flex shrink-0">
-                    <AddMachineDialog lineId={line.id} lineCode={line.code} />
-                  </li>
+                  <div className="flex items-center gap-1">
+                    <EditLineButton line={{ id: line.id, code: line.code, name: line.name, type: line.type, description: line.description ?? "", shiftsPerDay: line.shiftsPerDay, capacityCph: line.capacityCph, feederSlots: line.feederSlots, active: line.active, capability: (line.capability ?? {}) as Record<string, unknown>, fromMachines: Object.fromEntries(line.effective.fromMachines.map((key) => [key, (line.effective as Record<string, unknown>)[key]])) }} />
+                    <DuplicateLineButton id={line.id} code={line.code} />
+                    <RemoveLineButton id={line.id} code={line.code} hasWorkOrders={line._count.workOrders > 0} />
+                  </div>
                 ) : null}
-                {!line.machines.length && !editable ? <li className="text-sm text-muted-foreground">No machines on file.</li> : null}
-              </ol>
+              </div>
+            </div>
 
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t px-4 py-3 text-xs">
-                <span className="text-muted-foreground">Can do:</span>
-                <ul className="flex flex-wrap gap-1.5">
-                  {chips.length ? (
-                    chips.map((c) => (
-                      <li key={c.label} className={cn("rounded px-1.5 py-0.5", c.fromMachines ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")} title={c.fromMachines ? "From its machines' limits" : "From the line's own summary — set the machines' limits to confirm"}>
-                        {c.label}
-                      </li>
-                    ))
-                  ) : (
-                    <li className="text-muted-foreground">Nothing on file yet — set its machines&apos; limits.</li>
-                  )}
-                </ul>
-                <span className="ml-auto flex items-center gap-3 text-muted-foreground">
-                  <span className="inline-flex items-center gap-1"><span className="size-2 rounded-sm bg-primary/30" aria-hidden /> from machines</span>
-                  <span className="inline-flex items-center gap-1"><span className="size-2 rounded-sm bg-muted-foreground/30" aria-hidden /> line summary</span>
+            {line.machines.length ? (
+              <LineStage key={line.id} machines={line.machines.map(machineCard)} editable={editable} />
+            ) : (
+              <div className="rounded-3xl bg-card px-6 py-12 text-center text-sm text-muted-foreground">No machines on this line yet.</div>
+            )}
+
+            <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
+              {editable ? <AddMachineDialog lineId={line.id} lineCode={line.code} /> : null}
+              {line.workOrders.map((wo) => (
+                <span key={wo.id} className="inline-flex items-center gap-2 rounded-full bg-card px-4 py-2 text-sm">
+                  <RiskDot level={(wo.clearToBuildPct ?? 0) >= 90 ? "green" : "amber"} />
+                  <span className="num">{wo.number}</span>
+                  <span className="text-muted-foreground">{wo.project.name} · {wo.buildQty} pcs</span>
                 </span>
-              </div>
-              <div className="flex flex-wrap gap-x-4 gap-y-1.5 border-t px-4 py-2.5 text-xs">
-                {line.workOrders.length ? (
-                  line.workOrders.map((wo) => (
-                    <span key={wo.id} className="inline-flex items-center gap-1.5">
-                      <RiskDot level={(wo.clearToBuildPct ?? 0) >= 90 ? "green" : "amber"} />
-                      <span className="num">{wo.number}</span>
-                      <span className="text-muted-foreground">{wo.project.name} · {wo.buildQty} pcs</span>
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-muted-foreground">No open work orders</span>
-                )}
-              </div>
-            </section>
-          );
-        })}
-      </div>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
     </>
   );
 }

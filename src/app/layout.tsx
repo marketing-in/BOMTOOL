@@ -1,12 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono, Open_Sans } from "next/font/google";
+import { Bricolage_Grotesque, Geist_Mono, Hanken_Grotesk } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-// The client's typeface (thinksemiinfotech.com): Open Sans for text and headings.
-const openSans = Open_Sans({ variable: "--font-open-sans", subsets: ["latin"], display: "swap" });
+// A display face with some character for headings and big numbers; a quiet grotesk for everything else.
+const display = Bricolage_Grotesque({ variable: "--font-display-face", subsets: ["latin"], display: "swap" });
+const body = Hanken_Grotesk({ variable: "--font-body", subsets: ["latin"], display: "swap" });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -16,14 +17,14 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f2f5fa" },
-    { media: "(prefers-color-scheme: dark)", color: "#0d1726" },
+    { media: "(prefers-color-scheme: light)", color: "#f6f1e7" },
+    { media: "(prefers-color-scheme: dark)", color: "#17130e" },
   ],
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en-IN" className={`${openSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
+    <html lang="en-IN" className={`${display.variable} ${body.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body className="antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
