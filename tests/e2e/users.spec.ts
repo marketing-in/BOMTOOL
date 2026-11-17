@@ -18,6 +18,14 @@ async function asAdmin(browser: Browser) {
   return page;
 }
 
+/** User admin is reached from the account menu: open it and return its "Users" entry (closing it with Escape is up to the caller). */
+async function usersEntry(page: Page) {
+  await page.getByRole("button", { name: "Account menu" }).click();
+  const menu = page.getByRole("menu");
+  await expect(menu.getByRole("menuitem", { name: "Home", exact: true })).toBeVisible();
+  return menu.getByRole("menuitem", { name: "Users", exact: true });
+}
+
 async function addUser(admin: Page, name: string, email: string, role: string, password: string) {
   await admin.getByLabel("Name").fill(name);
   await admin.getByLabel("Email").fill(email);
@@ -42,7 +50,8 @@ test("admin adds a user; deactivating signs them out and blocks sign-in", async 
   const user = await (await browser.newContext()).newPage();
   await signIn(user, email, "start-pass-2026");
   await expect(user.getByRole("heading", { name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
-  await expect(user.getByRole("link", { name: "Users" })).toHaveCount(0);
+  await expect(await usersEntry(user)).toHaveCount(0);
+  await user.keyboard.press("Escape");
   await user.goto("/admin/users");
   await expect(user.getByText("Only administrators can manage users")).toBeVisible();
 
@@ -82,13 +91,14 @@ test("new password ends old sessions; role changes apply without signing in agai
   await expect(user.getByText("Email or password is incorrect.")).toBeVisible();
   await signIn(user, email, "second-pass-2026");
   await expect(user.getByRole("heading", { name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
-  await expect(user.getByRole("link", { name: "Users" })).toHaveCount(0);
+  await expect(await usersEntry(user)).toHaveCount(0);
+  await user.keyboard.press("Escape");
 
-  // Promote to administrator: the next page load shows the Users link, no sign-out needed.
+  // Promote to administrator: the next page load shows Users in the account menu, no sign-out needed.
   await row.getByRole("combobox").selectOption("ADMIN");
   await expect(admin.getByText("E2E Viewer is now Administrator.")).toBeVisible();
   await user.reload();
-  await expect(user.getByRole("link", { name: "Users" })).toBeVisible();
+  await expect(await usersEntry(user)).toBeVisible();
 
   // Don't leave an active test administrator (with a password in this file) in the database.
   await row.getByRole("button", { name: "Deactivate" }).click();

@@ -43,8 +43,11 @@ test("process route → show a step in 3D → the finished product in its box", 
   test.setTimeout(360_000);
   await login(page);
   await openGw200(page);
-  // Step 9 of the BoM's numbered process.
-  await page.getByRole("navigation", { name: /^Process for/ }).getByRole("link", { name: /Process route/ }).click();
+  // The process route is section 5.2 of step 5, Line possible.
+  await page.getByRole("navigation", { name: /^Process for/ }).getByRole("link", { name: /Line possible/ }).click();
+  await expect(page).toHaveURL(/\/boms\/[a-z0-9]+\/lines$/);
+  await page.getByRole("navigation", { name: "On this page" }).getByRole("link", { name: /Process route/ }).click();
+  await expect(page).toHaveURL(/\/lines#route$/);
   await expect(page.getByRole("heading", { name: "Process route — GW-200 Industrial IoT Gateway" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Pick and place" })).toBeVisible();
 

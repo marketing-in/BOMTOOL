@@ -47,8 +47,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   className="h-9 w-full rounded-md border bg-background pr-3 pl-9 text-sm outline-none transition-[box-shadow,border-color] duration-150 placeholder:text-muted-foreground/70 focus-visible:border-primary/50 focus-visible:ring-3 focus-visible:ring-ring/30"
                 />
               </Form>
-              <Link href="/parts" aria-label="Search parts" className="grid size-10 place-items-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring md:hidden">
-                <Search className="size-5" />
+              <Link href="/parts" aria-label="Open part search" className="grid size-10 place-items-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring md:hidden">
+                <Search className="size-5" aria-hidden />
               </Link>
               <AskPanel />
               <Link

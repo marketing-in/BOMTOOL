@@ -24,7 +24,7 @@ test("Gerbers without a BoM: components read off the board, a BoM from them, a p
   await page.getByRole("button", { name: "Show it in 3D" }).click();
   await expect(page).toHaveURL(/\/viewer\/boards\/[a-z0-9]+$/, { timeout: 120_000 });
   const found = page.getByRole("region", { name: "Components on this board" });
-  await expect(found.getByText(/^Guessed from the pads, drills and silkscreen/)).toBeVisible();
+  await expect(found.getByText(/^Guessed from the pads/)).toBeVisible();
   await expect(found.getByRole("row", { name: /^0603 Two-pad part/ }).getByRole("cell").nth(2)).toHaveText("44");
   await expect(found.getByRole("row", { name: /^SOIC-8, 1\.27 mm Integrated circuit/ })).toBeVisible();
 
@@ -35,7 +35,7 @@ test("Gerbers without a BoM: components read off the board, a BoM from them, a p
   // A fresh revision each run, so the spec also passes on a database it has run on before.
   await page.getByLabel("Revision").fill(`E2E-${Date.now().toString(36).slice(-5)}`);
   await page.getByRole("button", { name: "Create the BoM and quote it" }).click();
-  // A new BoM opens on step 3, the footprint match: made from the board, every footprint agrees.
+  // A new BoM opens on step 4, footprint & mismatch: made from the board, every footprint agrees.
   await expect(page).toHaveURL(/\/match$/, { timeout: 180_000 });
   await expect(page.getByRole("heading", { name: "BoM and board match" })).toBeVisible();
 

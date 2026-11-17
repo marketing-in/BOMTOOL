@@ -32,6 +32,8 @@ test("knowledge: search → article → process player; part page links to its a
   // A part page links to its category article.
   await page.goto("/parts?q=GRM188R71H104KA93D");
   await page.getByRole("link", { name: "GRM188R71H104KA93D" }).first().click();
+  // The articles sit in the folded "Learn" panel.
+  await page.locator("summary", { has: page.getByRole("heading", { name: "Learn", exact: true }) }).click();
   await page.getByRole("link", { name: /Ceramic capacitors \(MLCC\)/ }).click();
   await expect(page.getByRole("heading", { name: "Ceramic capacitors (MLCC)" })).toBeVisible();
   await expect(page.getByText(/DC bias/).first()).toBeVisible();

@@ -85,12 +85,18 @@ for (const width of [390, 768]) {
     for (const url of ["/", "/boms", "/parts", "/sourcing", "/operations", "/inventory", "/knowledge", `/boms/${records.bom}`]) {
       await healthy(page, url);
     }
-    await page.getByRole("button", { name: "Open navigation", exact: true }).click();
-    const dialog = page.getByRole("dialog");
-    await expect(dialog.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
-    await dialog.getByRole("link", { name: "Parts catalogue", exact: true }).click();
+    // No sidebar: the four parts sit on one menu line, the part's pages as tabs under it.
+    const menu = page.getByRole("navigation", { name: "Main menu" });
+    await expect(menu).toBeVisible();
+    if (width < 768) await expect(page.getByRole("link", { name: "Open part search", exact: true })).toBeVisible();
+    await menu.getByRole("link", { name: "Supply", exact: true }).click();
     await expect(page).toHaveURL(/\/parts$/);
-    await expect(dialog).not.toBeVisible();
+    const tabs = page.getByRole("navigation", { name: "Supply pages" });
+    await expect(tabs.getByRole("link", { name: "Parts catalogue", exact: true })).toHaveAttribute("aria-current", "page");
+    await tabs.getByRole("link", { name: "Inventory", exact: true }).click();
+    await expect(page).toHaveURL(/\/inventory$/);
+    await expect(tabs.getByRole("link", { name: "Inventory", exact: true })).toHaveAttribute("aria-current", "page");
+    await contained(page);
   });
 }
 
@@ -109,8 +115,12 @@ test("global search, currency, theme and keyboard skip link work", async ({ page
   await expect(page.locator("html")).toHaveClass(/dark/);
   await page.reload();
   await expect(page.locator("html")).toHaveClass(/dark/);
-  await page.getByRole("button", { name: "Account menu" }).click();
-  await page.getByRole("menuitemradio", { name: "Light", exact: true }).click();
+  // The one-tap switch in the top bar takes it back to light.
+  const darkMode = page.getByRole("switch", { name: "Dark mode", exact: true });
+  await expect(darkMode).toBeChecked();
+  await darkMode.click();
+  await expect(page.locator("html")).not.toHaveClass(/dark/);
+  await expect(darkMode).not.toBeChecked();
   await page.goto("/");
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused();
@@ -144,6 +154,7 @@ test("login shows recoverable errors and fits a phone", async ({ page, context }
   await page.getByRole("button", { name: "Hide password", exact: true }).click();
   await expect(password).toHaveAttribute("type", "password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Email or password is incorrect");
+  // The form's own alert (Next's route announcer is a second, empty role=alert on every page).
+  await expect(page.locator("form").getByRole("alert")).toContainText("Email or password is incorrect");
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeEnabled();
 });
