@@ -17,7 +17,7 @@ const TONE: Record<Level, { text: string; field: string; word: string; Icon: typ
 };
 
 /**
- * Step 2, section 2: every mismatch in the customer's product in one list — the BoM against the board and the BoM against
+ * Step 4, section 2: every mismatch in the customer's product in one list — the BoM against the board and the BoM against
  * itself — grouped by what to ask, most serious first. Each row links to its BoM line or its place on the board.
  */
 export default async function MismatchSection({ id }: { id: string }) {

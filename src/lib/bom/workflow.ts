@@ -1,14 +1,14 @@
 /**
- * One BoM's process, in five steps (Part 1 of the four-part app), each one page that holds the sections that belong
- * together: 1 the BoM, its Gerbers and its components · 2 the BoM against the board and every mismatch · 3 the
- * estimate, bare board and quote · 4 the box, optional · 5 the process route, which line fits and the SMT line
- * running it. A section's old address still works: it opens its step's page at that section. The same numbered
- * strip is on every page of the BoM, with Back / Next from the same list. Pure.
+ * One BoM's process, in seven steps (Part 1 of the four-part app), as the user set them on 17 Nov 2026:
+ * 1 the BoM · 2 its Gerbers · 3 its components · 4 footprints and mismatches (the BoM against the board) · 5 which
+ * of our lines can build it, with the process route · 6 the board on that SMT line · 7 the estimate, bare board and
+ * quote. There is no box step: a product ships board-only unless a box is chosen from the quote's gate. A section's
+ * old address still works: it opens its step's page at that section. Pure.
  */
 
-/** The parts of the process the data can judge, each a section of one step's page. */
+/** The parts of the process the data can judge, each a section of one step's page ("box" is no longer a step). */
 export type SectionKey = "bom" | "gerbers" | "match" | "mismatch" | "lines" | "board" | "feasibility" | "parts" | "box" | "quote" | "route" | "line";
-export type StepKey = "files" | "compare" | "estimate" | "box" | "production";
+export type StepKey = "bom" | "gerbers" | "parts" | "footprint" | "lines" | "smt" | "quote";
 export type ViewKey = "analysis" | "supply" | "reverse" | "viewer";
 
 /** `path`: the section's own address (it redirects to the step's page at `#anchor`); `also`: other pages that belong to it. */
@@ -17,48 +17,39 @@ export type Step = { key: StepKey; n: number; label: string; path: string; secti
 export type View = { key: ViewKey; label: string; path: string };
 
 export const WORKFLOW: Step[] = [
+  { key: "bom", n: 1, label: "BoM", path: "", sections: [{ key: "bom", label: "BoM", path: "", anchor: "bom", also: ["/map", "/diff", "/quote"] }] },
+  { key: "gerbers", n: 2, label: "Gerber", path: "/board", sections: [{ key: "gerbers", label: "Gerber", path: "/board", anchor: "gerbers" }] },
+  { key: "parts", n: 3, label: "Components", path: "/build/parts", sections: [{ key: "parts", label: "Components", path: "/build/parts", anchor: "components" }] },
   {
-    key: "files",
-    n: 1,
-    label: "BoM, Gerbers & components",
-    path: "",
-    sections: [
-      { key: "bom", label: "BoM", path: "", anchor: "bom", also: ["/map", "/diff", "/quote"] },
-      { key: "gerbers", label: "Gerbers", path: "/board", anchor: "gerbers" },
-      { key: "parts", label: "Components", path: "/build/parts", anchor: "components" },
-    ],
-  },
-  {
-    key: "compare",
-    n: 2,
-    label: "Compare & mismatches",
+    key: "footprint",
+    n: 4,
+    label: "Footprint & mismatch",
     path: "/match",
     sections: [
-      { key: "match", label: "Compare", path: "/match", anchor: "compare" },
+      { key: "match", label: "Footprint", path: "/match", anchor: "compare" },
       { key: "mismatch", label: "Mismatches", path: "/mismatch", anchor: "mismatches" },
     ],
   },
   {
-    key: "estimate",
-    n: 3,
+    key: "lines",
+    n: 5,
+    label: "Line possible",
+    path: "/lines",
+    sections: [
+      { key: "lines", label: "Line possible", path: "/lines", anchor: "line-fit" },
+      { key: "route", label: "Process route", path: "/route", anchor: "route" },
+    ],
+  },
+  { key: "smt", n: 6, label: "SMT line", path: "/line", sections: [{ key: "line", label: "SMT line", path: "/line", anchor: "smt-line" }] },
+  {
+    key: "quote",
+    n: 7,
     label: "Estimate & quote",
     path: "/feasibility",
     sections: [
       { key: "feasibility", label: "Estimate", path: "/feasibility", anchor: "estimate" },
       { key: "board", label: "Bare board", path: "/build/board", anchor: "bare-board", also: ["/build"] },
       { key: "quote", label: "Quote", path: "/build/quote", anchor: "quote", also: ["/build/print"] },
-    ],
-  },
-  { key: "box", n: 4, label: "Box", path: "/build/box", optional: true, sections: [{ key: "box", label: "Box", path: "/build/box", anchor: "box" }] },
-  {
-    key: "production",
-    n: 5,
-    label: "Route & SMT line",
-    path: "/route",
-    sections: [
-      { key: "route", label: "Process route", path: "/route", anchor: "route" },
-      { key: "lines", label: "Line fit", path: "/lines", anchor: "line-fit" },
-      { key: "line", label: "SMT line", path: "/line", anchor: "smt-line" },
     ],
   },
 ];

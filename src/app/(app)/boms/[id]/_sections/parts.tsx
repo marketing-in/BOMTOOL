@@ -97,7 +97,7 @@ export default async function PartsSection({ id, searchParams }: { id: string; s
       p.set("sort", k);
       if (d !== SORT[k].first) p.set("dir", d);
     }
-    return `/boms/${id}?${p.toString()}#components`;
+    return `/boms/${id}/build/parts?${p.toString()}#components`;
   };
   const withGaps = [...new Set(b.lines.filter((l) => l.partId && l.missing.length).map((l) => l.partId!))];
 
@@ -139,7 +139,7 @@ export default async function PartsSection({ id, searchParams }: { id: string; s
                       </span>
                       <span className="num block truncate text-xs text-muted-foreground">{l.refDes || "—"} · {l.qtyPerBoard}/board</span>
                       <span className="block truncate text-xs text-muted-foreground">
-                        {l.dnp ? "Do not place" : l.excluded === "box" ? "Priced in step 4 — the box" : l.excluded === "board" ? "Priced in step 3 — the bare board" : (l.sourceLabel ?? "No source")}
+                        {l.dnp ? "Do not place" : l.excluded === "box" ? "Priced with the box" : l.excluded === "board" ? "Priced in step 7 — the bare board" : (l.sourceLabel ?? "No source")}
                         {l.pinned ? " · chosen" : ""}
                       </span>
                     </span>
@@ -487,7 +487,7 @@ async function LineDetail({
       {sel.excluded ? (
         <p className="flex items-center gap-2 rounded-md border bg-muted/40 px-4 py-3 text-sm">
           {sel.excluded === "box" ? <BoxIcon className="size-4 text-muted-foreground" aria-hidden /> : <Layers className="size-4 text-muted-foreground" aria-hidden />}
-          {sel.excluded === "box" ? "The enclosure — priced in step 4, the box." : "The bare board — priced in step 3."}
+          {sel.excluded === "box" ? "The enclosure — priced with the box." : "The bare board — priced in step 7."}
         </p>
       ) : null}
 

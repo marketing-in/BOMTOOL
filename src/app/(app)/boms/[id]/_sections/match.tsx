@@ -5,7 +5,7 @@ import { boardFrameFor, footprintMatchFor } from "@/server/workflow";
 import { FootprintMatchView } from "@/components/bom/footprint-match";
 
 
-/** Step 2, section 1: do the BoM and the board agree, designator by designator? */
+/** Step 4, section 1: do the BoM and the board agree, designator by designator? */
 export default async function CompareSection({ id }: { id: string }) {
   await requireUser();
   const rev = await db.bomRevision.findUnique({ where: { id }, select: { status: true, board: { select: { widthMm: true, heightMm: true } } } });

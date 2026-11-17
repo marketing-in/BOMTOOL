@@ -375,7 +375,8 @@ export type LineRole = "smt" | "tht" | "box";
 export type LineCheck = { lineId: string; code: string; name: string; type: string; roles: LineRole[]; level: Level | "na"; steps: StepCheck[]; summary: string };
 
 const worst = (ls: Level[]): Level => (ls.includes("red") ? "red" : ls.includes("amber") ? "amber" : "green");
-const fmtPair = (p: [number, number]) => `${p[0]}×${p[1]} mm`;
+const mm = (n: number) => String(Math.round(n * 10) / 10);
+const fmtPair = (p: [number, number]) => `${mm(p[0])}×${mm(p[1])} mm`;
 const fits = (board: [number, number], max: [number, number]) => {
   const [w, h] = sortedPair(board);
   const [mw, mh] = sortedPair(max);

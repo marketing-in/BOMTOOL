@@ -14,9 +14,9 @@ const DOT: Record<NonNullable<StepState>["state"], string> = {
 };
 
 /**
- * The menu of one BoM, the same on every one of its pages: a bordered workspace strip with where you are, then the five
- * steps in order — BoM, Gerbers & components · compare & mismatches · estimate & quote · box (optional) · route & SMT
- * line — numbered, each with a dot for how far it has got, and the other views after a divider. Scrolls sideways on a
+ * The menu of one BoM, the same on every one of its pages: a bordered workspace strip with where you are, then the seven
+ * steps in order — BoM · Gerber · Components · Footprint & mismatch · Line possible · SMT line · Estimate & quote —
+ * numbered, each with a dot for how far it has got, and the other views after a divider. Scrolls sideways on a
  * narrow screen, keeping the current step in view.
  */
 export function BomSectionNav({ id, name, states }: { id: string; name: string; states: Record<SectionKey, StepState> }) {

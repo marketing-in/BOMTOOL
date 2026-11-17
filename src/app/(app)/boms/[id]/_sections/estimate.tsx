@@ -33,7 +33,7 @@ const TONE: Record<Level, { text: string; bar: string }> = {
 };
 
 /**
- * Step 3, section 1 — "Can we build it?" (Phase 25: picture first). The answer on top with the customer's own board beside it,
+ * Step 7, section 1 — "Can we build it?" (Phase 25: picture first). The answer on top with the customer's own board beside it,
  * then our machines as lanes, the process as a chain of icons, the nine gates as one row, and every table of
  * figures folded under its headline number.
  */

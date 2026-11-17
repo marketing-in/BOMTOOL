@@ -17,7 +17,7 @@ import { getDisplayCurrency } from "@/lib/prefs";
 
 
 /**
- * Step 1, section 2. With nothing uploaded it opens on the upload; once the files are in, it opens on what was
+ * Step 2. With nothing uploaded it opens on the upload; once the files are in, it opens on what was
  * read from them — the board pulled apart layer by layer with its components (Phase 27) — and the upload folds away
  * under "Replace or add files".
  */
