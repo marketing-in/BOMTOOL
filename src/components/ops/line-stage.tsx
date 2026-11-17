@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Check, ExternalLink, Pencil, X } from "lucide-react";
 import type { MachineCard } from "@/lib/ops/machine-card";
 import type { PackageReach } from "@/lib/ops/package-reach";
 import { MachineDialog, MachineOrderButtons } from "@/components/ops/line-editor";
+import type { ViewMode } from "./line-3d";
 import { cn } from "@/lib/utils";
 
 const Line3D = dynamic(() => import("./line-3d"), { ssr: false, loading: () => <div className="grid h-full place-items-center text-sm text-muted-foreground">Drawing the line…</div> });
@@ -53,7 +54,9 @@ function Src({ source }: { source: string }) {
  * One line as a picture: its machines in 3D in flow order, and beside it everything we know about the machine
  * you click — what it can place, its key figures, what it is good and bad at.
  */
-export function LineStage({ machines, editable }: { machines: MachineCard[]; editable: boolean }) {
+export function LineStage({ machines, editable, running = false }: { machines: MachineCard[]; editable: boolean; running?: boolean }) {
+  const [mode, setMode] = useState<ViewMode>("3d");
+  const scene = useMemo(() => machines.map((x) => ({ id: x.id, type: x.type, short: x.short, model: x.model, color: x.color, position: x.position })), [machines]);
   const first = machines.find((m) => m.type === "PICK_AND_PLACE") ?? machines[0];
   const [sel, setSel] = useState<string | null>(first?.id ?? null);
   const m = machines.find((x) => x.id === sel) ?? first;
@@ -63,8 +66,22 @@ export function LineStage({ machines, editable }: { machines: MachineCard[]; edi
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_26rem]">
       <div className="min-w-0">
-        <div className="h-[340px] overflow-hidden rounded-xl border bg-muted/60 sm:h-[440px]">
-          <Line3D machines={machines.map((x) => ({ id: x.id, type: x.type, short: x.short, color: x.color, position: x.position }))} selected={m.id} onSelect={setSel} />
+        <div className="relative h-[340px] overflow-hidden rounded-xl border bg-muted/60 sm:h-[440px]">
+          <Line3D machines={scene} selected={m.id} onSelect={setSel} mode={mode} running={running} />
+          <div role="group" aria-label="View" className="absolute top-3 right-3 inline-flex rounded-md border bg-card p-0.5 text-xs">
+            {(["3d", "2d"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setMode(v)}
+                aria-pressed={mode === v}
+                title={v === "3d" ? "Turn the line in 3D" : "Floor plan from above"}
+                className={cn("h-7 rounded px-2.5 font-semibold uppercase outline-none focus-visible:ring-2 focus-visible:ring-ring", mode === v ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
         </div>
         <ol className="mt-3 flex flex-wrap gap-2" aria-label="Machines in flow order">
           {machines.map((x) => {

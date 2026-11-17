@@ -140,7 +140,7 @@ export default async function LinesPage({ searchParams }: { searchParams: Promis
             </div>
 
             {line.machines.length ? (
-              <LineStage key={line.id} machines={line.machines.map(machineCard)} editable={editable} />
+              <LineStage key={line.id} machines={line.machines.map(machineCard)} editable={editable} running={line.workOrders.length > 0} />
             ) : (
               <div className="rounded-xl border bg-card px-6 py-12 text-center text-sm text-muted-foreground">No machines on this line yet.</div>
             )}

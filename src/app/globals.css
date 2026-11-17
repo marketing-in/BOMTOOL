@@ -340,3 +340,7 @@
   @media (min-width:1024px) { .dashboard-figures > div:nth-child(3) { border-left:1px solid var(--border); } }
   @media (max-width:1023px) { .dashboard-figures > div:nth-child(n+3) { border-top:1px solid var(--border); } }
 
+
+/* Number tags over the machines in the Lines page's 3D / 2D view. */
+.line-tag { position:absolute; left:0; top:0; display:grid; place-items:center; min-width:1.375rem; height:1.375rem; padding:0 0.25rem; border-radius:0.25rem; border:1px solid var(--foreground); background:var(--card); color:var(--foreground); font-size:0.75rem; font-weight:600; font-variant-numeric:tabular-nums; will-change:transform; }
+.line-tag[data-on="true"] { background:var(--highlight); border-color:#1a1a18; color:#1a1a18; }

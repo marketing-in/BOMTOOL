@@ -34,3 +34,10 @@
 
 - Carry the look and the fewer-words rule to every other page.
 - The logo file is still blue.
+
+## Update: circuitflow machine models (17 Nov)
+
+- The Lines page draws each line with circuitflow's own machine models (`src/vendor/circuitflow/factoryModels.js`, refreshed from Downloads/circuitflow, which adds wave, selective, ICT and flying-probe models; blue materials recoloured).
+- Kinds without a circuitflow model borrow the nearest: laser marker → SPI-style hood, coater → selective cell, router → flying-probe gantry, benches and box-build stations → the ICT fixture. Conveyors on the sheet become link conveyors.
+- 3D / 2D switch on the stage: 3D turns and zooms; 2D is the floor plan from straight above, without shadows.
+- Machines run (heads moving, tower green, fumes from the oven) when the line has open work orders; reduced motion keeps them still.
