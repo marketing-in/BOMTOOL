@@ -8,7 +8,7 @@ import { requireUser } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/rbac";
 import { getDisplayCurrency } from "@/lib/prefs";
 import { PartMenu, PartTabs } from "@/components/shell/part-nav";
-import { CurrencySwitch, UserMenu } from "@/components/shell/topbar-controls";
+import { CurrencySwitch, ThemeSwitch, UserMenu } from "@/components/shell/topbar-controls";
 import { AskPanel } from "@/components/assistant/ask-panel";
 
 /**
@@ -60,6 +60,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 {alerts ? <span className="num absolute top-1 right-1 grid min-w-4 place-items-center rounded-full bg-risk-red px-1 text-[10px] leading-4 text-white">{alerts > 99 ? "99+" : alerts}</span> : null}
               </Link>
               <div className="hidden xl:block"><CurrencySwitch value={currency} /></div>
+              <ThemeSwitch />
               <UserMenu name={user.name ?? user.email ?? "User"} email={user.email ?? ""} roleLabel={ROLE_LABELS[user.role]} role={user.role} />
             </div>
           </div>

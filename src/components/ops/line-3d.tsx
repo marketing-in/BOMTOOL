@@ -155,8 +155,8 @@ export default function Line3D({ machines, selected, onSelect }: { machines: Mac
                       height: 22,
                       borderRadius: 4,
                       font: "600 12px var(--font-body)",
-                      background: on ? "#1a1a18" : "#ffffff",
-                      color: on ? "#fff" : "#1a1a18",
+                      background: on ? "#f7c61b" : "#ffffff",
+                      color: "#1a1a18",
                       border: "1px solid #1a1a18",
                     }}
                   >

@@ -63,7 +63,7 @@ export function LineStage({ machines, editable }: { machines: MachineCard[]; edi
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_26rem]">
       <div className="min-w-0">
-        <div className="h-[340px] overflow-hidden rounded-xl border bg-card sm:h-[440px]">
+        <div className="h-[340px] overflow-hidden rounded-xl border bg-muted/60 sm:h-[440px]">
           <Line3D machines={machines.map((x) => ({ id: x.id, type: x.type, short: x.short, color: x.color, position: x.position }))} selected={m.id} onSelect={setSel} />
         </div>
         <ol className="mt-3 flex flex-wrap gap-2" aria-label="Machines in flow order">

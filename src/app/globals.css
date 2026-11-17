@@ -69,7 +69,7 @@
 :root {
   /* Warm paper, dark ink, and one strong colour per part of the app. No blue anywhere. */
   --radius: 0.5rem;
-  --background: #f5f5f3;
+  --background: #ffffff;
   --foreground: #1a1a18;
   --card: #ffffff;
   --card-foreground: #1a1a18;
@@ -109,7 +109,7 @@
   --brand-accent: #f7c61b;
   --primary-bright: var(--part);
   --page-glow: transparent;
-  --viewer-bg: #f0f0ed;
+  --viewer-bg: #f6f6f4;
   --viewer-grid: rgb(60 45 20 / 7%);
   --viewer-grid-major: rgb(60 45 20 / 12%);
 
@@ -155,28 +155,28 @@
 :root[data-part="factory"] { --part: var(--part-factory); --part-soft: var(--part-factory-soft); }
 
 .dark {
-  --background: #17130e;
-  --foreground: #f3ecdf;
-  --card: #211b14;
-  --card-foreground: #f3ecdf;
-  --popover: #29221a;
-  --popover-foreground: #f3ecdf;
-  --part: #f3ecdf;
-  --part-soft: #2e261c;
-  --part-ink: #17130e;
-  --secondary: #2a231a;
-  --secondary-foreground: #f3ecdf;
-  --muted: #2a231a;
-  --muted-foreground: #b9ad9a;
+  --background: #121211;
+  --foreground: #ededea;
+  --card: #1b1b1a;
+  --card-foreground: #ededea;
+  --popover: #232322;
+  --popover-foreground: #ededea;
+  --part: #ededea;
+  --part-soft: #2a2a28;
+  --part-ink: #121211;
+  --secondary: #262624;
+  --secondary-foreground: #ededea;
+  --muted: #262624;
+  --muted-foreground: #a8a8a0;
   --destructive: #f07a70;
-  --border: #3b3226;
-  --input: #4a3f30;
-  --sidebar: #100d09;
+  --border: #333330;
+  --input: #44443f;
+  --sidebar: #0c0c0b;
   --sidebar-accent: rgb(255 255 255 / 12%);
   --sidebar-border: rgb(255 255 255 / 12%);
-  --brand-from: #100d09;
-  --brand-to: #100d09;
-  --viewer-bg: #17130e;
+  --brand-from: #0c0c0b;
+  --brand-to: #0c0c0b;
+  --viewer-bg: #121211;
   --viewer-grid: rgb(240 220 180 / 6%);
   --viewer-grid-major: rgb(240 220 180 / 11%);
 
@@ -190,7 +190,7 @@
   --part-factory-soft: #40220f;
 
   --dir-blue: #5fd0aa;
-  --dir-slate: #b9ad9a;
+  --dir-slate: #a8a8a0;
   --risk-green: #6fcf8e;
   --risk-amber: #e8b84a;
   --risk-red: #f07a70;

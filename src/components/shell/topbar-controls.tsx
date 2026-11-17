@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -105,5 +105,28 @@ export function UserMenu({ name, email, roleLabel, role }: { name: string; email
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/** Light / dark, one tap, always in the top bar. The account menu still offers "follow the system". */
+export function ThemeSwitch() {
+  const { resolvedTheme, setTheme } = useTheme();
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
+  const dark = ready && resolvedTheme === "dark";
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={dark}
+      aria-label="Dark mode"
+      title={dark ? "Switch to light" : "Switch to dark"}
+      onClick={() => setTheme(dark ? "light" : "dark")}
+      className="relative inline-flex h-8 w-14 shrink-0 items-center rounded-full border bg-muted outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <span className={`absolute left-0.5 grid size-6.5 place-items-center rounded-full bg-card text-foreground shadow-sm transition-transform duration-200 ease-out ${dark ? "translate-x-6" : ""}`}>
+        {dark ? <Moon className="size-3.5" aria-hidden /> : <Sun className="size-3.5" aria-hidden />}
+      </span>
+    </button>
   );
 }
