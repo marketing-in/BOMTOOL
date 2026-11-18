@@ -20,7 +20,7 @@ const NODE: Record<Level, string> = {
 };
 
 /**
- * Step 5, section 2 — the process route (Phase 25: picture first): the route as a chain of icons, then one slim row per step that
+ * Step 4, section 2 — the process route (Phase 25: picture first): the route as a chain of icons, then one slim row per step that
  * opens to why this product needs it, its parts, its checks and its links. Steps with a watch-out are open already.
  */
 export default async function RouteSection({ id }: { id: string }) {

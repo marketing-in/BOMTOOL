@@ -28,7 +28,7 @@ function useWhere(id: string) {
 
 /**
  * The steps of one BoM down the left side, the same on every one of its pages: BoM · Gerber · Footprint & mismatch ·
- * Components · Line possible · Bare board · Estimate & quote, numbered and joined by a rail, each with a mark for how
+ * Line possible · Components · Bare board · Estimate & quote, numbered and joined by a rail, each with a mark for how
  * far it has got. On a narrow screen the same list runs across the top and scrolls sideways.
  */
 export function BomStepRail({ id, name, states }: { id: string; name: string; states: Record<SectionKey, StepState> }) {

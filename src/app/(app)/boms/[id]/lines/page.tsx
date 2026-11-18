@@ -7,7 +7,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return stepTitle((await params).id, "Line possible");
 }
 
-/** Step 5: which of our lines can build it, and the process route through the plant. */
+/** Step 4: which of our lines can build it, and the process route through the plant. */
 export default async function LinesStepPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ qty?: string }> }) {
   const { id } = await params;
   await openRevision(id);

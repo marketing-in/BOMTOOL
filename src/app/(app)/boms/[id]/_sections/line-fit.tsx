@@ -33,7 +33,7 @@ function Fold({ title, note, hint, children, open }: { title: string; note?: Rea
 }
 
 /**
- * Step 5, section 1 — line fit: which of our lines and machines can build this board (smallest chip, finest pitch, largest and
+ * Step 4, section 1 — line fit: which of our lines and machines can build this board (smallest chip, finest pitch, largest and
  * tallest part, board size — machine by machine), how long the lot takes on each line, what the lines really took on
  * older jobs, and what they are running now, so the earliest finish is one read.
  */

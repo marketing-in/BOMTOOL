@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { MORE, WORKFLOW, locate, neighbours, sectionHref, sectionStates, stepProgress, stepState, type StepFacts } from "@/lib/bom/workflow";
 
 describe("the BoM process, in seven steps", () => {
-  it("runs BoM → Gerber → Footprint & mismatch → Components → Line possible → Bare board → Estimate & quote, with no box or SMT line step", () => {
-    expect(WORKFLOW.map((s) => `${s.n}:${s.key}`)).toEqual(["1:bom", "2:gerbers", "3:footprint", "4:parts", "5:lines", "6:board", "7:quote"]);
-    expect(WORKFLOW.map((s) => s.label)).toEqual(["BoM", "Gerber", "Footprint & mismatch", "Components", "Line possible", "Bare board", "Estimate & quote"]);
-    expect(WORKFLOW.map((s) => s.sections.map((x) => x.key))).toEqual([["bom"], ["gerbers"], ["match", "mismatch"], ["parts"], ["lines", "route"], ["board"], ["feasibility", "quote"]]);
+  it("runs BoM → Gerber → Footprint & mismatch → Line possible → Components → Bare board → Estimate & quote, with no box or SMT line step", () => {
+    expect(WORKFLOW.map((s) => `${s.n}:${s.key}`)).toEqual(["1:bom", "2:gerbers", "3:footprint", "4:lines", "5:parts", "6:board", "7:quote"]);
+    expect(WORKFLOW.map((s) => s.label)).toEqual(["BoM", "Gerber", "Footprint & mismatch", "Line possible", "Components", "Bare board", "Estimate & quote"]);
+    expect(WORKFLOW.map((s) => s.sections.map((x) => x.key))).toEqual([["bom"], ["gerbers"], ["match", "mismatch"], ["lines", "route"], ["parts"], ["board"], ["feasibility", "quote"]]);
     expect(WORKFLOW.some((s) => s.sections.some((x) => x.key === "box" || x.key === "line"))).toBe(false);
     expect(WORKFLOW.filter((s) => s.optional)).toEqual([]);
     expect(MORE.map((v) => v.key)).toEqual(["analysis", "supply", "viewer"]);
@@ -47,7 +47,7 @@ describe("the BoM process, in seven steps", () => {
 
   it("knows what comes before and after", () => {
     const board = WORKFLOW.find((s) => s.key === "board")!;
-    expect(neighbours(board)).toMatchObject({ prev: { key: "lines" }, next: { key: "quote" } });
+    expect(neighbours(board)).toMatchObject({ prev: { key: "parts" }, next: { key: "quote" } });
     expect(neighbours(WORKFLOW[0]).prev).toBeNull();
     expect(neighbours(WORKFLOW[WORKFLOW.length - 1]).next).toBeNull();
   });
@@ -98,7 +98,7 @@ describe("how far a BoM has got", () => {
     // Everything known done: components and line possible have no state, and there is nothing to point at.
     const all = stepProgress(sectionStates(facts({ review: { passed: true, signed: 9, gates: 9 }, draft: { board: true, box: false, issued: true } })));
     expect(all.done).toBe(5);
-    expect(all.steps.filter((s) => s.state === "unknown").map((s) => s.key)).toEqual(["parts", "lines"]);
+    expect(all.steps.filter((s) => s.state === "unknown").map((s) => s.key)).toEqual(["lines", "parts"]);
     expect(all.next).toBeNull();
   });
 });
