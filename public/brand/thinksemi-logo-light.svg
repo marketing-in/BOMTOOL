@@ -1,8 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 150" role="img" aria-label="ThinkSemi">
-  <path fill="#f584b5" d="M4 6C40 8 62 16 76 32L74 56C52 40 28 22 4 6Z"/>
-  <path fill="#f59a5e" d="M146 8C112 10 92 18 78 32L80 56C100 40 124 24 146 8Z"/>
-  <path fill="#c39bf0" d="M63 46L77 36L88 46C87 96 81 124 75 144C68 122 63 94 63 46Z"/>
-  <g fill="#ededea">
+  <defs>
+    <linearGradient id="a" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b82f6"/><stop offset="1" stop-color="#60a5fa"/></linearGradient>
+    <linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#60a5fa"/><stop offset="1" stop-color="#93c5fd"/></linearGradient>
+  </defs>
+  <path fill="url(#a)" d="M4 6C40 8 62 16 76 32L74 56C52 40 28 22 4 6Z"/>
+  <path fill="#93c5fd" d="M146 8C112 10 92 18 78 32L80 56C100 40 124 24 146 8Z"/>
+  <path fill="url(#b)" d="M63 46L77 36L88 46C87 96 81 124 75 144C68 122 63 94 63 46Z"/>
+  <g fill="#ffffff">
     <path d="M170 42h52v15h-18.5v55h-15V57H170z"/>
     <path d="M236 42h15v27.5h18V42h15v70h-15V84.5h-18V112h-15z"/>
     <path d="M298 42h15v70h-15z"/>
@@ -12,5 +16,5 @@
     <path d="M582 42h18l13 38 13-38h18v70h-15V70l-11 32h-10l-11-32v42h-15z"/>
     <path d="M658 42h15v70h-15z"/>
   </g>
-  <path fill="none" stroke="#ededea" stroke-width="15" d="M505 60C500 52 493 49.500 485 49.500C475 49.500 470.500 55 470.500 62C470.500 71 478 74 486 77C495 80 502.500 84 502.500 93C502.500 100 497 104.500 486 104.500C477 104.500 471 102 467 95"/>
+  <path fill="none" stroke="#ffffff" stroke-width="15" d="M505 60C500 52 493 49.500 485 49.500C475 49.500 470.500 55 470.500 62C470.500 71 478 74 486 77C495 80 502.500 84 502.500 93C502.500 100 497 104.500 486 104.500C477 104.500 471 102 467 95"/>
 </svg>
