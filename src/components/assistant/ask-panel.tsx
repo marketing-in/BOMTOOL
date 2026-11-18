@@ -188,9 +188,9 @@ export function AskPanel() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" className="h-10 gap-1.5 px-2.5 sm:px-3" aria-label="Ask AI about this page">
+        <Button variant="outline" className="h-10 gap-1.5 px-2.5 2xl:px-3" aria-label="Ask AI about this page">
           <Sparkles className="size-4 text-primary" aria-hidden />
-          <span className="hidden sm:inline">Ask</span>
+          <span className="hidden 2xl:inline">Ask</span>
         </Button>
       </SheetTrigger>
       <SheetContent side="right" className="w-full gap-0 sm:max-w-md lg:max-w-lg" onOpenAutoFocus={(e) => { e.preventDefault(); box.current?.focus(); }}>

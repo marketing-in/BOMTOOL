@@ -67,7 +67,7 @@ export function UserMenu({ name, email, roleLabel, role }: { name: string; email
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="h-10 gap-2 px-2" aria-label="Account menu">
           <span className="grid size-9 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{initials}</span>
-          <span className="hidden text-left text-xs leading-tight md:block">
+          <span className="hidden text-left text-xs leading-tight 2xl:block">
             <span className="block font-medium">{name}</span>
             <span className="block text-muted-foreground">{roleLabel}</span>
           </span>
