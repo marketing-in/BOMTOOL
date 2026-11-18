@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RefResult } from "@/lib/board/footprint-match";
-import { bodyColor, buildFilm, cameraAt, doneBy, extent, filmFrame, fxAt, geoFromBody, geoFromSignature, headAt, placementOrder } from "@/lib/board/placement-film";
+import { FLY, bodyColor, buildFilm, extent, filmFrame, fxAt, geoFromBody, geoFromSignature, settled, sweepOrder } from "@/lib/board/placement-film";
 import { signature } from "@/lib/board/footprint-match";
 
 const ref = (r: string, status: RefResult["status"], x: number | null, y: number | null, footprint: string | null = "0603", bomPkg: string | null = "0603", side = "TOP"): RefResult => ({
@@ -67,67 +67,52 @@ describe("the board film", () => {
     expect(f.parts.find((p) => p.ref === "C1")).toMatchObject({ x: 10, y: 30 });
   });
 
-  it("places the top side before the bottom, and keeps parts with no place for the feeder", () => {
+  it("flies the top side in before the bottom, and keeps parts with no place for the feeder strip", () => {
     expect(f.parts.at(-1)!.ref).toBe("C7");
     expect(f.parts).toHaveLength(6);
     expect(f.tray.map((t) => t.ref)).toEqual(["C99"]);
+    // The strip turns red once every part has landed.
+    expect(f.tray[0].at).toBeGreaterThanOrEqual(Math.max(...f.parts.map((p) => p.land)));
   });
 
-  it("runs 6–12 s whatever the part count", () => {
-    expect(f.duration).toBeGreaterThanOrEqual(6);
-    expect(f.duration).toBeLessThanOrEqual(12.5);
+  it("settles in about 2–4 s whatever the part count", () => {
+    expect(f.duration).toBeGreaterThanOrEqual(1.5);
+    expect(f.duration).toBeLessThanOrEqual(4);
     const many = Array.from({ length: 300 }, (_, k) => ref(`R${k}`, k % 17 ? "match" : "mismatch", (k % 20) * 5 + 2, Math.floor(k / 20) * 5 + 2));
     const big = buildFilm({ refs: many, frame: filmFrame(many, { widthMm: 104, heightMm: 80 }, null)!, art: false });
-    expect(big.duration).toBeGreaterThanOrEqual(6);
-    expect(big.duration).toBeLessThanOrEqual(12.5);
-    // Slots follow one another, and every part is let go inside its own.
-    for (let k = 1; k < big.parts.length; k++) expect(big.parts[k].start).toBeGreaterThanOrEqual(big.parts[k - 1].arrive);
+    expect(big.duration).toBeGreaterThanOrEqual(2);
+    expect(big.duration).toBeLessThanOrEqual(4);
+    // A quick stagger: each part sets off no earlier than the one before it.
+    for (let k = 1; k < big.parts.length; k++) expect(big.parts[k].start).toBeGreaterThanOrEqual(big.parts[k - 1].start);
   });
 
-  it("drops a match, bursts a mismatch, and leaves parts not in the BoM as empty pads", () => {
-    const match = f.parts.find((p) => p.ref === "C1")!;
-    const bad = f.parts.find((p) => p.ref === "U1")!;
-    const stray = f.parts.find((p) => p.ref === "TP1")!;
-    expect(fxAt(f, match, match.arrive - 0.01)).toBe("before");
-    const mid = fxAt(f, match, match.arrive + f.drop / 2);
-    expect(mid).not.toBe("before");
-    expect(typeof mid === "object" && mid.lift > 0 && mid.lift < 1).toBe(true);
-    expect(fxAt(f, match, f.duration)).toBe("after");
-    const hover = fxAt(f, bad, bad.arrive + bad.hover / 2);
-    expect(typeof hover === "object" && hover.chip === 1 && hover.lift > 0.5).toBe(true);
-    const burst = fxAt(f, bad, bad.arrive + bad.hover + 0.2);
-    expect(typeof burst === "object" && burst.chip === 0 && burst.burst > 0).toBe(true);
-    const empty = fxAt(f, stray, stray.arrive + 0.1);
-    expect(typeof empty === "object" && empty.chip === 0).toBe(true);
+  it("flies a part in from above, bigger, and lands it on its pads", () => {
+    const p = f.parts.find((q) => q.ref === "C1")!;
+    expect(fxAt(p, p.start - 0.01)).toBe("before");
+    const mid = fxAt(p, p.start + FLY / 2);
+    expect(typeof mid === "object" && mid.lift > 0 && mid.lift < 1 && mid.dy < 0).toBe(true);
+    const down = fxAt(p, p.land);
+    expect(typeof down === "object" && down.lift === 0 && down.dx === 0 && down.dy === 0).toBe(true);
+    expect(fxAt(p, f.duration)).toBe("after");
+    expect(settled(f, f.duration)).toBe(true);
   });
 
-  it("moves the head to each part as it lets go, carries the part there, and parks it at the end", () => {
-    const p = f.parts[2];
-    const at = headAt(f, p.arrive);
-    expect(at.x).toBeCloseTo(p.x, 5);
-    expect(at.y).toBeCloseTo(p.y, 5);
-    expect(headAt(f, (p.start + p.arrive) / 2).carrying).toBe(p.status === "not-in-bom" ? -1 : p.i);
-    expect(headAt(f, f.duration).opacity).toBeCloseTo(0, 5);
-    expect(doneBy(f, f.duration)).toBe(6);
-    expect(doneBy(f, 0)).toBe(0);
+  it("lands a mismatch too (it blinks red on the page), and leaves parts not in the BoM as bare pads", () => {
+    const bad = f.parts.find((q) => q.ref === "U1")!;
+    const landed = fxAt(bad, bad.land + 0.01);
+    expect(typeof landed === "object" && landed.chip === 1).toBe(true);
+    const stray = f.parts.find((q) => q.ref === "TP1")!;
+    const empty = fxAt(stray, stray.land);
+    expect(typeof empty === "object" && empty.chip === 0 && empty.mark > 0).toBe(true);
   });
 
-  it("shows the whole board at rest", () => {
-    for (const t of [0, f.duration]) {
-      const c = cameraAt(f, t);
-      expect(c.z).toBeCloseTo(1, 5);
-      expect(c.cx).toBeCloseTo(f.w / 2, 5);
-      expect(c.cy).toBeCloseTo(f.h / 2, 5);
-    }
-  });
-
-  it("orders a side in alternating bands", () => {
+  it("sweeps a side from the top-left corner", () => {
     const pts = [
-      { x: 1, y: 1, bottom: false },
-      { x: 9, y: 1, bottom: false },
-      { x: 1, y: 9, bottom: false },
       { x: 9, y: 9, bottom: false },
+      { x: 1, y: 1, bottom: true },
+      { x: 5, y: 1, bottom: false },
+      { x: 1, y: 2, bottom: false },
     ];
-    expect(placementOrder(pts, 10).map((p) => `${p.x},${p.y}`)).toEqual(["1,1", "9,1", "9,9", "1,9"]);
+    expect(sweepOrder(pts).map((p) => `${p.x},${p.y},${p.bottom ? "b" : "t"}`)).toEqual(["1,2,t", "5,1,t", "9,9,t", "1,1,b"]);
   });
 });

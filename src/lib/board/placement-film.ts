@@ -2,10 +2,10 @@ import type { BodyKind } from "@/lib/board/bodies";
 import { signature, type MatchStatus, type RefResult, type Signature } from "@/lib/board/footprint-match";
 
 /**
- * The footprint check as a short film: a placement head visits every designator on the board and drops its part on
- * the pads — or, when the BoM's package does not fit the board's footprint, the part bursts above the pads. Pure:
- * the board's geometry, the order, and where everything is at any moment t, so any frame can be drawn (or skipped to)
- * without playing the ones before it. Units: mm, y down, origin at the board frame's top-left; time in seconds.
+ * The footprint check coming alive on the bare board: every part flies in from above, in a quick sweep across the
+ * board, and lands on its pads. Pure: the board's geometry, the order, and how each part looks at any moment t, so the
+ * settled board (or any moment of the fly-in) can be drawn directly. Units: mm, y down, origin at the board frame's
+ * top-left; time in seconds.
  */
 
 /** The body the BoM's part has, as the server reads it from the package data (see boardThumbFor). */
@@ -27,17 +27,17 @@ export type FilmPart = {
   rot: number;
   /** The land pattern the board has. */
   pads: Geo;
-  /** The part the BoM sends: what the head carries and drops (for a mismatch, it does not fit). */
+  /** The part the BoM names, as it lands (for a mismatch, it does not fit the pads). */
   chip: Geo;
   color: string;
   /** Silkscreen designator when there is room for it (no Gerber drawing under the board). */
   label: { x: number; y: number } | null;
-  /** Slot start; when the head arrives and lets go; when the part has finished its own animation. */
+  /** When it sets off, when it touches the pads, when it has settled. */
   start: number;
-  arrive: number;
+  land: number;
   settle: number;
-  /** Mismatch: how long it hovers before it bursts. */
-  hover: number;
+  /** Where it flies in from, relative to its place (mm). */
+  from: { dx: number; dy: number };
 };
 
 export type Film = {
@@ -46,17 +46,12 @@ export type Film = {
   /** Margin round the board inside the picture. */
   m: number;
   parts: FilmPart[];
-  /** BoM designators with no place on the board, shown in the feeder strip, and when each is called. */
+  /** BoM designators with no place on the board, shown in the feeder strip, and when each turns red. */
   tray: { ref: string; at: number }[];
-  intro: number;
-  bodyEnd: number;
   duration: number;
-  /** Head size (mm), label size (mm), most the camera zooms in. */
-  head: number;
+  /** Silkscreen label size (mm); size marks and effects are never drawn below (mm). */
   font: number;
-  zoom: number;
-  park: { x: number; y: number };
-  drop: number;
+  mark: number;
 };
 
 const CHIP_MM: Record<string, [number, number]> = {
@@ -248,12 +243,11 @@ export const smooth = (a: number, b: number, t: number) => {
   const x = clamp((t - a) / (b - a), 0, 1);
   return x * x * (3 - 2 * x);
 };
-const easeInOut = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const easeOut = (x: number) => 1 - Math.pow(1 - x, 3);
 
-/** Each result's share of the head's travel time, relative to a plain match. */
-const WEIGHT: Record<MatchStatus, number> = { match: 1, check: 1.3, mismatch: 1.6, "not-in-bom": 1.3, "not-on-board": 0 };
-/** Seconds a problem holds the head after it lets go: a mismatch hovers, bursts, and the head waits for the debris. */
-const EXTRA: Record<MatchStatus, number> = { match: 0, check: 0.2, mismatch: 0.9, "not-in-bom": 0.3, "not-on-board": 0 };
+/** Seconds from setting off to touching the pads, and the soft settle after. */
+export const FLY = 0.62;
+export const SETTLE = 0.3;
 
 /** Where the board sits in the placements' frame: the Gerber drawing's box when every part is inside it, else the board, else the parts. */
 export function filmFrame(refs: RefResult[], board: { widthMm: number; heightMm: number } | null, artBox: { x: number; y: number; w: number; h: number } | null) {
@@ -270,29 +264,9 @@ export function filmFrame(refs: RefResult[], board: { widthMm: number; heightMm:
   return { x0: minX - edge, y0: minY - edge, w: maxX - minX + edge * 2, h: maxY - minY + edge * 2, real: false };
 }
 
-/** Top side first, then the bottom; each in bands across the board, alternating direction like a machine's path. */
-export function placementOrder<T extends { x: number; y: number; bottom: boolean }>(parts: T[], h: number): T[] {
-  const out: T[] = [];
-  for (const side of [false, true]) {
-    const list = parts.filter((p) => p.bottom === side);
-    if (!list.length) continue;
-    const bands = Math.max(1, Math.round(Math.sqrt(list.length) * 0.8));
-    const bh = h / bands;
-    const by = new Map<number, T[]>();
-    for (const p of list) {
-      const k = clamp(Math.floor(p.y / bh), 0, bands - 1);
-      by.set(k, [...(by.get(k) ?? []), p]);
-    }
-    let flip = false;
-    for (let k = 0; k < bands; k++) {
-      const band = by.get(k);
-      if (!band) continue;
-      band.sort((a, b) => (flip ? b.x - a.x : a.x - b.x));
-      out.push(...band);
-      flip = !flip;
-    }
-  }
-  return out;
+/** A sweep across the board: by distance from its top-left corner, top side first, then the bottom. */
+export function sweepOrder<T extends { x: number; y: number; bottom: boolean }>(parts: T[]): T[] {
+  return [...parts].sort((a, b) => Number(a.bottom) - Number(b.bottom) || a.x + a.y - (b.x + b.y) || a.x - b.x);
 }
 
 export type FilmInput = {
@@ -325,34 +299,25 @@ export function buildFilm({ refs, frame, bodies = {}, art }: FilmInput): Film {
       color: bodyColor(body?.color, chip.kind, r.ref),
     };
   });
-  const order = placementOrder(raw, h);
+  const order = sweepOrder(raw);
 
-  // Time: a fixed-length film whatever the part count. Every part gets a share of the travel; a problem also holds
-  // the head a moment longer (a mismatch until it has burst), squeezed if there are many problems.
-  const intro = 0.55;
-  const weights = order.map((p) => WEIGHT[p.status]);
-  const W = weights.reduce((s, v) => s + v, 0) || 1;
-  const body = clamp(W * 0.42, 4.6, 9.2);
-  const extras = order.map((p) => EXTRA[p.status]);
-  const E = extras.reduce((s, v) => s + v, 0);
-  const es = E ? Math.min(1, (body * 0.45) / E) : 1;
-  const u = (body - E * es) / W;
-  const drop = clamp(u * 0.9, 0.2, 0.34);
-  let at = intro;
+  // Time: the whole board settles in about 2–4 s whatever the part count — big boards get a tighter stagger.
+  const n = order.length;
+  const spread = clamp(0.8 + n * 0.006, 0.8, 2.4);
+  const step = n > 1 ? spread / (n - 1) : 0;
+  const lift = size * 0.22;
   const parts: FilmPart[] = order.map((p, i) => {
-    const travel = u * weights[i];
-    const start = at;
-    at += travel + extras[i] * es;
-    const arrive = start + travel * 0.6;
-    const hover = p.status === "mismatch" ? Math.max(0.16, 0.38 * es) : 0;
-    const settle = arrive + (p.status === "mismatch" ? hover + 0.95 : p.status === "check" ? drop + 1.1 : p.status === "not-in-bom" ? 0.45 : drop + 0.75);
-    return { i, ...p, label: null, start, arrive, settle, hover };
+    const start = 0.1 + i * step;
+    const land = start + FLY;
+    // From above and a little out from the board's middle, so the parts drift in towards it.
+    const out = clamp((p.x - w / 2) / (w / 2), -1, 1);
+    return { i, ...p, label: null, start, land, settle: land + SETTLE + (p.status === "match" ? 0.55 : 0.25), from: { dx: r2(out * lift * 0.35), dy: r2(-lift) } };
   });
-  const bodyEnd = at;
+  const landed = parts.length ? Math.max(...parts.map((p) => p.land)) : 0.2;
   const others = refs.filter((r) => r.x === null || r.y === null).map((r) => r.ref);
-  const step = others.length ? Math.min(0.12, 0.9 / others.length) : 0;
-  const tray = others.map((ref, k) => ({ ref, at: bodyEnd + 0.15 + k * step }));
-  const duration = Math.max(bodyEnd + 1.1, (tray.at(-1)?.at ?? 0) + 0.6, ...parts.map((p) => p.settle + 0.1));
+  const tstep = others.length ? Math.min(0.08, 0.5 / others.length) : 0;
+  const tray = others.map((ref, k) => ({ ref, at: r2(landed + 0.1 + k * tstep) }));
+  const duration = Math.max(0.2, ...parts.map((p) => p.settle), ...tray.map((t) => t.at + 0.05));
 
   // Silkscreen designators beside their parts, where they clear every other part and label (only on a bare drawing).
   const font = clamp(size / 60, 0.5, 1.3);
@@ -386,145 +351,64 @@ export function buildFilm({ refs, frame, bodies = {}, art }: FilmInput): Film {
     }
   }
 
-  const sizes = parts.map((p) => Math.max(p.pads.l, p.pads.w)).sort((a, b) => a - b);
-  const typical = sizes[Math.floor(sizes.length / 2)] ?? 2;
-  const head = clamp(size / 13, 1.6, 9);
-  const zoom = parts.length <= 3 ? 1 : clamp(size / (typical * 9), 1.25, 2);
-  const m = r2(Math.max(w, h) * 0.07);
-  return { w, h, m, parts, tray, intro, bodyEnd, duration, head, font, zoom, park: { x: w + m * 0.4, y: -m * 0.4 }, drop };
+  const m = r2(Math.max(w, h) * 0.05);
+  return { w, h, m, parts, tray, duration, font, mark: clamp(size / 70, 0.35, 1.4) };
 }
 
-export type Head = { x: number; y: number; opacity: number; carrying: number; press: number; part: number };
-
-/** Where the head is at time t, what it carries, and which part it is working on. */
-export function headAt(f: Film, t: number): Head {
-  const ps = f.parts;
-  const fade = smooth(0, f.intro, t) * (1 - smooth(f.duration - 0.55, f.duration - 0.05, t));
-  if (!ps.length) return { ...f.park, opacity: 0, carrying: -1, press: 0, part: -1 };
-  if (t >= f.bodyEnd) {
-    const last = ps[ps.length - 1];
-    const k = easeInOut(clamp((t - f.bodyEnd) / 0.8, 0, 1));
-    return { x: last.x + (f.park.x - last.x) * k, y: last.y + (f.park.y - last.y) * k, opacity: fade, carrying: -1, press: 0, part: -1 };
-  }
-  // The slot t falls in (binary search on start times).
-  let lo = 0;
-  let hi = ps.length - 1;
-  while (lo < hi) {
-    const mid = (lo + hi + 1) >> 1;
-    if (ps[mid].start <= t) lo = mid;
-    else hi = mid - 1;
-  }
-  const p = ps[lo];
-  if (t < p.start) return { ...f.park, opacity: fade, carrying: -1, press: 0, part: -1 };
-  const from = lo ? ps[lo - 1] : f.park;
-  const k = easeInOut(clamp((t - p.start) / (p.arrive - p.start), 0, 1));
-  const press = Math.max(0, 1 - Math.abs(t - p.arrive) / 0.14);
-  return { x: from.x + (p.x - from.x) * k, y: from.y + (p.y - from.y) * k, opacity: fade, carrying: t < p.arrive && p.status !== "not-in-bom" ? lo : -1, press, part: lo };
-}
-
-/** The camera: the whole board at rest; while the film runs, a gentle zoom that trails the head, and a jolt on each burst. */
-export function cameraAt(f: Film, t: number): { cx: number; cy: number; z: number } {
-  const env = smooth(f.intro, f.intro + 1.0, t) * (1 - smooth(f.bodyEnd - 0.2, f.bodyEnd + 0.8, t));
-  const z = 1 + (f.zoom - 1) * env;
-  let sx = 0;
-  let sy = 0;
-  for (let k = 0; k < 6; k++) {
-    const hd = headAt(f, Math.max(0, t - k * 0.1));
-    sx += hd.x;
-    sy += hd.y;
-  }
-  const W = f.w + 2 * f.m;
-  const H = f.h + 2 * f.m;
-  let cx = f.w / 2 + (sx / 6 - f.w / 2) * env;
-  let cy = f.h / 2 + (sy / 6 - f.h / 2) * env;
-  const hw = W / 2 / z;
-  const hh = H / 2 / z;
-  cx = clamp(cx, -f.m + hw, f.w + f.m - hw);
-  cy = clamp(cy, -f.m + hh, f.h + f.m - hh);
-  for (const p of f.parts) {
-    if (p.status !== "mismatch" || t < p.arrive) continue;
-    const d = t - (p.arrive + p.hover);
-    if (d < 0 || d > 0.35) continue;
-    const a = (1 - d / 0.35) * Math.min(f.w, f.h) * 0.006;
-    cx += Math.sin(d * 90) * a;
-    cy += Math.cos(d * 70) * a;
-  }
-  return { cx, cy, z };
-}
-
-/** What a part looks like at time t: "before" (empty pads), "after" (its final look) or the in-between values. */
+/** How a part looks at time t: "before" (bare pads), "after" (settled) or in flight. */
 export type PartFx = {
-  /** Opacity of the placed body. */
+  /** Opacity of the body. */
   chip: number;
-  /** 1 = held at the nozzle, 0 = on the pads. */
+  /** 1 = high above the board, 0 = on its pads. */
   lift: number;
+  /** Offset while flying (mm) and a little spin (degrees). */
+  dx: number;
+  dy: number;
+  spin: number;
+  /** Landing squash: 1 = at rest. */
   scale: number;
-  wobble: number;
-  /** Green confirm glow and tick. */
+  /** Brief green glow after a matching part lands. */
   glow: number;
-  tick: number;
-  /** Amber check ring: opacity and spread. */
-  ring: number;
-  ringS: number;
-  /** Mismatch burst progress 0..1, or -1. */
-  burst: number;
-  /** The final mark: green hairline, red dashed outline with ✕, dashed empty pads. */
+  /** The result's mark: green hairline, red outline (blinking, drawn by the page), ochre outline, dotted outline. */
   mark: number;
 };
 
 export const FINAL: Record<MatchStatus, PartFx> = {
-  match: { chip: 1, lift: 0, scale: 1, wobble: 0, glow: 0, tick: 0, ring: 0, ringS: 1, burst: -1, mark: 1 },
-  check: { chip: 1, lift: 0, scale: 1, wobble: 0, glow: 0, tick: 0, ring: 1, ringS: 1, burst: -1, mark: 0 },
-  mismatch: { chip: 0, lift: 0, scale: 1, wobble: 0, glow: 0, tick: 0, ring: 0, ringS: 1, burst: -1, mark: 1 },
-  "not-in-bom": { chip: 0, lift: 0, scale: 1, wobble: 0, glow: 0, tick: 0, ring: 0, ringS: 1, burst: -1, mark: 1 },
-  "not-on-board": { chip: 0, lift: 0, scale: 1, wobble: 0, glow: 0, tick: 0, ring: 0, ringS: 1, burst: -1, mark: 0 },
+  match: { chip: 1, lift: 0, dx: 0, dy: 0, spin: 0, scale: 1, glow: 0, mark: 1 },
+  check: { chip: 1, lift: 0, dx: 0, dy: 0, spin: 0, scale: 1, glow: 0, mark: 1 },
+  mismatch: { chip: 1, lift: 0, dx: 0, dy: 0, spin: 0, scale: 1, glow: 0, mark: 1 },
+  "not-in-bom": { chip: 0, lift: 0, dx: 0, dy: 0, spin: 0, scale: 1, glow: 0, mark: 1 },
+  "not-on-board": { chip: 0, lift: 0, dx: 0, dy: 0, spin: 0, scale: 1, glow: 0, mark: 0 },
 };
+export const BEFORE: PartFx = { chip: 0, lift: 1, dx: 0, dy: 0, spin: 0, scale: 1, glow: 0, mark: 0 };
 
-/** Lifted parts look bigger: they are nearer the camera. */
-export const LIFT_SCALE = 0.18;
+/** Lifted parts look bigger: they are nearer the eye. */
+export const LIFT_SCALE = 0.7;
 
-export function fxAt(f: Film, p: FilmPart, t: number): PartFx | "before" | "after" {
-  if (t < p.arrive) return "before";
+export function fxAt(p: FilmPart, t: number): PartFx | "before" | "after" {
+  if (t < p.start) return "before";
   if (t >= p.settle) return "after";
-  const tau = t - p.arrive;
-  const D = f.drop;
-  if (p.status === "mismatch") {
-    if (tau < p.hover) {
-      // Held above the pads, it does not go down: a shiver while the machine refuses it.
-      const k = tau / p.hover;
-      return { ...FINAL.mismatch, chip: 1, lift: 1 - 0.25 * Math.sin(k * Math.PI), scale: 1, wobble: Math.sin(tau * 55) * 5 * k, mark: 0 };
-    }
-    const b = clamp((tau - p.hover) / 0.6, 0, 1);
-    return { ...FINAL.mismatch, burst: b < 1 ? b : -1, mark: smooth(p.hover + 0.15, p.hover + 0.45, tau) };
-  }
-  if (p.status === "not-in-bom") return { ...FINAL["not-in-bom"], mark: smooth(0, 0.35, tau) };
-  // Drop: falls from the nozzle, a little squash, settles.
-  const k = clamp(tau / D, 0, 1);
-  const fall = 1 - Math.pow(1 - k, 3);
-  const settle = k < 1 ? 0 : Math.sin(clamp((tau - D) / 0.16, 0, 1) * Math.PI) * 0.03;
-  const base = { chip: 1, lift: 1 - fall, scale: 1 - settle, wobble: 0, burst: -1 };
-  if (p.status === "check") {
-    const r = tau - D * 0.7;
-    const pulse = r < 0 ? 0 : (r % 0.5) / 0.5;
-    const pulsing = r >= 0 && r < 1.0;
-    return { ...FINAL.check, ...base, ring: r < 0 ? 0 : pulsing ? 1 - pulse * 0.8 : 1, ringS: pulsing ? 1 + pulse * 0.9 : 1 };
-  }
-  const g = tau - D * 0.6;
-  return { ...FINAL.match, ...base, glow: g < 0 ? 0 : Math.max(0, 1 - g / 0.7), tick: g < 0 ? 0 : g < 0.12 ? g / 0.12 : Math.max(0, 1 - (g - 0.35) / 0.3), mark: smooth(D, D + 0.5, tau) };
+  // Nothing to place: its outline simply appears when its turn comes.
+  if (p.status === "not-in-bom") return { ...FINAL["not-in-bom"], mark: smooth(p.start + FLY * 0.5, p.land, t) };
+  const k = clamp((t - p.start) / FLY, 0, 1);
+  const e = easeOut(k);
+  const lift = 1 - e;
+  const after = t - p.land;
+  const squash = after < 0 ? 0 : Math.sin(clamp(after / SETTLE, 0, 1) * Math.PI) * 0.06 * (1 - after / SETTLE);
+  return {
+    chip: smooth(0, 0.3, k),
+    lift,
+    dx: p.from.dx * lift,
+    dy: p.from.dy * lift,
+    spin: -14 * lift,
+    scale: 1 - squash,
+    glow: p.status === "match" && after >= 0 ? Math.max(0, 1 - after / 0.7) : 0,
+    mark: smooth(p.land, p.land + SETTLE, t),
+  };
 }
 
-/** How many parts the head has dealt with by t. */
-export function doneBy(f: Film, t: number): number {
-  // Arrivals are in order: the first part not yet reached, by binary search.
-  let lo = 0;
-  let hi = f.parts.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (f.parts[mid].arrive <= t) lo = mid + 1;
-    else hi = mid;
-  }
-  return lo;
-}
+/** Whether every part has settled by t. */
+export const settled = (f: Film, t: number) => t >= f.duration;
 
 /** SVG path of a geometry's pads. */
 export function padsPath(g: Geo): string {
