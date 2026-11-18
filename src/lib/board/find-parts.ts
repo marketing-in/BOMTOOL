@@ -4,7 +4,7 @@
  * pads, drills and silkscreen. Pure: no Next.js, no database.
  */
 import { buildGerberBoard, classifyPads, inferType, packageSize, TYPE_LABELS, type CfType } from "@/vendor/circuitflow/gerber-entry";
-import type { BodySpec } from "./bodies";
+import { familyPitch, type BodySpec } from "./bodies";
 import type { ColumnMapping } from "@/lib/bom/fields";
 
 export type FoundSource = "component-layer" | "placement" | "pad-designators" | "guessed" | "none";
@@ -269,7 +269,9 @@ export function bodyFromFootprint(footprint: string, kind: CfType = "other"): Bo
   const kindOf: BodySpec["kind"] = shape === "cyl" ? "can" : leads === "dual" ? "gullwing" : leads === "quad" ? "quad" : leads === "ends" ? "chip" : kind === "connector" ? "connector" : /QFN|DFN|SON/i.test(footprint) ? "leadless" : "generic";
   // Pin headers are black plastic; other connectors (USB, RJ45 shells, terminal blocks) read better light.
   const color = kindOf === "connector" && !/header/i.test(footprint) ? "#ececec" : kindOf === "can" ? "#1f3a6e" : kindOf === "chip" && kind === "capacitor" ? "#b89466" : "#1f1f22";
-  return { kind: kindOf, length, width, height: h, color, pins, pitch };
+  // A footprint name rarely states its pitch; fine-pitch families don't use the 1.27 mm default.
+  const fine = /mm/i.test(footprint) ? null : familyPitch(footprint);
+  return { kind: kindOf, length, width, height: h, color, pins, pitch: fine ?? pitch };
 }
 
 /** A rotation worked out from pad positions lands a few degrees off square; parts sit at right angles. */

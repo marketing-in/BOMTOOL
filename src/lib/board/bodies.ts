@@ -24,6 +24,21 @@ export type BodySpec = {
 
 type PkgLike = { family?: string | null; name?: string | null; lengthMm?: number | null; widthMm?: number | null; heightMm?: number | null; pinCount?: number | null; pitchMm?: number | null };
 
+/**
+ * The usual lead or pad pitch of a package family, in mm, for when neither the part nor its footprint name gives one:
+ * QFN / DFN / SON / LGA and QFP 0.5, TSSOP / SSOP / MSOP 0.65, SOIC / SOP / SO 1.27. Null for anything else.
+ */
+export function familyPitch(name: string | null | undefined): number | null {
+  const n = (name ?? "").toUpperCase();
+  if (/\b(QFN|DFN|SON|WSON|VSON|LGA|UQFN|VQFN)|^(QFN|DFN|SON|LGA)/.test(n)) return 0.5;
+  if (/(LQFP|TQFP|QFP)/.test(n)) return 0.5;
+  if (/(TSSOP|SSOP|MSOP|VSSOP)/.test(n)) return 0.65;
+  if (/(SOIC|SOP|\bSO-?\d)/.test(n)) return 1.27;
+  return null;
+}
+
+const FAMILY_PITCH: Record<string, number> = { QFN: 0.5, SON: 0.5, QFP: 0.5, BGA: 0.8, LGA: 0.5, CSP: 0.4, SSOP: 0.65, TSSOP: 0.65, SOIC: 1.27, SOT: 0.95 };
+
 const BLACK = "#1f1f22";
 const MLCC_TAN = "#b89466";
 const RES_BLACK = "#2a2a2a";
@@ -34,7 +49,8 @@ export function bodyFor(pkg: PkgLike | null, opts: { category?: string | null; m
   const W = pkg?.widthMm ?? 0;
   const H = pkg?.heightMm ?? 0;
   const pins = pkg?.pinCount ?? 2;
-  const pitch = pkg?.pitchMm ?? 1.27;
+  // No pitch on file: the family's usual one, so fine-pitch pads land under the body instead of 1.27 mm apart.
+  const pitch = pkg?.pitchMm ?? FAMILY_PITCH[fam] ?? familyPitch(pkg?.name) ?? 1.27;
   const cat = opts.category ?? "";
 
   if (fam === "CHIP") {
