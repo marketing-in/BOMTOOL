@@ -56,8 +56,8 @@ describe("seed data integrity", () => {
     for (const lc of ["ACTIVE", "NRND", "LAST_TIME_BUY", "EOL", "OBSOLETE"]) expect(lcs).toContain(lc);
   });
 
-  it("defines 4 lines and 3 sample BoMs whose MPNs mostly exist in the catalogue", () => {
-    expect(LINES).toHaveLength(4);
+  it("defines our 3 SMT lines and 3 sample BoMs whose MPNs mostly exist in the catalogue", () => {
+    expect(LINES).toHaveLength(3);
     expect(BOMS).toHaveLength(3);
     const known = new Set(PARTS.map((p) => normaliseMpn(p.mpn)));
     for (const b of BOMS) {

@@ -86,7 +86,7 @@ export type MachineModel = {
   footprintMm?: string;
   weightKg?: number;
   links?: { label: string; url: string }[];
-  /** Installed in a line today (false: earlier kit or a candidate from a brochure). */
+  /** Installed in a line today (false: earlier kit, kit no longer in the plant (17 Nov 2026), or a brochure candidate). */
   installed: boolean;
   confidence: "high" | "medium" | "low";
   version: 1;
@@ -346,7 +346,7 @@ export const MACHINE_MODELS: MachineModel[] = [
     kind: "PICK_AND_PLACE",
     family: "Yamaha Z:LEX high-efficiency modular mounters",
     launched: maker(2018, "Announced Jan 2018, on sale Apr 2018; YSM20 was 2014"),
-    oneLiner: "High-speed all-round mounter; the volume workhorse of Line 2.",
+    oneLiner: "High-speed all-round mounter; the volume workhorse of Lines 2 and 3.",
     placement: {
       minChip: sheet("0201", "HM head reaches metric 0201 (01005) on request; our nozzles start at 301A"),
       maxPartMm: sheet([100, 55], "Yamaha W55 × L100; machinery sheet says 55 × 55"),
@@ -426,7 +426,7 @@ export const MACHINE_MODELS: MachineModel[] = [
     strengths: ["Separate leaded and lead-free pots", "Jet wave solders bottom-side SMD", "Finger conveyor: no pallets needed"],
     limits: ["Fluxer and preheat not on sheet", "Board width range not on sheet", "Nitrogen not listed"],
     power: "415 V, 3-phase",
-    installed: true,
+    installed: false,
     confidence: "low",
     version: 1,
   },
@@ -450,7 +450,7 @@ export const MACHINE_MODELS: MachineModel[] = [
     strengths: ["Selective coating cuts masking work", "Programmable spray paths"],
     limits: ["3 axes: no tilt for side walls", "Bench batch work, not inline", "No cure or UV inspection"],
     power: "220 V, 1-phase",
-    installed: true,
+    installed: false,
     confidence: "medium",
     version: 1,
   },
@@ -474,7 +474,7 @@ export const MACHINE_MODELS: MachineModel[] = [
     strengths: ["Low-stress cuts beside fragile parts", "Cuts curves and angles, not just lines"],
     limits: ["Route channels must be ≥ 0.8 mm", "Router dust: keep parts off edges", "Manual panel loading"],
     power: "220 V, 1-phase",
-    installed: true,
+    installed: false,
     confidence: "medium",
     version: 1,
   },
@@ -500,7 +500,7 @@ export const MACHINE_MODELS: MachineModel[] = [
     strengths: ["No mechanical stress on the board", "Near-zero kerf: parts close to edge", "Cuts flex and rigid-flex"],
     limits: ["Slow on thick FR-4", "Check edge carbonisation for high voltage", "Our laser option not on file"],
     links: [{ label: "LPKF CuttingMaster 2000", url: "https://www.lpkfusa.com/products-technologies/electronics-manufacturing/products/lpkf-cuttingmaster-2000" }],
-    installed: true,
+    installed: false,
     confidence: "medium",
     version: 1,
   },
@@ -522,7 +522,7 @@ export const MACHINE_MODELS: MachineModel[] = [
     strengths: ["Double-ended leads in one pass", "Repeatable lengths and strip lengths"],
     limits: ["Wires over 6 mm² need other kit", "Each terminal needs its own applicator"],
     links: [{ label: "Schleuniger CrimpCenter 36 S", url: "https://www.schleuniger.com/products/p/crimpcenter-36-s/" }],
-    installed: true,
+    installed: false,
     confidence: "medium",
     version: 1,
   },
@@ -543,7 +543,7 @@ export const MACHINE_MODELS: MachineModel[] = [
     ],
     strengths: ["Torque and angle recorded per screw", "Sequences stop missed screws"],
     limits: ["Torque range depends on tool fitted", "Tool models not on file"],
-    installed: true,
+    installed: false,
     confidence: "low",
     version: 1,
   },
@@ -566,7 +566,7 @@ export const MACHINE_MODELS: MachineModel[] = [
     strengths: ["Hipot, IR and ground bond in one box", "Flashover and open/short checks"],
     limits: ["AC hipot tops out at 5 kV", "Safety test only, not functional"],
     links: [{ label: "Chroma 19032", url: "https://www.chromausa.com/product/electrical-safety-analyzer-19032/" }],
-    installed: true,
+    installed: false,
     confidence: "medium",
     version: 1,
   },
@@ -644,7 +644,7 @@ export const MACHINE_MODELS: MachineModel[] = [
     air: "0.3–0.4 MPa",
     footprintMm: "938 × 1191 × 1480",
     weightKg: 600,
-    installed: false,
+    installed: true,
     confidence: "high",
     version: 1,
   },
@@ -672,7 +672,7 @@ export const MACHINE_MODELS: MachineModel[] = [
     air: "0.4–0.6 MPa",
     footprintMm: "1045 × 1470 × 1600",
     weightKg: 900,
-    installed: false,
+    installed: true,
     confidence: "high",
     version: 1,
   },
@@ -700,7 +700,7 @@ export const MACHINE_MODELS: MachineModel[] = [
     air: "0.4–0.6 MPa",
     footprintMm: "1140 × 1360 × 1620",
     weightKg: 1100,
-    installed: false,
+    installed: true,
     confidence: "high",
     version: 1,
   },

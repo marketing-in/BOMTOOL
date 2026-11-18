@@ -8,8 +8,8 @@ const machines = LINES.flatMap((l) => l.machines.map((m) => ({ line: l.code, ...
 const words = (s: string) => s.trim().split(/\s+/).length;
 const sortPair = (p: unknown): [number, number] | null => (Array.isArray(p) && p.length === 2 ? ([Math.max(p[0], p[1]), Math.min(p[0], p[1])] as [number, number]) : null);
 
-/** Machines we expect no model profile for: in-house benches and fixtures. */
-const NO_PROFILE = new Set(["In-house Manual insertion benches", "In-house FCT fixtures + programming (J-Link/ST-Link)", "In-house Burn-in rack 48 slots @ 55 °C", "In-house ESD packing & labelling"]);
+/** Machines we expect no model profile for: none since the in-house benches left with the through-hole and box-build lines. */
+const NO_PROFILE = new Set<string>([]);
 
 describe("machine model profiles", () => {
   it("every machine on our lines resolves, except the in-house benches", () => {

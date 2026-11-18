@@ -1,8 +1,9 @@
 /**
  * Puts the plant in prisma/seed-data/factory.ts (our lines and their machines, from the machine sheets) into the
  * database without touching anything else: each line is matched by its code (L1, L2…) and updated in place, so its
- * work orders and history stay with it; its machines are replaced by the list in the file. Lines in the database but
- * not in the file are left alone.
+ * work orders and history stay with it; its machines are replaced by the list in the file. A line in the database
+ * but not in the file is no longer in the plant: it is deleted when nothing refers to it, otherwise retired (inactive)
+ * with its machines removed, so past work orders keep their line.
  *
  *   npm run plant:sync
  */
@@ -30,6 +31,18 @@ async function main() {
         });
       });
       console.log(`${l.code}  ${l.name}: ${l.machines.length} machines`);
+    }
+    const gone = await db.line.findMany({ where: { code: { notIn: LINES.map((l) => l.code) } }, include: { _count: { select: { workOrders: true } } } });
+    for (const g of gone) {
+      await db.machine.deleteMany({ where: { lineId: g.id } });
+      try {
+        if (g._count.workOrders) throw new Error("has work orders");
+        await db.line.delete({ where: { id: g.id } });
+        console.log(`${g.code}  removed`);
+      } catch {
+        await db.line.update({ where: { id: g.id }, data: { active: false } });
+        console.log(`${g.code}  retired (kept for its history)`);
+      }
     }
   } finally {
     await db.$disconnect();

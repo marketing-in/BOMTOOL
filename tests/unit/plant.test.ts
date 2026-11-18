@@ -29,8 +29,10 @@ describe("our lines, from the machine sheets", () => {
       "Tronwin TW-VP860N",
       "Magic-ray V5000",
     ]);
-    expect(L2.machines.map((m) => `${m.vendor} ${m.model}`)).toEqual(["MPM Momentum II 100", "Koh Young KY8030-2", "Yamaha YSM20R Z:LEX #1", "Yamaha YSM20R Z:LEX #2", "Vitronics Soltec Centurion 820"]);
-    expect(asLine("L3").machines.map((m) => m.vendor)).toEqual(["In-house", "EMST", "Janome", "Janome"]);
+    expect(L2.machines.map((m) => `${m.vendor} ${m.model}`)).toEqual(["MPM Momentum II 100", "Koh Young KY8030-2", "Yamaha YSM20R Z:LEX #1", "Yamaha YSM20R Z:LEX #2", "Vitronics Soltec Centurion 820", "Magic-ray Cube+"]);
+    expect(asLine("L3").machines.map((m) => `${m.vendor} ${m.model}`)).toEqual(["HTGD GD450 (semi-automatic)", "CKD VP-01G", "Yamaha YSM20R", "Tronwin TW-VP860N", "Magic-ray V5300"]);
+    // Three SMT lines; the through-hole kit and the box-build line are not in the plant.
+    expect(LINES.map((l) => `${l.code}:${l.type}`)).toEqual(["L1:SMT", "L2:SMT", "L3:SMT"]);
   });
 
   it("takes the board limits from the tightest machine — on Line 1 the laser marker", () => {
@@ -47,8 +49,8 @@ describe("our lines, from the machine sheets", () => {
     const l1 = plant.lines.find((l) => l.code === "L1")!;
     expect(l1.steps.find((s) => s.label === "Laser marking")).toMatchObject({ level: "red" });
     expect(plant.use.smt).toBe("L2");
-    // No AOI on Line 2's sheet: amber, not red.
-    expect(plant.lines.find((l) => l.code === "L2")!.steps.find((s) => s.stage === "aoi")).toMatchObject({ level: "amber" });
+    // Line 2 inspects with the Magic-ray Cube+ (plant notes, 17 Nov 2026).
+    expect(plant.lines.find((l) => l.code === "L2")!.steps.find((s) => s.stage === "aoi")).toMatchObject({ level: "green" });
   });
 
   it("builds QFNs without X-ray (amber) but not BGAs (red)", () => {
@@ -90,17 +92,22 @@ describe("a line as the simulation's stations", () => {
   it("runs Line 2's two placers as one station at their summed rate", () => {
     const pnp = simStations(L2.machines).find((x) => x.id === "pnp")!;
     expect(pnp).toMatchObject({ count: 2, machine: "2 × Yamaha YSM20R Z:LEX", label: "2 × YSM20R Z:LEX", rates: { actualCph: 132000, ratedCph: 190000 } });
-    expect(simLine({ code: "L2", name: "Line 2", machines: L2.machines })!.stations.map((x) => x.id)).toEqual(["printer", "spi", "pnp", "reflow"]);
-    expect(simLine({ code: "L3", name: "THT", machines: asLine("L3").machines })).toBeNull();
+    expect(simLine({ code: "L2", name: "Line 2", machines: L2.machines })!.stations.map((x) => x.id)).toEqual(["printer", "spi", "pnp", "reflow", "aoi"]);
+    expect(simLine({ code: "L3", name: "Line 3", machines: asLine("L3").machines })!.stations.map((x) => x.id)).toEqual(["printer", "spi", "pnp", "reflow", "aoi"]);
+    // A line without printer, placer and oven is not an SMT line for the simulation.
+    expect(simLine({ code: "T", name: "THT", machines: [{ type: "WAVE_SOLDER", vendor: "EMST", model: "Stallion", position: 1, specs: null }] })).toBeNull();
   });
 
   it("schedules a board through our line's stations and nothing else", () => {
     const parts = Array.from({ length: 12 }, (_, i) => makePart({ ref: `R${i + 1}`, x: 10 + i * 6, y: 20, rot: 0, side: "top", package: "0603", value: "10k", w: 1.6, d: 0.8, h: 0.45 }));
     const board = { id: "b", name: "Test", source: "blueprint", width: 100, height: 80, layers: 2, parts };
-    const plan = planProduction(board, parts, { boards: 3, line: simLine({ code: "L2", name: "Line 2", machines: L2.machines }) });
+    // Line 2 without its AOI: the planner schedules only the stations the line has.
+    const noAoi = L2.machines.filter((m) => m.type !== "AOI");
+    const plan = planProduction(board, parts, { boards: 3, line: simLine({ code: "L2", name: "Line 2", machines: noAoi }) });
     expect(plan.stations.map((s) => s.id)).toEqual(["printer", "spi", "pnp", "reflow"]);
     expect(Object.keys(plan.schedule[0])).toEqual(["printer", "spi", "pnp", "reflow"]);
     expect(plan.results[0].aoi).toEqual([]);
+    expect(planProduction(board, parts, { boards: 1, line: simLine({ code: "L2", name: "Line 2", machines: L2.machines }) }).stations.map((s) => s.id)).toEqual(["printer", "spi", "pnp", "reflow", "aoi"]);
     expect(plan.reflow.zoneMm).toBeCloseTo(3550 / 9, 1);
     // 12 placements at 132 000 an hour, plus 3 s transfer.
     expect(plan.times.pnp).toBe(3.33);
