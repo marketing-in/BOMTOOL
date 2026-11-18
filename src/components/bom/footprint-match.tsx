@@ -1,23 +1,17 @@
 import Link from "next/link";
-import { BookOpen, Check, CircleAlert, CircuitBoard, Eye, FileSpreadsheet, FileUp, TriangleAlert, Unplug } from "lucide-react";
+import { BookOpen, Check, CircleAlert, FileSpreadsheet, FileUp, TriangleAlert } from "lucide-react";
 import type { FootprintMatch, MatchStatus, RefResult } from "@/lib/board/footprint-match";
+import type { PartBody } from "@/lib/board/placement-film";
+import { ORDER, STATUS } from "@/components/bom/footprint-status";
+import { PlacementFilm, type BoardArt } from "@/components/bom/placement-film";
 import { compressRefs } from "@/lib/board/find-parts";
 import { cn } from "@/lib/utils";
 import { Ring } from "@/components/viz/ring";
 
 /**
  * Step 3, "Footprint match" (Phase 24), as a picture: a ring of how many designators agree, a count per result, the
- * board with every placed part coloured by result, and only the problems listed.
+ * board with every part placed by a head in turn (mismatches burst), and only the problems listed.
  */
-
-const STATUS: Record<MatchStatus, { label: string; short: string; color: string; text: string; icon: typeof Check }> = {
-  match: { label: "Match", short: "Same footprint in the BoM and on the board", color: "var(--risk-green)", text: "text-risk-green", icon: Check },
-  mismatch: { label: "Do not match", short: "The BoM names one footprint, the board has another", color: "var(--risk-red)", text: "text-risk-red", icon: CircleAlert },
-  check: { label: "Check by eye", short: "One side names no footprint we can read", color: "var(--risk-amber)", text: "text-risk-amber", icon: Eye },
-  "not-on-board": { label: "Not on the board", short: "In the BoM, but not placed on the board", color: "var(--risk-red)", text: "text-risk-red", icon: Unplug },
-  "not-in-bom": { label: "Not in the BoM", short: "Placed on the board, but no BoM line", color: "var(--risk-red)", text: "text-risk-red", icon: FileSpreadsheet },
-};
-const ORDER: MatchStatus[] = ["match", "check", "mismatch", "not-on-board", "not-in-bom"];
 
 const TONE = {
   green: { box: "border-risk-green/30 bg-risk-green-soft", text: "text-risk-green", icon: Check },
@@ -38,62 +32,6 @@ function MatchRing({ m }: { m: FootprintMatch }) {
     />
   );
 }
-
-/** The board from above: every placed part a dot in its result's colour; bottom-side parts are rings. */
-function BoardMap({ refs, board, art }: { refs: RefResult[]; board: { widthMm: number; heightMm: number } | null; art: BoardArt | null }) {
-  const pts = refs.filter((r): r is RefResult & { x: number; y: number } => r.x !== null && r.y !== null);
-  if (!pts.length) return null;
-  const xs = pts.map((p) => p.x);
-  const ys = pts.map((p) => p.y);
-  // With the Gerber drawing on file and every part inside it, the dots sit on the real board.
-  const real = art && Math.min(...xs) >= art.box.x - 1 && Math.min(...ys) >= art.box.y - 1 && Math.max(...xs) <= art.box.x + art.box.w + 1 && Math.max(...ys) <= art.box.y + art.box.h + 1 ? art : null;
-  const inside = board && Math.min(...xs) >= -1 && Math.min(...ys) >= -1 && Math.max(...xs) <= board.widthMm + 1 && Math.max(...ys) <= board.heightMm + 1;
-  const pad = 4;
-  const x0 = real ? real.box.x : inside ? 0 : Math.min(...xs) - pad;
-  const y0 = real ? real.box.y : inside ? 0 : Math.min(...ys) - pad;
-  const w = real ? real.box.w : inside ? board.widthMm : Math.max(...xs) - Math.min(...xs) + pad * 2;
-  const h = real ? real.box.h : inside ? board.heightMm : Math.max(...ys) - Math.min(...ys) + pad * 2;
-  const dot = Math.max(0.7, Math.min(w, h) / 55);
-  return (
-    <figure className="rounded-xl border bg-card p-5">
-      <figcaption className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm font-semibold">
-        <span className="flex items-center gap-2"><CircuitBoard className="size-4 text-primary" aria-hidden /> The board, part by part</span>
-        <span className="flex flex-wrap gap-x-3 gap-y-1 text-xs font-normal text-muted-foreground">
-          {(["match", "check", "mismatch", "not-in-bom"] as MatchStatus[]).map((s) => (
-            <span key={s} className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full" style={{ background: STATUS[s].color, opacity: s === "not-in-bom" ? 0.55 : 1 }} aria-hidden />{STATUS[s].label}</span>
-          ))}
-          <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full border-2 border-muted-foreground" aria-hidden />bottom side</span>
-        </span>
-      </figcaption>
-      <svg viewBox={`${-2} ${-2} ${w + 4} ${h + 4}`} className="mx-auto max-h-[420px] w-full" role="img" aria-label={`Board map: ${pts.length} placed parts coloured by footprint match`}>
-        <rect x="0" y="0" width={w} height={h} rx={Math.min(w, h) / 40} fill="#14532d" opacity="0.92" />
-        {real ? <image href={real.href} x="0" y="0" width={w} height={h} preserveAspectRatio="none" /> : null}
-        <rect x="0" y="0" width={w} height={h} rx={Math.min(w, h) / 40} fill="none" stroke="#c9a227" strokeWidth={dot / 3} />
-        {pts
-          // Problems drawn last, on top.
-          .sort((a, b) => Number(a.status !== "match") - Number(b.status !== "match"))
-          .map((p) => {
-            const cx = p.x - x0;
-            const cy = h - (p.y - y0);
-            const bad = p.status !== "match";
-            const bottom = p.side === "BOTTOM";
-            return (
-              <g key={p.ref}>
-                {bad ? <circle cx={cx} cy={cy} r={dot * 2.2} fill={STATUS[p.status].color} opacity="0.25" /> : null}
-                {real && !bottom ? <circle cx={cx} cy={cy} r={(bad ? dot * 1.25 : dot) + dot / 4} fill="#fff" opacity="0.9" /> : null}
-                <circle cx={cx} cy={cy} r={bad ? dot * 1.25 : dot} fill={bottom ? "none" : STATUS[p.status].color} stroke={STATUS[p.status].color} strokeWidth={bottom ? dot / 2 : 0} opacity={p.status === "match" ? 0.85 : 1}>
-                  <title>{`${p.ref} — ${STATUS[p.status].label}: ${p.why}`}</title>
-                </circle>
-              </g>
-            );
-          })}
-      </svg>
-    </figure>
-  );
-}
-
-/** The Gerber drawing of the top side and where it sits in the placements' own frame (mm). */
-export type BoardArt = { href: string; box: { x: number; y: number; w: number; h: number } };
 
 type Row = { status: MatchStatus; refs: string[]; lineNo: number | null; mpn: string | null; bomPkg: string | null; footprint: string | null; why: string };
 
@@ -144,7 +82,25 @@ function Table({ list }: { list: Row[] }) {
   );
 }
 
-export function FootprintMatchView({ match: m, revisionId, board, art = null }: { match: FootprintMatch; revisionId: string; board: { widthMm: number; heightMm: number } | null; art?: BoardArt | null }) {
+export type { BoardArt };
+
+export function FootprintMatchView({
+  match: m,
+  revisionId,
+  board,
+  art = null,
+  bodies,
+  mask,
+}: {
+  match: FootprintMatch;
+  revisionId: string;
+  board: { widthMm: number; heightMm: number } | null;
+  art?: BoardArt | null;
+  /** Each placed designator's body and rotation, from the package data (keyed by upper-case designator). */
+  bodies?: Record<string, PartBody>;
+  /** Solder-mask colour name of the board (green when not given). */
+  mask?: string | null;
+}) {
   const t = TONE[m.level];
   const all = rows(m.refs);
   const problems = all.filter((r) => r.status !== "match").sort((a, b) => ORDER.indexOf(b.status) - ORDER.indexOf(a.status));
@@ -190,7 +146,7 @@ export function FootprintMatchView({ match: m, revisionId, board, art = null }: 
             })}
           </ul>
 
-          <BoardMap refs={m.refs} board={board} art={art} />
+          <PlacementFilm refs={m.refs} board={board} art={art} bodies={bodies} mask={mask} counts={m.counts} />
 
           {problems.length ? (
             <section aria-labelledby="to-fix" className="overflow-hidden rounded-xl border bg-card">
