@@ -1,7 +1,14 @@
-import { redirect } from "next/navigation";
-import { sectionHref } from "@/lib/bom/workflow";
+import { StepPage } from "@/components/bom/step-page";
+import BareBoardSection from "../../_sections/bare-board";
+import { openRevision, stepTitle } from "../../_sections/guard";
 
-/** The bare board now lives on its step's page: this address opens it there. */
-export default async function Moved({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  redirect(sectionHref((await params).id, "board", await searchParams));
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  return stepTitle((await params).id, "Bare board");
+}
+
+/** Step 6: the bare board's estimate — what the fabs charge for it, and the one chosen. */
+export default async function BareBoardStepPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  await openRevision(id);
+  return <StepPage step="board" sections={{ board: <BareBoardSection id={id} /> }} />;
 }

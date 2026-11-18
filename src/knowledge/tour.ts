@@ -50,7 +50,7 @@ export const TOUR: TourChapter[] = [
         what: "Step 2 of every BoM, with the list of every mismatch under it: each designator's package in the BoM against the footprint on the board. A ring shows the share that match, and the board is drawn with every part coloured by its result.",
         tryIt: ["Hover a dot on the board to see the designator and why", "Open the folded list of matching designators"],
         href: "/boms/{bom}/match",
-        menu: "1 BoM → a BoM → 4 · Footprint & mismatch",
+        menu: "1 BoM → a BoM → 3 · Footprint & mismatch",
       },
       {
         key: "upload-gerber",
@@ -109,7 +109,7 @@ export const TOUR: TourChapter[] = [
   {
     key: "quote",
     title: "3 · Quote it",
-    summary: "Components sit with the BoM in step 1, the bare board and the price in step 3, the box (optional) in step 4.",
+    summary: "Components are step 4, the bare board step 6 and the price step 7.",
     stops: [
       {
         key: "build-board",
@@ -118,7 +118,7 @@ export const TOUR: TourChapter[] = [
         what: "Fabricators on file and online services, with a landed price per quantity, or type in the fab's own quote.",
         tryIt: ["Choose a fab", "Compare the price at each quantity"],
         href: "/boms/{bom}/build/board",
-        menu: "1 BoM → a BoM → 7 · Estimate & quote → Bare board",
+        menu: "1 BoM → a BoM → 6 · Bare board",
       },
       {
         key: "build-parts",
@@ -127,7 +127,7 @@ export const TOUR: TourChapter[] = [
         what: "Source the whole BoM by our own order, lowest price, shortest lead time or lowest risk — then change single lines if needed.",
         tryIt: ["Compare the four sourcing options", "Pick another source for one line"],
         href: "/boms/{bom}/build/parts",
-        menu: "1 BoM → a BoM → 3 · Components",
+        menu: "1 BoM → a BoM → 4 · Components",
       },
       {
         key: "build-quote",

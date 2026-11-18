@@ -7,7 +7,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return stepTitle((await params).id, "Footprint & mismatch");
 }
 
-/** Step 4: the BoM against the board footprint by footprint, then every mismatch. */
+/** Step 3: the BoM against the board footprint by footprint, then every mismatch. */
 export default async function FootprintStepPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   await openRevision(id);

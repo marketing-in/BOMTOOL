@@ -29,7 +29,7 @@ export const footprintMatchFor = cache(async (revisionId: string): Promise<Footp
   );
 });
 
-/** Every mismatch in the product: the BoM against the board and against itself (Part 1, step 4). */
+/** Every mismatch in the product: the BoM against the board and against itself (Part 1, step 3). */
 export const mismatchesFor = cache(async (revisionId: string): Promise<Mismatches> => {
   const [match, lines] = await Promise.all([
     footprintMatchFor(revisionId),

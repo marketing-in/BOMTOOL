@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { WORKFLOW, locate, neighbours } from "@/lib/bom/workflow";
 
 /** Back and Next at the foot of every step, so a BoM is taken through its process one step at a time. */
-export function WorkflowFooter({ id, matchBlocked = false }: { id: string; /** The footprints do not match: going on from step 4 is possible, but not the main action. */ matchBlocked?: boolean }) {
+export function WorkflowFooter({ id, matchBlocked = false }: { id: string; /** The footprints do not match: going on from step 3 is possible, but not the main action. */ matchBlocked?: boolean }) {
   const pathname = usePathname();
   const base = `/boms/${id}`;
   const { step } = locate(pathname.startsWith(base) ? pathname.slice(base.length) : "");

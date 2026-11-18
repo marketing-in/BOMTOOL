@@ -1,15 +1,16 @@
 /**
- * One BoM's process, in seven steps (Part 1 of the four-part app), as the user set them on 17 Nov 2026:
- * 1 the BoM · 2 its Gerbers · 3 its components · 4 footprints and mismatches (the BoM against the board) · 5 which
- * of our lines can build it, with the process route · 6 the board on that SMT line · 7 the estimate, bare board and
- * quote. There is no box step: a product ships board-only unless a box is chosen from the quote's gate. A section's
- * old address still works: it opens its step's page at that section. Pure.
+ * One BoM's process, in seven steps, as the user set them on 18 Nov 2026: 1 the BoM · 2 its Gerbers · 3 footprints
+ * and mismatches (the BoM against the board) · 4 its components · 5 which of our lines can build it, with the
+ * process route · 6 the bare board's estimate · 7 the estimate and quote. The steps run down the left side of every
+ * BoM page; the views (Analysis, Supply chain, 3D view) sit on top. The SMT line is no longer a step: it runs in the
+ * 3D view, beside the board in 3D, 2D and layers. There is no box step either. A section's old address still works:
+ * it opens its step's page (or the 3D view) at that section. Pure.
  */
 
-/** The parts of the process the data can judge, each a section of one step's page ("box" is no longer a step). */
+/** The parts of the process the data can judge, each a section of one step's page ("box" and "line" are not steps). */
 export type SectionKey = "bom" | "gerbers" | "match" | "mismatch" | "lines" | "board" | "feasibility" | "parts" | "box" | "quote" | "route" | "line";
-export type StepKey = "bom" | "gerbers" | "parts" | "footprint" | "lines" | "smt" | "quote";
-export type ViewKey = "analysis" | "supply" | "reverse" | "viewer";
+export type StepKey = "bom" | "gerbers" | "footprint" | "parts" | "lines" | "board" | "quote";
+export type ViewKey = "analysis" | "supply" | "viewer";
 
 /** `path`: the section's own address (it redirects to the step's page at `#anchor`); `also`: other pages that belong to it. */
 export type Section = { key: SectionKey; label: string; path: string; anchor: string; also?: string[] };
@@ -19,10 +20,9 @@ export type View = { key: ViewKey; label: string; path: string };
 export const WORKFLOW: Step[] = [
   { key: "bom", n: 1, label: "BoM", path: "", sections: [{ key: "bom", label: "BoM", path: "", anchor: "bom", also: ["/map", "/diff", "/quote"] }] },
   { key: "gerbers", n: 2, label: "Gerber", path: "/board", sections: [{ key: "gerbers", label: "Gerber", path: "/board", anchor: "gerbers" }] },
-  { key: "parts", n: 3, label: "Components", path: "/build/parts", sections: [{ key: "parts", label: "Components", path: "/build/parts", anchor: "components" }] },
   {
     key: "footprint",
-    n: 4,
+    n: 3,
     label: "Footprint & mismatch",
     path: "/match",
     sections: [
@@ -30,6 +30,7 @@ export const WORKFLOW: Step[] = [
       { key: "mismatch", label: "Mismatches", path: "/mismatch", anchor: "mismatches" },
     ],
   },
+  { key: "parts", n: 4, label: "Components", path: "/build/parts", sections: [{ key: "parts", label: "Components", path: "/build/parts", anchor: "components" }] },
   {
     key: "lines",
     n: 5,
@@ -40,7 +41,7 @@ export const WORKFLOW: Step[] = [
       { key: "route", label: "Process route", path: "/route", anchor: "route" },
     ],
   },
-  { key: "smt", n: 6, label: "SMT line", path: "/line", sections: [{ key: "line", label: "SMT line", path: "/line", anchor: "smt-line" }] },
+  { key: "board", n: 6, label: "Bare board", path: "/build/board", sections: [{ key: "board", label: "Bare board", path: "/build/board", anchor: "bare-board", also: ["/build"] }] },
   {
     key: "quote",
     n: 7,
@@ -48,19 +49,20 @@ export const WORKFLOW: Step[] = [
     path: "/feasibility",
     sections: [
       { key: "feasibility", label: "Estimate", path: "/feasibility", anchor: "estimate" },
-      { key: "board", label: "Bare board", path: "/build/board", anchor: "bare-board", also: ["/build"] },
       { key: "quote", label: "Quote", path: "/build/quote", anchor: "quote", also: ["/build/print"] },
     ],
   },
 ];
 
-/** Views of the same BoM that are not steps of the process. */
+/** Views of the same BoM that are not steps of the process. The 3D view also runs the board on our SMT lines. */
 export const MORE: View[] = [
   { key: "analysis", label: "Analysis", path: "/analysis" },
   { key: "supply", label: "Supply chain", path: "/supply" },
-  { key: "reverse", label: "Reverse engineering", path: "/reverse" },
   { key: "viewer", label: "3D view", path: "/viewer" },
 ];
+
+/** Sections that live on a view instead of a step: the SMT line runs in the 3D view. */
+const ON_VIEW: Partial<Record<SectionKey, { path: string; anchor: string }>> = { line: { path: "/viewer", anchor: "smt-line" } };
 
 const under = (rest: string, p: string) => rest === p || rest.startsWith(`${p}/`);
 
@@ -88,12 +90,14 @@ export function stepOf(key: SectionKey): { step: Step; section: Section } {
   throw new Error(`No section ${key}`);
 }
 
-/** Where a section lives now: its step's page with the query kept, scrolled to the section. */
+/** Where a section lives now: its step's page (or the view that holds it) with the query kept, scrolled to the section. */
 export function sectionHref(id: string, key: SectionKey, query?: Record<string, string | string[] | undefined>): string {
-  const { step, section } = stepOf(key);
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(query ?? {})) for (const x of Array.isArray(v) ? v : v === undefined ? [] : [v]) qs.append(k, x);
   const q = qs.toString();
+  const view = ON_VIEW[key];
+  if (view) return `/boms/${id}${view.path}${q ? `?${q}` : ""}#${view.anchor}`;
+  const { step, section } = stepOf(key);
   return `/boms/${id}${step.path}${q ? `?${q}` : ""}#${section.anchor}`;
 }
 
