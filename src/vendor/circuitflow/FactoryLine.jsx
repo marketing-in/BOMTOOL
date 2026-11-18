@@ -89,7 +89,8 @@ export default function FactoryLine({board,parts,line}){
   const closeInner=()=>{if(innerObj){innerScene.remove(innerObj.group);innerObj.group.traverse(o=>{o.geometry?.dispose?.()});innerKit?.dispose();innerObj=null;innerScene=null;innerKit=null}};
   const backToLine=()=>{closeInner();if(saved){camera.position.copy(saved.pos);controls.target.copy(saved.target);saved=null}};
   // --- camera
-  camera.position.set(x0*.15,9.5,15.5);controls.target.set(0,.6,0);
+  // Below the high-bay lamps (they hang down to y ≈ 6), so their rods never cross the view of the line.
+  camera.position.set(x0*.15,5.3,12.6);controls.target.set(0,.6,0);
   const ray=new THREE.Raycaster(),ptr=new THREE.Vector2();let down=null;
   const pick=e=>{const r=renderer.domElement.getBoundingClientRect();ptr.set((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1);ray.setFromCamera(ptr,camera);return ray.intersectObjects(machines,false)[0]?.object.userData.station||null};
   const onDown=e=>{down=[e.clientX,e.clientY]};

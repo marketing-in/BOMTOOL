@@ -576,7 +576,7 @@ export default function BoardViewer({
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
-      <div ref={stage} className="viewer-grid relative h-[66dvh] min-h-[440px] overflow-hidden rounded-xl border [&:fullscreen]:h-dvh [&:fullscreen]:rounded-none [&:fullscreen]:border-0">
+      <div ref={stage} className="viewer-grid relative h-[66dvh] min-h-[440px] overflow-hidden rounded-xl border xl:sticky xl:top-28 xl:h-[calc(100dvh-9rem)] xl:max-h-[820px] [&:fullscreen]:h-dvh [&:fullscreen]:rounded-none [&:fullscreen]:border-0">
         {usesStudio ? (
           studio ? (
             <div className="absolute inset-0">

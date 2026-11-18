@@ -20,7 +20,8 @@ const HIGHLIGHT=0xf7c61b,SELECT_GLOW=0x2c1748,LINE_GLOW=0x1e1030,HOVER_GLOW=0x2a
 const LOOK={mask:'#137a36',edge:'#0d4f24',trace:'#2f9468',traceBottom:'#2a8a5f',pad:'#c9b578',silk:'#f4f4ee',core:'#c9b27a'};
 const LAYER_NAMES={'parts-top':'Components · top','silk-top':'Silkscreen · top','mask-top':'Solder mask · top','copper-top':'Copper · top','core':'Core · FR-4','copper-bottom':'Copper · bottom','mask-bottom':'Solder mask · bottom','silk-bottom':'Silkscreen · bottom','parts-bottom':'Components · bottom'};
 const viewMemory=new Map();
-const CAMERAS={overview:[10,13,12],top:[0,19,.6],side:[15,4.5,7]};
+// Camera presets, close enough that the board fills the stage (far() steps back on narrow screens).
+const CAMERAS={overview:[7.4,9.6,8.8],top:[0,14,.45],side:[11,3.4,5.2]};
 const VIEW_LABEL={overview:'Overview',top:'Top',side:'Side'};
 const THICK=.18;
 const appFont=()=>{try{return getComputedStyle(document.body).fontFamily||'system-ui, sans-serif'}catch{return 'system-ui, sans-serif'}};

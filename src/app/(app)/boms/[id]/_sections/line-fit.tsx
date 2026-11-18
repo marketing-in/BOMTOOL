@@ -52,7 +52,7 @@ export default async function LineFitSection({ id, searchParams }: { id: string;
   return (
     <div className="space-y-5">
       <PageHeader level={2}
-        title="Line possible"
+        title="Our lines"
         eyebrow={<span className="num">{placements.toLocaleString("en-IN")} placements · {t.job.sides.length === 2 ? "both sides" : "one side"} · {t.qty.toLocaleString("en-IN")} boards</span>}
         actions={
           t.quantities.length > 1 ? (

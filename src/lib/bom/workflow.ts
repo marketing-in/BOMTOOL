@@ -36,7 +36,7 @@ export const WORKFLOW: Step[] = [
     label: "Line possible",
     path: "/lines",
     sections: [
-      { key: "lines", label: "Line possible", path: "/lines", anchor: "line-fit" },
+      { key: "lines", label: "Our lines", path: "/lines", anchor: "line-fit" },
       { key: "route", label: "Process route", path: "/route", anchor: "route" },
     ],
   },

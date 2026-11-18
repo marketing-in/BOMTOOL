@@ -4,7 +4,6 @@ import { Box, ChevronDown, Files, Layers, Upload } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { boardStackFor } from "@/server/board-thumb";
-import { PageHeader } from "@/components/data/page-header";
 import { RiskDot } from "@/components/data/badges";
 import { BoardUploadForm } from "@/components/viewer/board-upload-form";
 import { RemoveBoardFilesButton } from "@/components/bom/delete-controls";
@@ -63,19 +62,14 @@ export default async function GerbersSection({ id }: { id: string }) {
 
   return (
     <>
-      <PageHeader level={2}
-        title="Gerbers & centroid"
-        actions={
-          uploaded ? (
-            <>
-              <RemoveBoardFilesButton revisionId={id} />
-              <Link href={`/boms/${id}/viewer`} className="inline-flex h-10 items-center gap-2 rounded-md border bg-card px-3.5 text-sm font-medium outline-none transition-colors duration-150 hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring">
-                <Box className="size-4" aria-hidden /> Turn it in 3D
-              </Link>
-            </>
-          ) : undefined
-        }
-      />
+      {uploaded ? (
+        <div className="mb-5 flex flex-wrap justify-end gap-2">
+          <RemoveBoardFilesButton revisionId={id} />
+          <Link href={`/boms/${id}/viewer`} className="inline-flex h-10 items-center gap-2 rounded-md border bg-card px-3.5 text-sm font-medium outline-none transition-colors duration-150 hover:bg-part-soft focus-visible:ring-2 focus-visible:ring-ring">
+            <Box className="size-4" aria-hidden /> Full 3D view
+          </Link>
+        </div>
+      ) : null}
       {uploaded ? (
         <div className="space-y-5">
           <Figures
@@ -103,7 +97,6 @@ export default async function GerbersSection({ id }: { id: string }) {
               </figure>
             </Fold>
           ) : null}
-          {onFile}
           {fileList}
           <details className="group rounded-xl border bg-card">
             <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-5 py-3.5 text-sm font-medium outline-none select-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">

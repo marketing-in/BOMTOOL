@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { sectionHref } from "@/lib/bom/workflow";
-import { Banknote, Check, CircleAlert, Clock, Droplet, Grid3x3, Lock, TriangleAlert } from "lucide-react";
+import { Banknote, Check, ChevronRight, CircleAlert, Clock, Droplet, Grid3x3, Lock, TriangleAlert } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { getDisplayCurrency } from "@/lib/prefs";
@@ -18,8 +18,6 @@ import { moneyIn, qtyLabel } from "@/components/build/format";
 import { cn } from "@/lib/utils";
 import { lineFitFor, processCheckFor } from "@/server/lines";
 import { workflowFor } from "@/server/workflow";
-import { LineFitPanel } from "@/components/ops/line-fit";
-import { ProcessCheckPanel } from "@/components/ops/process-check";
 import { BoardIso } from "@/components/viz/board-iso";
 import { Info } from "@/components/viz/info";
 import { Kpi } from "@/components/viz/kpi";
@@ -160,8 +158,13 @@ export default async function EstimateSection({ id, searchParams }: { id: string
         </div>
       </section>
 
-      {plant ? <LineFitPanel plant={plant} canEdit={can(role, "lines.write")} /> : null}
-      {pc ? <ProcessCheckPanel check={pc.check} revisionId={id} /> : null}
+      {/* Which line and the whole process are step 4 (Line possible): here only their answer, one row each. */}
+      {plant || pc ? (
+        <ul className="divide-y overflow-hidden rounded-xl border bg-card" aria-label="Lines and process">
+          {plant ? <StepAnswer level={plant.level} title="Our lines" note={plant.summary} href={sectionHref(id, "lines")} /> : null}
+          {pc ? <StepAnswer level={pc.check.level} title="The whole process" note={pc.check.summary} href={sectionHref(id, "route")} /> : null}
+        </ul>
+      ) : null}
 
       <section aria-labelledby="gates" className="space-y-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -194,5 +197,29 @@ export default async function EstimateSection({ id, searchParams }: { id: string
         <ExpensesFold {...p} />
       </section>
     </div>
+  );
+}
+
+const ANSWER_TONE: Record<Level, { dot: string; word: string }> = {
+  green: { dot: "bg-risk-green", word: "Yes" },
+  amber: { dot: "bg-risk-amber", word: "With a check" },
+  red: { dot: "bg-risk-red", word: "Not as it stands" },
+};
+
+/** One row: a step-4 answer in a word, its reason in a line, and the way to the full picture. */
+function StepAnswer({ level, title, note, href }: { level: Level; title: string; note: string; href: string }) {
+  const t = ANSWER_TONE[level];
+  return (
+    <li>
+      <Link href={href} className="flex items-center gap-4 px-5 py-3.5 outline-none transition-colors duration-150 hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
+        <span aria-hidden className={cn("size-2.5 shrink-0 rounded-full", t.dot)} />
+        <span className="w-40 shrink-0 text-sm font-semibold">{title}</span>
+        <span className="w-32 shrink-0 text-sm">{t.word}</span>
+        <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground" title={note}>{note}</span>
+        <span className="hidden shrink-0 items-center gap-1 text-sm text-muted-foreground sm:inline-flex">
+          Step 4 <ChevronRight className="size-4" aria-hidden />
+        </span>
+      </Link>
+    </li>
   );
 }

@@ -2,14 +2,14 @@
 /* Their variables, mapped to this app's theme tokens so light and dark both work. */
 .cf-scope {
   --accent: var(--primary);
-  --accent-hover: #9c4413;
-  --accent-soft: rgba(180,80,26,.1);
+  --accent-hover: color-mix(in srgb, var(--primary) 82%, #000);
+  --accent-soft: color-mix(in srgb, var(--primary) 10%, transparent);
   --blue: #5a2f96;
   --border: rgba(28,27,24,.15);
   --green: var(--risk-green);
   --hair: var(--border);
   --ink: 28,27,24;
-  --mono: var(--font-geist-mono), ui-monospace, monospace;
+  --mono: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   --on-accent: #fff;
   --r: 6px;
   --r-sm: 4px;
@@ -128,3 +128,7 @@
 .cf-scope .factory-facts dt{font-size:12px;color:var(--t3)}
 .cf-scope .factory-facts dd{margin:2px 0 0;font-size:13px;font-variant-numeric:tabular-nums}
 .cf-scope h3 small{font-size:13px;font-weight:400}
+
+/* The app's controls: sliders and checkboxes in the part colour, numbers in the text face. */
+.cf-scope input[type=range], .cf-scope input[type=checkbox] { accent-color: var(--primary); }
+.cf-scope .numeric, .cf-scope [class*=time], .cf-scope [class*=stat] { font-family: var(--mono); font-variant-numeric: tabular-nums; }
