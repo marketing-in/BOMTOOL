@@ -38,6 +38,19 @@ export type BoardFiles = {
 };
 
 const isZip = (b: Uint8Array) => b.length > 3 && b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04;
+const starts = (b: Uint8Array, sig: number[]) => b.length >= sig.length && sig.every((v, i) => b[i] === v);
+
+/**
+ * An archive this tool cannot open, by its first bytes (the name can lie): "RAR", "7-Zip", "gzip / tar". null for
+ * everything else. Only .zip is unpacked; the others would otherwise be taken for one unknown file and dropped
+ * without a word, leaving "no Gerbers found".
+ */
+export function unreadableArchive(bytes: Uint8Array): string | null {
+  if (starts(bytes, [0x52, 0x61, 0x72, 0x21, 0x1a, 0x07])) return "RAR";
+  if (starts(bytes, [0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c])) return "7-Zip";
+  if (starts(bytes, [0x1f, 0x8b])) return "gzip / tar";
+  return null;
+}
 const decoder = new TextDecoder("utf-8");
 const OFFICE_FILE = /[.](xlsx|xlsm|xlsb|docx|pptx|ods|odt)$/i;
 
@@ -51,6 +64,8 @@ export function sortBoardFiles(files: UploadFile[], limits = LIMITS): BoardFiles
   const flat: UploadFile[] = [];
   let expanded = 0;
   for (const f of files) {
+    const archive = unreadableArchive(f.bytes);
+    if (archive) throw new Error(`“${f.name}” is a ${archive} archive. This tool opens .zip archives only: unpack it and upload the files inside, or pack them again as a .zip.`);
     // A workbook is a zip inside, but it is one file: it may hold the placement table.
     if (!isZip(f.bytes) || OFFICE_FILE.test(f.name)) {
       flat.push(f);
