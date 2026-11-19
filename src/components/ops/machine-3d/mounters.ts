@@ -1,5 +1,5 @@
 import type * as THREE from "three";
-import { gantry, rig, type Rig } from "./parts";
+import { placer, rig, type Rig } from "./parts";
 import type { Kit, RealBuilder } from "./types";
 
 /**
@@ -78,12 +78,8 @@ const ysm20r: RealBuilder = (K, input) => {
   K.nameplate(g, ["YAMAHA", zlex ? "YSM20R Z:LEX" : "YSM20R", "440 V · 3 PH"], 0.14, 0.08, F.l / 2, 0.45, F.zMid + 0.5, { face: "right" });
 
   // Behind the window: the beam and its head.
-  const G = gantry(K, R, { y: 1.23, span: 0.9, beam: K.M.aluDark, head: K.paint("#d9dbdd"), headW: 0.3, headH: 0.14, z0: zf - 0.3 });
-  G.beam.position.x = X(721);
-  return R.done(lamps, screen, [G.beam], (t, inside) => {
-    G.head.position.x = inside ? 0.28 * Math.sin(t * 3.1) : -0.2;
-    G.beam.position.z = zf - 0.3 + (inside ? 0.08 * Math.sin(t * 2.3) : 0);
-  });
+  const works = placer(K, R, input.cy, { x: X(721), zFeed: zf - 0.3, y: 1.23, head: K.paint("#d9dbdd") });
+  return R.done(lamps, screen, works.moving, works.work);
 };
 
 /**
@@ -141,7 +137,9 @@ const m20: RealBuilder = (K, input) => {
   K.keyboard(g, X(1560), Y(1255), zf + 0.15, { w: 0.3, d: 0.12, mouse: false });
   const lamps = K.tower(g, X(200), F.h, zf - 0.6, { order: ["green", "amber", "red"], r: 0.03, segH: 0.06, pole: 0.22, poleMat: K.M.white });
   K.nameplate(g, ["i-PULSE", "Model M20", "440 V · 3 PH"], 0.19, 0.075, F.l / 2, 0.4, F.zBack + 0.14, { face: "right" });
-  return R.done(lamps, screen);
+  // Under the hood: the beam and its head, between the feeders and the board.
+  const works = placer(K, R, input.cy, { x: 0, zFeed: zf - 0.28, y: 1.2, head: K.paint("#d9dbdd") });
+  return R.done(lamps, screen, works.moving, works.work);
 };
 
 export const MOUNTERS_BUILDERS: Record<string, RealBuilder> = {

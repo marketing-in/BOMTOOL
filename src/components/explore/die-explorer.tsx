@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { DIE_LAYERS, type DieLayer } from "@/knowledge/explore/chips";
 import { createRng } from "@/lib/rng";
 import { cn } from "@/lib/utils";
+import { FullViewStage } from "@/components/ui/full-view";
 import { ControlGroup, ExploreCanvas, Slider, Toggle, ViewButtons, useEased, useReducedMotion, type Vec3 } from "./scene";
 
 /** A small square of the die, drawn far out of scale: real wires are nanometres wide. */
@@ -140,7 +141,7 @@ export default function DieExplorer() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="relative h-[420px] overflow-hidden rounded-xl border bg-muted/60 sm:h-[560px]">
+      <FullViewStage className="h-[420px] overflow-hidden rounded-xl border bg-muted/60 sm:h-[560px]">
         <ExploreCanvas cut={cut} camera={VIEWS[view]} target={[0, 0, 10]} label="Layers inside a silicon die in 3D">
           <group onPointerMissed={() => setSelected(null)}>
             {DIE_LAYERS.map((dl, i) => {
@@ -171,7 +172,7 @@ export default function DieExplorer() {
         </ExploreCanvas>
         <ViewButtons value={view} onChange={setView} options={[{ value: "angled", label: "Angled" }, { value: "side", label: "Side" }, { value: "top", label: "Top" }]} />
         <p className="pointer-events-none absolute right-3 bottom-2 text-[11px] text-muted-foreground">Not to scale — a few micrometres of a real die</p>
-      </div>
+      </FullViewStage>
 
       <div className="space-y-5 rounded-xl border bg-card p-5">
         <p className="text-sm leading-relaxed text-muted-foreground">

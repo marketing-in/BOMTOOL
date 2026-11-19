@@ -1353,6 +1353,8 @@ export function createKit(THREE: Three) {
    */
   const seal = (root: T.Object3D, moving: T.Object3D[] = []): { drawCalls: number; triangles: number } => {
     root.updateMatrixWorld(true);
+    // Marked so a view can tell what moves from the housing round it (the see-inside view fades only the housing).
+    for (const m of moving) m.userData.moving = true;
     const spent = new Set<T.BufferGeometry>();
     const frames = new Set<T.Object3D>([root, ...moving]);
     const buckets = new Map<T.Object3D, Map<string, T.Mesh[]>>();

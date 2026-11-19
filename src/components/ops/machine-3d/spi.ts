@@ -1,5 +1,5 @@
 import { magicray } from "./magicray";
-import { rig } from "./parts";
+import { inspector, rig } from "./parts";
 import type { RealBuilder } from "./types";
 
 /**
@@ -40,7 +40,8 @@ const kohYoung: RealBuilder = (K, input) => {
   for (const face of ["left", "right"] as const) K.louvre(g, face === "left" ? -F.l / 2 : F.l / 2, 0.5, F.zMid - 0.25, 0.36, 0.14, { face, slats: 6 });
   K.nameplate(g, ["KOH YOUNG", "KY8030-2 · 3D SPI", "220 V · 1 PH"], 0.12, 0.07, 0, 0.5, F.zBack, { face: "back" });
   const lamps = K.tower(g, X(120), R.y1, F.zBack + 0.16, { order: ["green", "amber", "red"], r: 0.028, segH: 0.07, pole: 0.1, colors: { amber: 0xf2c81f } });
-  return R.done(lamps, screen);
+  const works = inspector(K, R, input.cy, 0xb7d4ff);
+  return R.done(lamps, screen, works.moving, works.work);
 };
 
 /**
@@ -70,7 +71,8 @@ const ckd: RealBuilder = (K, input) => {
   for (const face of ["left", "right"] as const) K.louvre(g, face === "left" ? -F.l / 2 : F.l / 2, 0.4, F.zMid - 0.2, 0.34, 0.14, { face, slats: 6 });
   K.nameplate(g, ["CKD", "VP-01G · 3D SPI", "1 PH 200–240 V"], 0.12, 0.07, 0, 0.5, F.zBack, { face: "back" });
   const lamps = K.tower(g, X(96), R.y1, F.zFront - 0.162, { order: ["green", "amber", "red"], r: 0.02, segH: 0.032, pole: 0.2, colors: { green: 0x079c8a, amber: 0xee7d23, red: 0xb53331 } });
-  return R.done(lamps, screen);
+  const works = inspector(K, R, input.cy, 0xb7ffcf);
+  return R.done(lamps, screen, works.moving, works.work);
 };
 
 export const SPI_BUILDERS: Record<string, RealBuilder> = {

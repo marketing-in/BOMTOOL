@@ -8,6 +8,7 @@ import { FINISHES, PCB_STACKS, VIA_INFO, pcbStack, type FinishKey, type StackVia
 import { layoutStack, thicknessMm, viaSpan, type PlacedLayer } from "@/lib/explore/stack-layout";
 import { createRng } from "@/lib/rng";
 import { cn } from "@/lib/utils";
+import { FullViewStage } from "@/components/ui/full-view";
 import { ControlGroup, EXTRUDE, ExploreCanvas, Segmented, Slider, Toggle, ViewButtons, useEased, useReducedMotion, type Vec3 } from "./scene";
 
 const W = 40;
@@ -359,7 +360,7 @@ export default function PcbExplorer({ initial }: { initial?: string }) {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="relative h-[420px] overflow-hidden rounded-xl border bg-muted/60 sm:h-[560px]">
+      <FullViewStage className="h-[420px] overflow-hidden rounded-xl border bg-muted/60 sm:h-[560px]">
         <ExploreCanvas cut={cut} camera={VIEWS[view]} label={`${stack.label} PCB stack-up in 3D`}>
           <group onPointerMissed={() => setSelected(null)}>
             {layout.layers.map(renderLayer)}
@@ -392,7 +393,7 @@ export default function PcbExplorer({ initial }: { initial?: string }) {
         </ExploreCanvas>
         <ViewButtons value={view} onChange={setView} options={[{ value: "angled", label: "Angled" }, { value: "edge", label: "Edge-on" }, { value: "top", label: "Top" }]} />
         <p className="pointer-events-none absolute right-3 bottom-2 text-[11px] text-muted-foreground">Drag to turn · scroll to zoom · click a layer</p>
-      </div>
+      </FullViewStage>
 
       <div className="space-y-5 rounded-xl border bg-card p-5">
         <ControlGroup title="Stack-up">

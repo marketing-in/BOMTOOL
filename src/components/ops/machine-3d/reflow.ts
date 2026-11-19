@@ -56,6 +56,11 @@ const oven =
     K.shell(g, { l: F.l, zFront: zF, zBack: zB, y0: yb, y1: yt, cy, mat: body, faces: ["front", "back", "left", "right", "top", "bottom"] });
     K.conveyorRails(g, F.l, cy);
     for (const sx of [-1, 1]) K.box(0.004, 0.05, 0.3, K.M.hot, sx * (F.l / 2 - 0.2), cy + 0.05, 0, g);
+    // Inside the tunnel: eight heating zones above and below the chain, then the cooling fans.
+    const z0x = X(s.hood[0] + 250), z1x = X(s.hood[1] - 250), heated = (z1x - z0x) * 0.78, zone = heated / 8;
+    for (let i = 0; i < 8; i++)
+      for (const dy of [0.085, -0.075]) K.box(zone * 0.82, 0.02, 0.34, K.M.hot, z0x + zone * (i + 0.5), cy + dy, 0, g);
+    for (const k of [0.3, 0.72]) K.fan(g, z0x + heated + (z1x - z0x - heated) * k, cy + 0.09, 0, 0.09, { face: "bottom" });
     for (const x of [90, look.bodyMm.l - 90]) K.estop(g, X(x), yt, zF - 0.12, { face: "top", size: 0.06 });
 
     // The hood: one long cover whose front leans (or rolls) back to the top, cut into sections by seams.

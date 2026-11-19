@@ -133,3 +133,18 @@ and a button for one machine's own process in 3D.
   updated in the one-machine view.
 
 Verified: `tests/unit/machine-process.test.ts`; both views opened on the real Lines page (Line 1).
+
+## Added: the process made visible, full view on every 3D stage (19 Nov 2026)
+
+The user: "the process shows but is not visible — make it visible" and "give every 3D studio a full view option".
+
+- **See inside** (on by default in the one-machine view, with a toggle): the machine's housing fades to a ghost, so
+  the board and what works on it are in plain sight. What moves, what glows and the lettering stay solid. The
+  housing's materials are swapped for faded copies, never changed, because machines share them (`seal` marks what moves).
+- Every machine now has its working parts inside: inspection machines a camera head with a ring light on a gantry,
+  the mounters a beam and head going between the feeders and the board, the ovens eight heating zones above and
+  below the chain and the cooling fans (printers and the laser marker already had theirs).
+- **Full view**: `src/components/ui/full-view.tsx` (`useFullView`, `FullViewButton`, `FullViewStage`): the browser's
+  full screen, or the stage pinned over the page where that does not exist (Escape leaves). Added to the Lines
+  stage, the die / package / PCB explorers, the dictionary's part model and the BoM viewer's SMT line. The board
+  studio and the footprint studio already had one.

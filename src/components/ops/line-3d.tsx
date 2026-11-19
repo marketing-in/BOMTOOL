@@ -29,6 +29,8 @@ type Props = {
   shares?: number[];
   onStep?: (step: number) => void;
   onNear?: (id: string) => void;
+  /** One-machine view: fade the housing so the board and the working parts inside can be seen. */
+  inside?: boolean;
 };
 
 const PAD = [
@@ -39,13 +41,13 @@ const PAD = [
 ] as const;
 const KEYS: Record<string, string> = { ArrowUp: "up", w: "up", W: "up", ArrowDown: "down", s: "down", S: "down", ArrowLeft: "left", a: "left", A: "left", ArrowRight: "right", d: "right", D: "right" };
 
-export default function Line3D({ machines, selected, onSelect, mode, running, shares, onStep, onNear }: Props) {
+export default function Line3D({ machines, selected, onSelect, mode, running, shares, onStep, onNear, inside = true }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const labels = useRef<HTMLDivElement>(null);
-  const api = useRef<{ select: (id: string | null) => void; setMode: (m: ViewMode) => void; move: (k: string, on: boolean) => void } | null>(null);
-  const cb = useRef({ onSelect, onStep, onNear, shares });
+  const api = useRef<{ select: (id: string | null) => void; setMode: (m: ViewMode) => void; move: (k: string, on: boolean) => void; setInside: (on: boolean) => void } | null>(null);
+  const cb = useRef({ onSelect, onStep, onNear, shares, inside });
   const [failed, setFailed] = useState(false);
-  cb.current = { onSelect, onStep, onNear, shares };
+  cb.current = { onSelect, onStep, onNear, shares, inside };
 
   useEffect(() => {
     const el = host.current;
@@ -130,7 +132,41 @@ export default function Line3D({ machines, selected, onSelect, mode, running, sh
       t0 = clock.getElapsedTime();
       lastStep = -1;
     };
+    // See inside: the selected machine's housing fades to a ghost; what moves (the board, the heads), what glows
+    // (heaters, lights, the screen) and the lettering stay solid. The housing's materials are swapped for faded
+    // copies, never changed: other machines share them.
+    const ghosts = new Map<THREE.Material, THREE.Material>();
+    const swapped: [THREE.Mesh, THREE.Material][] = [];
+    const seeInside = () => {
+      for (const [m, material] of swapped) m.material = material;
+      swapped.length = 0;
+      const u = units.find((x) => x.id === selId);
+      if (view !== "machine" || !cb.current.inside || !u?.real) return;
+      const visit = (o: THREE.Object3D) => {
+        if (o.userData.moving) return;
+        const mesh = o as THREE.Mesh;
+        if (mesh.isMesh && !Array.isArray(mesh.material) && !u.lamps.includes(mesh)) {
+          const material = mesh.material as THREE.MeshStandardMaterial;
+          const glows = material.emissiveIntensity > 0.05 && !!material.emissive?.getHex();
+          if (material.name !== "lettering" && !glows) {
+            let ghost = ghosts.get(material);
+            if (!ghost) {
+              ghost = material.clone();
+              ghost.transparent = true;
+              ghost.opacity = material.opacity * 0.13;
+              ghost.depthWrite = false;
+              ghosts.set(material, ghost);
+            }
+            swapped.push([mesh, material]);
+            mesh.material = ghost;
+          }
+        }
+        o.children.forEach(visit);
+      };
+      visit(u.group);
+    };
     const show = () => {
+      seeInside();
       for (const u of units) {
         u.group.visible = view !== "machine" || u.id === selId;
         showState(u, view === "walk" ? true : view === "machine" ? u.id === selId : running);
@@ -205,7 +241,7 @@ export default function Line3D({ machines, selected, onSelect, mode, running, sh
         frameMachine();
       }
     };
-    api.current = { select, setMode, move: (k, on) => (on ? keys.add(k) : keys.delete(k)) };
+    api.current = { select, setMode, move: (k, on) => (on ? keys.add(k) : keys.delete(k)), setInside: seeInside };
 
     // Number tags follow their machines on screen.
     tags.replaceChildren(
@@ -355,6 +391,8 @@ export default function Line3D({ machines, selected, onSelect, mode, running, sh
       renderer.domElement.removeEventListener("pointermove", onMove);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("keyup", onKey);
+      for (const [m, material] of swapped) m.material = material;
+      ghosts.forEach((g) => g.dispose());
       floor.dispose();
       mark.geometry.dispose();
       mark.material.dispose();
@@ -369,6 +407,7 @@ export default function Line3D({ machines, selected, onSelect, mode, running, sh
   }, [machines, running]);
 
   useEffect(() => api.current?.setMode(mode), [mode]);
+  useEffect(() => api.current?.setInside(inside), [inside]);
   useEffect(() => api.current?.select(selected), [selected, machines, running]);
 
   if (failed) return <div className="grid h-full place-items-center text-sm text-muted-foreground">3D needs WebGL, which this browser has turned off.</div>;

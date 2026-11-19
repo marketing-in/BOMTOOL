@@ -118,3 +118,41 @@ export function gantry(K: Kit, R: Rig, o: { y: number; span: number; beam?: THRE
   K.box(hw, hh, 0.14, o.head ?? K.M.dark, 0, -hh / 2 + 0.02, 0.09, head);
   return { beam, head };
 }
+
+/**
+ * What an inspection machine does under its cover: a camera head with a ring light on an XY gantry, stepping over
+ * the board while it is clamped. `light` is the colour of the ring.
+ */
+export function inspector(K: Kit, R: Rig, cy: number, light: number) {
+  const G = gantry(K, R, { y: cy + 0.42, span: R.F.l - 0.24, headW: 0.14, headH: 0.2 });
+  const glow = K.lit(light, 0, true);
+  K.torus(0.06, 0.012, glow, 0, -0.2, 0.09, G.head, "y", 20);
+  K.cyl(0.028, 0.05, K.M.black, 0, -0.19, 0.09, G.head, "y", 14);
+  return {
+    moving: [G.beam],
+    work: (t: number, inside: boolean) => {
+      G.beam.position.z = inside ? -0.09 + 0.08 * Math.sin(t * 1.1) : -0.3;
+      G.head.position.x = inside ? 0.07 * Math.sin(t * 2.7) : 0;
+      glow.emissiveIntensity = inside ? 1.8 : 0;
+    },
+  };
+}
+
+/**
+ * What a mounter does under its hood: the beam carries the head to the feeders at the front (zFeed), picks, and
+ * brings the parts back over the board to place them, again and again while a board is clamped.
+ */
+export function placer(K: Kit, R: Rig, cy: number, o: { x: number; zFeed: number; y: number; head?: THREE.Material }) {
+  const G = gantry(K, R, { y: o.y, span: Math.min(1.1, R.F.l - 0.3), headW: 0.3, headH: 0.14, head: o.head });
+  G.beam.position.x = o.x;
+  for (let i = 0; i < 6; i++) K.cyl(0.006, o.y - cy - 0.14, K.M.steel, -0.1 + i * 0.04, -0.12 - (o.y - cy - 0.14) / 2, 0.09, G.head, "y", 8);
+  return {
+    moving: [G.beam],
+    work: (t: number, inside: boolean) => {
+      // 0 at the feeders, 1 over the board.
+      const k = inside ? (Math.sin(t * 2.2) + 1) / 2 : 0;
+      G.beam.position.z = o.zFeed + (-0.09 - o.zFeed) * k;
+      G.head.position.x = inside ? 0.14 * Math.sin(t * 3.7) : 0;
+    },
+  };
+}

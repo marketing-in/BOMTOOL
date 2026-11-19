@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { Check, ExternalLink, Footprints, Pencil, Play, X } from "lucide-react";
+import { Check, ExternalLink, Eye, EyeOff, Footprints, Pencil, Play, X } from "lucide-react";
 import type { MachineCard } from "@/lib/ops/machine-card";
 import type { PackageReach } from "@/lib/ops/package-reach";
 import { MachineDialog, MachineOrderButtons } from "@/components/ops/line-editor";
@@ -10,6 +10,7 @@ import type { ViewMode } from "./line-3d";
 import { findLook } from "@/knowledge/machine-looks";
 import { processOf } from "@/knowledge/machine-process";
 import { cn } from "@/lib/utils";
+import { FullViewButton, useFullView } from "@/components/ui/full-view";
 
 const Line3D = dynamic(() => import("./line-3d"), { ssr: false, loading: () => <div className="grid h-full place-items-center text-sm text-muted-foreground">Drawing the line…</div> });
 
@@ -63,6 +64,8 @@ export function LineStage({ machines, editable, running = false }: { machines: M
   const [sel, setSel] = useState<string | null>(first?.id ?? null);
   const [step, setStep] = useState(0);
   const [near, setNear] = useState<string | null>(null);
+  const [inside, setInside] = useState(true);
+  const fv = useFullView();
   const m = machines.find((x) => x.id === sel) ?? first;
   const process = useMemo(() => (m ? processOf(m.type, m.model) : null), [m]);
   const shares = useMemo(() => process?.steps.map((x) => x.share), [process]);
@@ -84,9 +87,10 @@ export function LineStage({ machines, editable, running = false }: { machines: M
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_26rem]">
       <div className="min-w-0">
-        <div className={cn("relative overflow-hidden rounded-xl border bg-muted/60", mode === "walk" || mode === "machine" ? "h-[420px] sm:h-[540px]" : "h-[340px] sm:h-[440px]")}>
-          <Line3D machines={scene} selected={m.id} onSelect={setSel} mode={mode} running={running} shares={shares} onStep={setStep} onNear={setNear} />
-          <div role="group" aria-label="View" className="absolute top-3 right-3 inline-flex rounded-md border bg-card p-0.5 text-xs">
+        <div ref={fv.ref} className={cn("relative overflow-hidden rounded-xl border bg-muted/60", mode === "walk" || mode === "machine" ? "h-[420px] sm:h-[540px]" : "h-[340px] sm:h-[440px]", fv.cls)}>
+          <Line3D machines={scene} selected={m.id} onSelect={setSel} mode={mode} running={running} shares={shares} onStep={setStep} onNear={setNear} inside={inside} />
+          <FullViewButton full={fv.full} toggle={fv.toggle} className="absolute top-3 right-3" />
+          <div role="group" aria-label="View" className="absolute top-3 right-[3.75rem] inline-flex rounded-md border bg-card p-0.5 text-xs">
             {VIEWS.map(({ v, label, title }) => (
               <button
                 key={v}
@@ -106,6 +110,15 @@ export function LineStage({ machines, editable, running = false }: { machines: M
             <>
               <button type="button" onClick={() => go("3d")} className="absolute top-3 left-3 inline-flex h-9 items-center gap-1.5 rounded-md border bg-card px-3 text-sm font-medium outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
                 <X className="size-4" aria-hidden /> Whole line
+              </button>
+              <button
+                type="button"
+                onClick={() => setInside((v) => !v)}
+                aria-pressed={inside}
+                title={inside ? "Show the machine with its covers on" : "Fade the covers to see the process inside"}
+                className={cn("absolute top-14 left-3 inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring", inside ? "border-foreground bg-foreground text-background" : "bg-card hover:bg-muted")}
+              >
+                {inside ? <Eye className="size-4" aria-hidden /> : <EyeOff className="size-4" aria-hidden />} See inside
               </button>
               <div className="absolute right-3 bottom-3 left-3 rounded-lg border bg-card/95 p-3 sm:left-auto sm:w-80" aria-live="polite">
                 <p className="text-xs font-medium text-muted-foreground">

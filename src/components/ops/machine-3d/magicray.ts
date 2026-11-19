@@ -1,5 +1,5 @@
 import type { Kit, RealBuilder } from "./types";
-import { rig } from "./parts";
+import { inspector, rig } from "./parts";
 
 /**
  * The Magic-ray inspection family (ICON, V5000, V5300, Cube): one body plan, told apart by size, the colour of the
@@ -146,5 +146,7 @@ export const magicray =
     K.nameplate(g, ["MAGICray", look.name.replace(/^Magic-ray\s*/i, ""), "220 V · 1 PH · 5 A"], 0.12, 0.07, F.l / 2, 0.6, F.zBack + 0.25, { face: "right" });
     const lamps = K.tower(g, X(s.tower.x), s.tower.x > bx0 && s.tower.x < bx1 ? F.h : R.y1, F.zFront - s.tower.z / 1000, { order: ["green", "amber", "red"], r: 0.03, segH: 0.075, pole: 0.09 });
 
-    return R.done(lamps, screen);
+    // Under the cover: the camera head with its ring light, stepping over the clamped board.
+    const works = inspector(K, R, input.cy, 0xfff3dc);
+    return R.done(lamps, screen, works.moving, works.work);
   };

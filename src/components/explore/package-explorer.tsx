@@ -5,6 +5,7 @@ import { useThree, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import { CHIP_PACKAGES, ELEMENT_INFO, chipPackage, type ChipPackage, type PackageElement } from "@/knowledge/explore/chips";
 import { cn } from "@/lib/utils";
+import { FullViewStage } from "@/components/ui/full-view";
 import { ControlGroup, EXTRUDE, ExploreCanvas, Segmented, Slider, Toggle, ViewButtons, useEased, useReducedMotion, type Vec3 } from "./scene";
 
 const SELECT = new THREE.Color("#5a2f96");
@@ -321,7 +322,7 @@ export default function PackageExplorer({ initial }: { initial?: string }) {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="relative h-[420px] overflow-hidden rounded-xl border bg-muted/60 sm:h-[560px]">
+      <FullViewStage className="h-[420px] overflow-hidden rounded-xl border bg-muted/60 sm:h-[560px]">
         <ExploreCanvas cut={cut} camera={views[view]} target={[0, 0, 0.6]} label={`${pkg.label} package cut-away in 3D`}>
           <group onPointerMissed={() => setSelected(null)}>
             {pkg.elements.map((el) => {
@@ -347,7 +348,7 @@ export default function PackageExplorer({ initial }: { initial?: string }) {
         </ExploreCanvas>
         <ViewButtons value={view} onChange={setView} options={[{ value: "angled", label: "Angled" }, { value: "side", label: "Side" }, { value: "under", label: "Underside" }]} />
         <p className="pointer-events-none absolute right-3 bottom-2 text-[11px] text-muted-foreground">Drag to turn · scroll to zoom · click a part</p>
-      </div>
+      </FullViewStage>
 
       <div className="space-y-5 rounded-xl border bg-card p-5">
         <ControlGroup title="Package">

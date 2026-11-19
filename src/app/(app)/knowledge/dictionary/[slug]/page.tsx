@@ -16,6 +16,7 @@ import { PartPhoto } from "@/components/data/part-photo";
 import { Schematic } from "@/components/knowledge/schematic";
 import { StackupExplorer } from "@/components/knowledge/stackup-explorer";
 import { EntryModelLoader } from "@/components/dictionary/entry-model-loader";
+import { FullViewStage } from "@/components/ui/full-view";
 import { LineStrip } from "@/components/dictionary/line-strip";
 import { GROUP_ICON } from "@/components/dictionary/group-icon";
 
@@ -80,9 +81,9 @@ export default async function DictionaryEntryPage({ params }: { params: Promise<
         </div>
         {side === "model" && body ? (
           <figure className="flex flex-col overflow-hidden rounded-xl border bg-card">
-            <div className="h-64 bg-muted/40 sm:h-72">
+            <FullViewStage className="h-64 bg-muted/40 sm:h-72">
               <EntryModelLoader body={body} />
-            </div>
+            </FullViewStage>
             <figcaption className="flex items-center justify-between gap-3 border-t px-4 py-2.5 text-xs text-muted-foreground">
               <span>
                 Typical package · <span className="text-foreground">{modelCaption(e)}</span>
