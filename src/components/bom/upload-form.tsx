@@ -6,9 +6,53 @@ import { uploadBom } from "@/app/(app)/boms/actions";
 import { Button } from "@/components/ui/button";
 import { Illustration } from "@/components/ui/illustration";
 import { Label } from "@/components/ui/label";
+import { PackStrip } from "@/components/bom/pack-strip";
+import { sameCustomer, type FormDefaults } from "@/lib/bom/details";
+import type { PackSummary } from "@/lib/bom/workbook";
+import type { PreviewReply, PreviewRequest } from "@/lib/bom/preview.worker";
 import { cn } from "@/lib/utils";
 
 const ACCEPT = ".xlsx,.xls,.xlsm,.csv,.tsv,.txt";
+/** Files read in the browser before upload; a larger one is read on the server only. */
+const PREVIEW_BYTES = 10 * 1024 * 1024;
+
+type Preview = { summary: PackSummary; defaults: FormDefaults; bomSheets: string[]; bomFound: boolean };
+type Filled = "project" | "bomName" | "revision" | "buildQty" | "customer";
+
+/**
+ * Reads every sheet of the file in a worker, so a large workbook does not freeze the page; where workers cannot load,
+ * on the page itself.
+ */
+async function readInBrowser(f: File, choice: string[] | null, id: number, current: { worker: Worker | null }): Promise<Preview> {
+  const buf = await f.arrayBuffer();
+  current.worker?.terminate();
+  current.worker = null;
+  if (typeof Worker !== "undefined") {
+    try {
+      const worker = new Worker(new URL("../../lib/bom/preview.worker.ts", import.meta.url), { type: "module" });
+      current.worker = worker;
+      const reply = await new Promise<PreviewReply | null>((resolve) => {
+        worker.onmessage = (e: MessageEvent<PreviewReply>) => resolve(e.data);
+        // The worker did not load: read on the page instead.
+        worker.onerror = (e) => {
+          e.preventDefault();
+          resolve(null);
+        };
+        worker.postMessage({ id, buf, name: f.name, choice } satisfies PreviewRequest);
+      });
+      worker.terminate();
+      if (current.worker === worker) current.worker = null;
+      if (reply) {
+        if (!reply.ok) throw new Error(reply.message);
+        return reply.data;
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message && !/worker/i.test(e.message)) throw e;
+    }
+  }
+  const { previewPack } = await import("@/lib/bom/workbook");
+  return previewPack(new Uint8Array(buf), f.name, choice ? { bomSheets: choice } : {});
+}
 
 const field =
   "h-10 w-full rounded-md border bg-card px-3 text-sm outline-none transition-[box-shadow,border-color] duration-150 focus-visible:ring-2 focus-visible:ring-ring";
@@ -17,6 +61,8 @@ type Props = {
   customers: { id: string; name: string }[];
   projects: { name: string; customerId: string; boms: string[] }[];
   defaults: { customerId?: string; project?: string; bomName?: string; revision: string; stage: string };
+  /** Revisions the BoM already has (a new revision of an existing BoM): the file's own is not offered when taken. */
+  takenRevisions?: string[];
   /** Gerbers of a quick look that come with this BoM; `components` when parts were found on it. */
   preview?: { id: string; name: string; summary: string; components: { parts: number; lines: number; guessed: boolean } | null } | null;
 };
@@ -25,7 +71,7 @@ function formatSize(bytes: number) {
   return bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(0)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export function UploadForm({ customers, projects, defaults, preview }: Props) {
+export function UploadForm({ customers, projects, defaults, preview, takenRevisions = [] }: Props) {
   const [state, action, pending] = useActionState(uploadBom, undefined);
   const [file, setFile] = useState<File | null>(null);
   // From a quick look with components, the board itself can be the BoM.
@@ -39,23 +85,125 @@ export function UploadForm({ customers, projects, defaults, preview }: Props) {
   const gerbersOnly = !fromBoard && !file && boardCount > 0;
   const hasBoard = !!preview || boardCount > 0;
   const hasBom = fromBoard || !!file;
-  const [customerId, setCustomerId] = useState(defaults.customerId ?? customers[0]?.id ?? "new");
-  const [project, setProject] = useState(defaults.project ?? "");
+  const start = { customer: defaults.customerId ?? customers[0]?.id ?? "new", project: defaults.project ?? "", bomName: defaults.bomName ?? "", revision: defaults.revision, buildQty: "100" };
+  const [customerId, setCustomerId] = useState(start.customer);
+  const [project, setProject] = useState(start.project);
+  const [bomName, setBomName] = useState(start.bomName);
+  const [revision, setRevision] = useState(start.revision);
+  const [buildQty, setBuildQty] = useState(start.buildQty);
+  // What the file filled in, and where it was read; a field the person typed in is theirs and is never overwritten.
+  const [filled, setFilled] = useState<Partial<Record<Filled, string>>>({});
+  const filledRef = useRef<Partial<Record<Filled, string>>>({});
+  const typed = useRef<Record<Filled, boolean>>({ project: !!defaults.project, bomName: !!defaults.bomName, revision: false, buildQty: false, customer: !!defaults.customerId });
+  // A customer the file names that is not one of ours: said under the select.
+  const [fileCustomer, setFileCustomer] = useState<{ value: string; from: string } | null>(null);
+  const worker = useRef<{ worker: Worker | null }>({ worker: null });
+  const [read, setRead] = useState<{ status: "reading" } | { status: "done"; data: Preview } | { status: "error"; message: string } | null>(null);
+  const [revTaken, setRevTaken] = useState<string | null>(null);
+  // The BoM sheets the person picked; null while the reader's own choice stands.
+  const [bomChoice, setBomChoice] = useState<string[] | null>(null);
+  const readSeq = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const ids = { projects: useId(), boms: useId() };
 
   const customerProjects = projects.filter((p) => p.customerId === customerId);
   const bomNames = customerProjects.find((p) => p.name.toLowerCase() === project.toLowerCase())?.boms ?? [];
 
+  function markTyped(field: Filled) {
+    typed.current[field] = true;
+    filledRef.current = { ...filledRef.current, [field]: undefined };
+    setFilled(filledRef.current);
+  }
+
+  /** Puts back what an earlier file filled in and the person did not change: another file, or none, says otherwise. */
+  function clearFilled() {
+    const was = filledRef.current;
+    if (was.project && !typed.current.project) setProject(start.project);
+    if (was.bomName && !typed.current.bomName) setBomName(start.bomName);
+    if (was.revision && !typed.current.revision) setRevision(start.revision);
+    if (was.buildQty && !typed.current.buildQty) setBuildQty(start.buildQty);
+    if (was.customer && !typed.current.customer) setCustomerId(start.customer);
+    filledRef.current = {};
+    setFilled({});
+    setFileCustomer(null);
+    setRevTaken(null);
+  }
+
+  /** Fills what the file says where the person has not typed. Never submits. */
+  function prefill(d: FormDefaults) {
+    clearFilled();
+    const from: Partial<Record<Filled, string>> = {};
+    if (d.customer && !typed.current.customer) {
+      const known = customers.find((c) => sameCustomer(c.name, d.customer!.value));
+      if (known) {
+        setCustomerId(known.id);
+        from.customer = d.customer.from;
+      } else setFileCustomer(d.customer);
+    }
+    if (d.project && !typed.current.project) {
+      setProject(d.project.value);
+      from.project = d.project.from;
+    }
+    if (d.bomName && !typed.current.bomName) {
+      setBomName(d.bomName.value);
+      from.bomName = d.bomName.from;
+    }
+    const taken = d.revision && takenRevisions.some((r) => r.toLowerCase() === d.revision!.value.toLowerCase());
+    setRevTaken(taken ? d.revision!.value : null);
+    if (d.revision && !taken && !typed.current.revision) {
+      setRevision(d.revision.value);
+      from.revision = d.revision.from;
+    }
+    if (d.buildQty && !typed.current.buildQty) {
+      setBuildQty(String(d.buildQty.value));
+      from.buildQty = d.buildQty.from;
+    }
+    filledRef.current = from;
+    setFilled(from);
+  }
+
+  /** Reads every sheet in the browser (the reader loads on first use), to show what will be taken before upload. */
+  async function readFile(f: File, choice: string[] | null) {
+    const seq = ++readSeq.current;
+    if (f.size > PREVIEW_BYTES) {
+      setRead(null);
+      if (!choice) clearFilled();
+      return;
+    }
+    setRead({ status: "reading" });
+    try {
+      const data = await readInBrowser(f, choice, seq, worker.current);
+      if (seq !== readSeq.current) return;
+      setRead({ status: "done", data });
+      if (!choice) prefill(data.defaults);
+    } catch (e) {
+      if (seq !== readSeq.current) return;
+      setRead({ status: "error", message: e instanceof Error ? e.message : "The file could not be read." });
+      if (!choice) clearFilled();
+    }
+  }
+
   function takeFile(f: File | undefined | null) {
     if (!f) return;
     setFile(f);
+    setBomChoice(null);
     // Keep the real <input type=file> in sync so the form submits the dropped file.
     if (inputRef.current) {
       const dt = new DataTransfer();
       dt.items.add(f);
       inputRef.current.files = dt.files;
     }
+    void readFile(f, null);
+  }
+
+  function toggleBomSheet(sheet: string) {
+    if (!file || read?.status !== "done") return;
+    const current = bomChoice ?? read.data.bomSheets;
+    const next = current.includes(sheet) ? current.filter((x) => x !== sheet) : [...current, sheet];
+    // One BoM sheet is needed: the last one stays ticked (its box is disabled).
+    if (!next.length) return;
+    setBomChoice(next);
+    void readFile(file, next);
   }
 
   function takeBoard(list: FileList | File[] | null | undefined) {
@@ -165,7 +313,7 @@ export function UploadForm({ customers, projects, defaults, preview }: Props) {
               <Illustration kind="sheet" />
               <div>
                 <div className="text-base font-semibold">BoM</div>
-                <div className="text-sm text-muted-foreground" title=".xlsx, .xls, .csv, .tsv — the first sheet with a table is used">Excel or CSV · up to 10 MB</div>
+                <div className="text-sm text-muted-foreground" title="Every sheet is read: the BoM, placements, load lists, not-fitted lists, alternates and details. A CSV holds one sheet.">Excel or CSV · up to 10 MB</div>
                 <div className="mt-2 text-xs text-muted-foreground">No BoM? Gerbers alone work.</div>
               </div>
             </>
@@ -217,6 +365,12 @@ export function UploadForm({ customers, projects, defaults, preview }: Props) {
             type="button"
             onClick={() => {
               setFile(null);
+              setRead(null);
+              setBomChoice(null);
+              clearFilled();
+              readSeq.current++;
+              worker.current.worker?.terminate();
+              worker.current.worker = null;
               if (inputRef.current) inputRef.current.value = "";
             }}
             className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
@@ -224,6 +378,27 @@ export function UploadForm({ customers, projects, defaults, preview }: Props) {
             <X className="size-3" /> Remove file
           </button>
         ) : null}
+        {file && !fromBoard && read ? (
+          read.status === "reading" ? (
+            <p className="mt-4 flex items-center gap-2 rounded-xl border bg-card px-5 py-4 text-sm text-muted-foreground" role="status">
+              <Loader2 className="size-4 animate-spin" aria-hidden /> Reading every sheet…
+            </p>
+          ) : read.status === "error" ? (
+            <p className="mt-4 rounded-xl border border-risk-amber/40 bg-risk-amber-soft px-5 py-4 text-sm" role="alert">{read.message}</p>
+          ) : (
+            <PackStrip
+              pack={read.data.summary}
+              className="mt-4"
+              title="What this file holds"
+              choose={
+                read.data.summary.sheets.filter((x) => x.kind === "bom").length > 1 || !read.data.bomFound || bomChoice
+                  ? { selected: bomChoice ?? read.data.bomSheets, onToggle: toggleBomSheet, candidates: read.data.summary.sheets.filter((x) => x.canBeBom).map((x) => x.name) }
+                  : undefined
+              }
+            />
+          )
+        ) : null}
+        {file && !fromBoard ? (bomChoice ?? []).map((sheet) => <input key={sheet} type="hidden" name="bomSheet" value={sheet} />) : null}
         {preview ? (
           <p className="mt-4 text-sm">
             <input type="hidden" name="previewId" value={preview.id} />
@@ -235,12 +410,27 @@ export function UploadForm({ customers, projects, defaults, preview }: Props) {
       <div className="space-y-4 rounded-xl border bg-card p-5">
         <div className="space-y-1.5">
           <Label htmlFor="customerId">Customer</Label>
-          <select id="customerId" name="customerId" value={customerId} onChange={(e) => setCustomerId(e.target.value)} className={field}>
+          <select
+            id="customerId"
+            name="customerId"
+            value={customerId}
+            onChange={(e) => {
+              setCustomerId(e.target.value);
+              markTyped("customer");
+            }}
+            className={field}
+          >
             {customers.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
             <option value="new">New customer…</option>
           </select>
+          <FromFile at={filled.customer} />
+          {fileCustomer && !filled.customer ? (
+            <p className="text-[11px] break-words text-muted-foreground">
+              The file says customer <span className="font-medium text-foreground">{fileCustomer.value}</span> ({fileCustomer.from}), which is not in the list.
+            </p>
+          ) : null}
         </div>
         {customerId === "new" ? (
           <div className="space-y-1.5">
@@ -250,7 +440,11 @@ export function UploadForm({ customers, projects, defaults, preview }: Props) {
         ) : null}
         <div className="space-y-1.5">
           <Label htmlFor="project">Project / product</Label>
-          <input id="project" name="project" list={ids.projects} value={project} onChange={(e) => setProject(e.target.value)} required className={field} placeholder="e.g. GW-200 Industrial IoT Gateway" />
+          <input id="project" name="project" list={ids.projects} value={project} onChange={(e) => {
+              setProject(e.target.value);
+              markTyped("project");
+            }} required className={field} placeholder="e.g. GW-200 Industrial IoT Gateway" />
+          <FromFile at={filled.project} />
           <datalist id={ids.projects}>
             {customerProjects.map((p) => (
               <option key={p.name} value={p.name} />
@@ -259,7 +453,11 @@ export function UploadForm({ customers, projects, defaults, preview }: Props) {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="bomName">Assembly / BoM name</Label>
-          <input id="bomName" name="bomName" list={ids.boms} defaultValue={defaults.bomName} required className={field} placeholder="e.g. Main board" />
+          <input id="bomName" name="bomName" list={ids.boms} value={bomName} onChange={(e) => {
+              setBomName(e.target.value);
+              markTyped("bomName");
+            }} required className={field} placeholder="e.g. Main board" />
+          <FromFile at={filled.bomName} />
           <datalist id={ids.boms}>
             {bomNames.map((b) => (
               <option key={b} value={b} />
@@ -269,13 +467,22 @@ export function UploadForm({ customers, projects, defaults, preview }: Props) {
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="revision">Revision</Label>
-            <input id="revision" name="revision" defaultValue={defaults.revision} required className={`${field} num`} />
+            <input id="revision" name="revision" value={revision} onChange={(e) => {
+              setRevision(e.target.value);
+              markTyped("revision");
+            }} required maxLength={20} className={`${field} num`} />
+            <FromFile at={filled.revision} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="buildQty">Build qty</Label>
-            <input id="buildQty" name="buildQty" type="number" min={1} defaultValue={100} required className={`${field} num`} />
+            <input id="buildQty" name="buildQty" type="number" min={1} value={buildQty} onChange={(e) => {
+              setBuildQty(e.target.value);
+              markTyped("buildQty");
+            }} required className={`${field} num`} />
+            <FromFile at={filled.buildQty} />
           </div>
         </div>
+        {revTaken ? <p className="text-xs text-muted-foreground">The file says rev <span className="num">{revTaken}</span>, which this BoM already has.</p> : null}
         <div className="space-y-1.5">
           <Label htmlFor="stage">Stage</Label>
           <select id="stage" name="stage" defaultValue={defaults.stage} className={field}>
@@ -298,4 +505,11 @@ export function UploadForm({ customers, projects, defaults, preview }: Props) {
       </div>
     </form>
   );
+}
+
+/** A field the file filled in, and the cell it came from. */
+function FromFile({ at }: { at?: string }) {
+  return at ? (
+    <p className="text-[11px] break-words text-muted-foreground">From the file · {at}</p>
+  ) : null;
 }

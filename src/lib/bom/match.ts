@@ -65,7 +65,11 @@ function mpnCandidates(line: ScrubbedLine, catalog: Catalog): MatchCandidate[] {
   const own = mpnCandidatesFor(line.mpn, line, catalog);
   if (Math.max(0, ...own.map((c) => c.confidence)) >= 90) return own;
   // An approved alternate the customer wrote into the same cell.
-  const alternates = (line.altMpns ?? []).flatMap((alt) => mpnCandidatesFor(alt, line, catalog).map((c) => ({ ...c, reason: `Alternate named on the line (${alt}): ${c.reason}` })));
+  // An alternate that names its own maker is checked against that maker, not the first part's.
+  const alternates = (line.altMpns ?? []).flatMap((alt, i) => {
+    const maker = line.altMakers?.[i];
+    return mpnCandidatesFor(alt, maker === undefined ? line : { ...line, manufacturer: maker }, catalog).map((c) => ({ ...c, reason: `Alternate named on the line (${alt}): ${c.reason}` }));
+  });
   return [...own, ...alternates];
 }
 

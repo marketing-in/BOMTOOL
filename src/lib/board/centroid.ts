@@ -2,24 +2,26 @@ import { normaliseHeader } from "@/lib/bom/columns";
 
 export type PlacementRow = { refDes: string; x: number; y: number; rotation: number; side: "TOP" | "BOTTOM"; footprint: string | null; value: string | null };
 
-export type CentroidField = "ref" | "x" | "y" | "rot" | "side" | "footprint" | "value" | "partNumber" | "description";
+export type CentroidField = "ref" | "x" | "y" | "rot" | "side" | "footprint" | "value" | "partNumber" | "description" | "board";
 type Field = CentroidField;
 /**
  * Header names of placement files, normalised (lower case, letters and digits only, a trailing unit removed):
  * Altium Pick Place, KiCad .pos, Eagle, EasyEDA, PADS, Mentor, Cadence Allegro's "Placed Component Report"
  * (REFDES, SYM_X, SYM_Y, SYM_ROTATE, SYM_MIRROR, SYM_NAME, COMP_VALUE) and the load lists an EMS line is
- * programmed from (Item Number, Item Description, RefDes, X, Y, R).
+ * programmed from (Item Number, Item Description, RefDes, X, Y, R). A product's sheet of parts on several boards
+ * ("Board | Ref | Side | X on board (mm)") names the board each part sits on.
  */
 const SYN: Record<Field, string[]> = {
   ref: ["designator", "ref", "refdes", "reference", "referencedesignator", "refdesignator", "partreference", "part", "component", "name"],
-  x: ["midx", "posx", "x", "centerx", "centrex", "refx", "locationx", "symx", "xpos", "xposition", "xcoord", "xcoordinate", "xloc", "xlocation", "placex", "compx"],
-  y: ["midy", "posy", "y", "centery", "centrey", "refy", "locationy", "symy", "ypos", "yposition", "ycoord", "ycoordinate", "yloc", "ylocation", "placey", "compy"],
+  x: ["midx", "posx", "x", "centerx", "centrex", "refx", "locationx", "symx", "xpos", "xposition", "xcoord", "xcoordinate", "xloc", "xlocation", "placex", "compx", "xonboard", "xonpcb", "boardx", "pcbx"],
+  y: ["midy", "posy", "y", "centery", "centrey", "refy", "locationy", "symy", "ypos", "yposition", "ycoord", "ycoordinate", "yloc", "ylocation", "placey", "compy", "yonboard", "yonpcb", "boardy", "pcby"],
   rot: ["rotation", "rot", "angle", "orientation", "rotate", "symrotate", "theta", "r", "rotationdeg", "rotdeg", "deg", "degrees"],
   side: ["layer", "side", "tb", "mirror", "pcbside", "symmirror", "mirrored", "boardside", "placementside", "topbottom", "surface", "face"],
   footprint: ["footprint", "package", "pattern", "pcbfootprint", "symname", "packagename", "decal", "pcbdecal", "geometry", "shape"],
   value: ["comment", "value", "val", "compvalue", "partvalue"],
   partNumber: ["itemnumber", "partnumber", "partno", "pn", "mpn", "mfrpn", "mfrpartnumber", "manufacturerpartnumber", "itemcode"],
   description: ["itemdescription", "description", "desc", "partdescription"],
+  board: ["board", "boardname", "pcb", "pcbname", "mountedon", "onboard", "subassembly"],
 };
 
 /** "Center-X(mm)" and "Mid X (mil)" name the same column as "Center-X" and "Mid X". */

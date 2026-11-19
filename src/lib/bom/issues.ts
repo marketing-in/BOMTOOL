@@ -7,7 +7,7 @@ export const ISSUE_INFO: Record<string, { label: string; level: RiskLevel; help:
   QTY_REFDES_MISMATCH: { label: "Qty ≠ RefDes", level: "amber", help: "Quantity differs from the number of designators — ask the customer which is right." },
   UNKNOWN_MANUFACTURER: { label: "Unknown mfr", level: "amber", help: "Manufacturer name is not in our alias table." },
   DUPLICATE_MPN: { label: "Duplicate MPN", level: "amber", help: "The same MPN appears on more than one line — consider merging." },
-  MULTIPLE_MPN: { label: "Alternates named", level: "green", help: "The cell names more than one part number. The first is the part; the others are tried as alternates." },
+  MULTIPLE_MPN: { label: "Alternates named", level: "green", help: "The line names more than one part number (in the cell, the description or an alternates column). The first is the part; the others are tried as alternates." },
   MPN_UNREADABLE: { label: "MPN incomplete", level: "amber", help: "A part number on this line starts like a known series but is not a whole part number — check for missing characters." },
   MPN_VALUE_MISMATCH: { label: "MPN ≠ value", level: "red", help: "The part number is a different value from the description. Ask which is right before buying." },
   MPN_VOLTAGE_LOW: { label: "MPN voltage low", level: "red", help: "The part number is rated below the voltage the description asks for." },

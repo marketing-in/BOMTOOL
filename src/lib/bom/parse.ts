@@ -31,21 +31,44 @@ export function tidyRows(rows: unknown[][]): string[][] {
   return out.map((r) => Array.from({ length: width }, (_, i) => r[i] ?? ""));
 }
 
+export type ReadSheet = {
+  name: string | null;
+  rows: string[][];
+  hidden: boolean;
+  /** The sheet's own row number (1-based) of each tidy row, and the column the rows start at, to say where a value came from. */
+  rowNo: number[];
+  col0: number;
+  /** Rows with content that Excel hides (a filter, or rows hidden by hand); they are read all the same. */
+  hiddenRows: number;
+  filtered: boolean;
+};
+
 /** Every sheet of a workbook as tidy rows, in the workbook's order (a CSV is one unnamed sheet). Empty sheets are left out. */
-export function readSheets(data: ArrayBuffer | Uint8Array, fileName: string): { name: string | null; rows: string[][]; hidden: boolean }[] {
+export function readSheets(data: ArrayBuffer | Uint8Array, fileName: string): ReadSheet[] {
   const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
   const ext = extensionOf(fileName);
   if (ext === ".xlsx" || ext === ".xls" || ext === ".xlsm") {
-    const wb = XLSX.read(bytes, { type: "array", cellDates: false, dense: true });
+    // cellStyles reads which rows are hidden; it is slow on a large catalogue, so only a BoM-sized file gets it.
+    const wb = XLSX.read(bytes, { type: "array", cellDates: false, dense: true, cellStyles: bytes.length <= 2_000_000, cellHTML: false });
     const hidden = new Map((wb.Workbook?.Sheets ?? []).map((s) => [s.name, !!s.Hidden]));
-    return wb.SheetNames.map((name) => ({
-      name,
-      rows: tidyRows(XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[name], { header: 1, raw: false, defval: "", blankrows: false })),
-      hidden: hidden.get(name) ?? false,
-    })).filter((s) => s.rows.length);
+    return wb.SheetNames.map((name) => {
+      const ws = wb.Sheets[name];
+      const range = ws["!ref"] ? XLSX.utils.decode_range(ws["!ref"]) : { s: { r: 0, c: 0 } };
+      const raw = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, defval: "", blankrows: true });
+      const kept: unknown[][] = [];
+      const rowNo: number[] = [];
+      let hiddenRows = 0;
+      raw.forEach((r, i) => {
+        if (!r.some((c) => c !== null && c !== undefined && String(c).trim())) return;
+        kept.push(r);
+        rowNo.push(range.s.r + i + 1);
+        if (ws["!rows"]?.[range.s.r + i]?.hidden) hiddenRows++;
+      });
+      return { name, rows: tidyRows(kept), hidden: hidden.get(name) ?? false, rowNo, col0: range.s.c, hiddenRows, filtered: !!ws["!autofilter"] };
+    }).filter((s) => s.rows.length);
   }
   const one = parseBomFile(bytes, fileName);
-  return one.rows.length ? [{ name: one.sheetName, rows: one.rows, hidden: false }] : [];
+  return one.rows.length ? [{ name: one.sheetName, rows: one.rows, hidden: false, rowNo: one.rows.map((_, i) => i + 1), col0: 0, hiddenRows: 0, filtered: false }] : [];
 }
 
 export function parseBomFile(data: ArrayBuffer | Uint8Array, fileName: string): ParsedSheet {

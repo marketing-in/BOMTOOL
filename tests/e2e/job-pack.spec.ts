@@ -95,9 +95,9 @@ test("A job pack: every sheet is read, the panel is cut to one board, and the en
 
   await page.getByRole("button", { name: "Match & score BoM" }).click();
   await expect(page).toHaveURL(/\/match$/, { timeout: 240_000 });
-  // Footprints agree; R1's value does not: 10 kΩ in the BoM, 4.7 kΩ in the design file.
-  await expect(page.getByRole("heading", { name: "Almost — a few to check by eye" })).toBeVisible();
-  await expect(page.getByText("0402 · value: BoM 10 kΩ, design file 4.7 kΩ", { exact: true })).toBeVisible();
+  // Footprints agree; R1's value does not: 10 kΩ in the BoM, 4.7 kΩ on the board. A wrong value is a stop.
+  await expect(page.getByRole("heading", { name: "BoM and board do not match" })).toBeVisible();
+  await expect(page.getByText("value: BoM 10 kΩ, board 4.7 kΩ", { exact: true })).toBeVisible();
   const id = page.url().match(/\/boms\/([a-z0-9]+)\//)![1];
 
   // The BoM: two fitted lines and the not-fitted one; the bare board is not a line.

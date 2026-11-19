@@ -19,6 +19,8 @@ export type ScrubbedLine = {
   mpn: string | null; // cleaned
   /** Further part numbers the cell or the description names: approved alternates, tried when the first does not match. */
   altMpns?: string[];
+  /** The maker an alternate names, by position in altMpns (an alternates column gives "MPN (Maker)"); unset: the line's own. */
+  altMakers?: (string | null | undefined)[];
   rawManufacturer: string | null;
   manufacturer: string | null; // canonical, when recognised
   qty: number;
@@ -62,6 +64,48 @@ export function splitMpns(raw: string | null | undefined): string[] {
   const seen = new Set<string>();
   // After the first, only what looks like a part number counts ("… / TI" names the maker, not a second part).
   return parts.filter((p, i) => (i > 0 && (p.length < 4 || !/\d/.test(p))) || seen.has(normaliseMpn(p)) ? false : (seen.add(normaliseMpn(p)), true));
+}
+
+/**
+ * An alternates column: "A; B", "A / B", or "MPN (Maker)" per entry, as written by a customer or by the upload when it
+ * joins a part-options sheet to the BoM (src/lib/bom/bom-table.ts).
+ */
+export function readAlternates(raw: string | null | undefined): { mpn: string; maker: string | null }[] {
+  if (!raw) return [];
+  const out: { mpn: string; maker: string | null }[] = [];
+  for (const entry of raw.split(/\s*;\s*|\s*\n\s*/)) {
+    const m = entry.match(/^(.*?)\s*\(([^()]+)\)\s*$/);
+    for (const text of splitMpns(m ? m[1] : entry)) {
+      const pn = partNumberIn(text);
+      if (!pn || out.some((o) => normaliseMpn(o.mpn) === normaliseMpn(pn.mpn))) continue;
+      out.push({ mpn: pn.mpn, maker: m ? m[2].trim() : pn.maker });
+    }
+  }
+  return out;
+}
+
+/** Words and values that make an entry a description of a part rather than its number: "RK35xx family", "2 to 4 GB". */
+const NOT_A_NUMBER = /\b(family|families|series|class|range|type|compatible|equivalent|similar|based|companion|discrete|generic|module|sensor|chipset|or|to|and|with|in|of|tbd|tbc)\b|(?:^|\s)\d+(?:\.\d+)?\s*(gb|mb|kb|tb|gbit|mbit|mah|ah|uh|µh|nh|mh|v|a|w|mw|hz|khz|mhz|ghz|ohms?|Ω|pf|nf|uf|µf|mm)\b/i;
+
+/** A family written with placeholders: "RV11xx", "BQ2588x", "ICM-426xx", "STM32F0XX", "LM3*". */
+const WILDCARD = /[0-9A-Z]x{1,3}(?=$|[-_/\s])|\dX{2,}(?=$|[-_/\s])|[*?#]$/;
+
+/**
+ * The part number in one alternate entry, or null when the entry is not one. A second source can be written with its
+ * maker in front ("Bosch BMI270", "TI BQ25895"); a guess such as "Rockchip RK35xx family", "LPDDR4X 2 to 4 GB" or a
+ * family with placeholders ("TI BQ2588x") names no part, and the matcher should not try it.
+ */
+export function partNumberIn(text: string): { mpn: string; maker: string | null } | null {
+  const t = text.trim();
+  if (!t || NOT_A_NUMBER.test(t) || t.split(/\s+/).some((w) => WILDCARD.test(w))) return null;
+  const words = t.split(/\s+/);
+  const coded = (w: string) => w.length >= 3 && /\d/.test(w) && /[A-Za-z]/.test(w);
+  if (words.length === 1) return /\d/.test(t) && t.length >= 3 ? { mpn: t, maker: null } : null;
+  // "Maker PART": one coded word last, one to three plain words before it.
+  const last = words[words.length - 1];
+  const before = words.slice(0, -1);
+  if (coded(last) && before.length <= 3 && before.every((w) => /^[A-Za-z][A-Za-z&.-]*$/.test(w))) return { mpn: last, maker: before.join(" ") };
+  return null;
 }
 
 /** A part number and maker written into the description: "… - MPN : CL05C8R2CB51PNC, MFG. : Samsung". */
@@ -120,6 +164,13 @@ export function scrubRows(rows: string[][], headerRow: number, mapping: ColumnMa
     const mpn = named[0] ?? null;
     const altMpns = named.slice(1);
     if (written.mpn && !named.some((m) => normaliseMpn(m) === normaliseMpn(written.mpn!))) altMpns.push(written.mpn);
+    const altMakers: (string | null | undefined)[] = altMpns.map(() => undefined);
+    // Second sources from a column of their own, each with its own maker when it names one.
+    for (const alt of readAlternates(pick(row, mapping, "alternates"))) {
+      if ((mpn && normaliseMpn(mpn) === normaliseMpn(alt.mpn)) || altMpns.some((a) => normaliseMpn(a) === normaliseMpn(alt.mpn))) continue;
+      altMpns.push(alt.mpn);
+      altMakers.push(alt.maker ? (resolveManufacturer(alt.maker, aliases) ?? null) : null);
+    }
     // A maker written into the description belongs to the part number written next to it.
     const makerFromText = written.maker && (!written.mpn || (mpn && normaliseMpn(written.mpn) === normaliseMpn(mpn))) ? written.maker : null;
     const rawManufacturer = pick(row, mapping, "manufacturer") ?? makerFromText;
@@ -162,6 +213,7 @@ export function scrubRows(rows: string[][], headerRow: number, mapping: ColumnMa
       rawMpn,
       mpn,
       altMpns,
+      ...(altMakers.some((m) => m !== undefined) ? { altMakers } : {}),
       rawManufacturer,
       manufacturer,
       qty,

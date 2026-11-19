@@ -45,6 +45,7 @@ export default async function NewBomPage({ searchParams }: { searchParams: Promi
                 }
               : null
           }
+          takenRevisions={existing?.revisions.map((r) => r.revision) ?? []}
           defaults={
             existing
               ? { customerId: existing.project.customerId, project: existing.project.name, bomName: existing.name, revision: nextRev, stage: existing.project.stage }

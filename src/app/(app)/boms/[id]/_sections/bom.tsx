@@ -19,6 +19,8 @@ import { BomMoreMenu } from "@/components/bom/bom-more-menu";
 import { revisionImpact } from "@/server/bom-delete";
 import { BuildQtyForm } from "@/components/bom/build-qty-form";
 import type { GridRow } from "@/components/bom/types";
+import { readPackSummary } from "@/lib/bom/workbook";
+import { PackStrip } from "@/components/bom/pack-strip";
 
 
 export default async function BomSection({ id }: { id: string }) {
@@ -28,6 +30,8 @@ export default async function BomSection({ id }: { id: string }) {
   if (!a) notFound();
   if (a.revision.status === "DRAFT") redirect(`/boms/${id}/map`);
   const { revision: rev, lines, scores, totals } = a;
+  // Every page of the customer's file, as read at upload: folded, so the BoM stays first.
+  const pack = readPackSummary(rev.pack);
   const editable = can(user.role, "bom.write");
   const impact = editable ? await revisionImpact(db, id) : null;
   const partIds = [...new Set(lines.map((l) => l.partId).filter((x): x is string => !!x))];
@@ -170,7 +174,8 @@ export default async function BomSection({ id }: { id: string }) {
         }
         description={
           <>
-            <span className="num">{rev.sourceFileName}</span> · {lines.length} lines · {totals.placementsPerBoard} placements per board
+            <span className="num">{rev.sourceFileName}</span>
+            {rev.sheetName ? <> · sheet “{rev.sheetName}”</> : null} · {lines.length} lines · {totals.placementsPerBoard} placements per board
           </>
         }
         actions={
@@ -190,6 +195,8 @@ export default async function BomSection({ id }: { id: string }) {
           ) : null
         }
       />
+
+      {pack ? <PackStrip pack={pack} compact className="mb-4" /> : null}
 
       <dl className="mb-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border lg:grid-cols-5" aria-label="Figures">
         <div className="col-span-2 bg-card p-5 lg:col-span-1">

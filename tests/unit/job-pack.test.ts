@@ -92,7 +92,8 @@ describe("reading a job pack", () => {
     expect(by["BOTTOM LOAD"]).toMatchObject({ kind: "load-list", count: 3, side: "BOTTOM" });
     expect(by["TOP DNP"]).toMatchObject({ kind: "not-fitted", count: 1, side: "TOP" });
     expect(by["BOTTOM DNP"]).toMatchObject({ kind: "not-fitted", count: 1, side: "BOTTOM" });
-    expect(by.Notes).toMatchObject({ kind: "other", used: false });
+    // Notes are read for their details since Phase 37: "Build 500 pieces" is the build quantity.
+    expect(by.Notes).toMatchObject({ kind: "details", used: true });
   });
 
   it("takes the BoM from the sheet that reads like one, wherever it sits", () => {
@@ -373,18 +374,18 @@ describe("placement files", () => {
 
 describe("the BoM's value against the design file's", () => {
   it("says when they differ, and only then", () => {
-    expect(valueDiffers("C5", "CAP CER 220PF, 50V, 5%, C0G/NP0, 0402", "1.5nF")).toBe("value: BoM 220 pF, design file 1.5 nF");
-    expect(valueDiffers("L4", "FIXED INDUCTOR - 7.2MH 3%", "1.08mH")).toBe("value: BoM 7.2 mH, design file 1.08 mH");
+    expect(valueDiffers("C5", "CAP CER 220PF, 50V, 5%, C0G/NP0, 0402", "1.5nF")).toBe("value: BoM 220 pF, board 1.5 nF");
+    expect(valueDiffers("L4", "FIXED INDUCTOR - 7.2MH 3%", "1.08mH")).toBe("value: BoM 7.2 mH, board 1.08 mH");
     expect(valueDiffers("C3", "CAPA,0.1MICROF,50V,SMD-0402,X7R", "100nF")).toBeNull();
     expect(valueDiffers("C1", "CAPA,100PF,50V", "100pF")).toBeNull();
     expect(valueDiffers("R3", "RES 10K 1% 0402", "10k")).toBeNull();
-    expect(valueDiffers("R3", "RES 10K 1% 0402", "4K7")).toBe("value: BoM 10 kΩ, design file 4.7 kΩ");
+    expect(valueDiffers("R3", "RES 10K 1% 0402", "4K7")).toBe("value: BoM 10 kΩ, board 4.7 kΩ");
     expect(valueDiffers("R1", "RES 10K 1% 0402", "DNL")).toBeNull();
     expect(valueDiffers("U1", "SENSOR IC", "ABC739")).toBeNull();
     expect(valueDiffers("C9", "CAP 100n", "100n")).toBeNull();
   });
 
-  it("turns a matching footprint with another value into one to check", () => {
+  it("turns a matching footprint with another value into a mismatch: a wrong value is a wrong part", () => {
     const m = matchFootprints(
       [
         { id: "a", lineNo: 1, refDes: "C1", pkg: "C_0402", mpn: "X", dnp: false, text: "CAP 100pF 50V" },
@@ -396,10 +397,10 @@ describe("the BoM's value against the design file's", () => {
       ],
     );
     expect(m.valueDiffs).toBe(1);
-    expect(m.level).toBe("amber");
-    expect(m.counts).toMatchObject({ match: 1, check: 1 });
-    expect(m.refs.find((r) => r.ref === "C5")?.why).toBe("0402 · value: BoM 220 pF, design file 1.5 nF");
-    expect(m.summary).toMatch(/1 value differs from the design file/);
+    expect(m.level).toBe("red");
+    expect(m.counts).toMatchObject({ match: 1, mismatch: 1 });
+    expect(m.refs.find((r) => r.ref === "C5")?.why).toBe("value: BoM 220 pF, board 1.5 nF");
+    expect(m.summary).toMatch(/1 value differs between the BoM and the board/);
   });
 });
 

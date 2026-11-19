@@ -7,11 +7,8 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { MAX_BOM_BYTES } from "@/lib/bom/parse";
-import { autoMap, detectHeaderRow, headerSignature } from "@/lib/bom/columns";
-import { checkPackAgainstBom, notFittedRows, readJobPack, type JobPack, type PackSummary } from "@/lib/bom/workbook";
-import { findBareBoard, scrubRows } from "@/lib/bom/scrub";
-import { boardSpecLabel, parseBoardSpec } from "@/lib/bom/bare-board";
-import { expandRefDes } from "@/lib/refdes";
+import { autoMap, detectHeaderRow, headerSignature, templateMapping } from "@/lib/bom/columns";
+import { boardSpecFromDetails, pickDetail, readJobPack, readPackSummary, sameRevision, summarisePack, summaryWorthKeeping, type JobPack, type PackSummary } from "@/lib/bom/workbook";
 import { isBomField, type ColumnMapping } from "@/lib/bom/fields";
 import { ingestRevision, scoreRevision } from "@/server/bom-pipeline";
 import { MAX_UPLOAD_BYTES, sortBoardFiles, type BoardFiles } from "@/lib/board/upload";
@@ -93,10 +90,12 @@ export async function uploadBom(_prev: ActionState, form: FormData): Promise<Act
   } else {
     if (!hasFile) return { error: "Choose a BoM file, or Gerber files, to upload." };
     if (file.size > MAX_BOM_BYTES) return { error: "File is larger than 10 MB." };
+    // The BoM sheet(s) the person chose on the upload form, when the file has several that read like one.
+    const bomSheets = form.getAll("bomSheet").filter((v): v is string => typeof v === "string" && !!v);
     try {
-      pack = readJobPack(new Uint8Array(await file.arrayBuffer()), file.name);
+      pack = readJobPack(new Uint8Array(await file.arrayBuffer()), file.name, { bomSheets });
       rows = pack.rows;
-      sheetName = pack.bomSheet;
+      sheetName = pack.bomSheets.length > 1 ? pack.bomSheets.join(" + ").slice(0, 190) : pack.bomSheet;
     } catch (e) {
       return { error: e instanceof Error ? e.message : "Could not read the file." };
     }
@@ -124,43 +123,42 @@ export async function uploadBom(_prev: ActionState, form: FormData): Promise<Act
     return { error: `${bom.name} already has revision ${input.revision}. Use a new revision label.` };
   }
 
-  // Header + mapping: a saved customer template wins when the header row is identical. Rows made from the board
+  // Header + mapping: a saved customer template wins when the customer's own header row is identical (the columns the
+  // upload adds after it — a count, a section, joined alternates — are mapped automatically). Rows made from the board
   // have their own known mapping.
-  const headerRow = fromBoard ? 0 : detectHeaderRow(rows);
-  const signature = headerSignature(rows[headerRow]);
+  const headerRow = fromBoard ? 0 : (pack?.headerRow ?? detectHeaderRow(rows));
+  const own = pack?.ownColumns ? Math.min(pack.ownColumns, rows[headerRow].length) : rows[headerRow].length;
+  const signature = headerSignature(rows[headerRow].slice(0, own));
   const templates = (customer.bomTemplates ?? []) as Template[];
-  const template = fromBoard ? undefined : templates.find((t) => t.signature === signature && t.mapping.length === rows[headerRow].length);
-  const mapping = fromBoard ? FOUND_BOM_MAPPING : (template?.mapping ?? autoMap(rows[headerRow], rows.slice(headerRow + 1)).mapping);
+  const template = fromBoard ? undefined : templates.find((t) => t.signature === signature && t.mapping.length === own);
+  const auto = autoMap(rows[headerRow], rows.slice(headerRow + 1)).mapping;
+  const mapping = fromBoard ? FOUND_BOM_MAPPING : template ? templateMapping(template.mapping, auto, own) : auto;
 
   // What the file says beyond the BoM table: designators that are on the board and not fitted become not-fitted
-  // lines, the bare board's line becomes the board spec, and the sheets are checked against the BoM.
+  // lines, the bare board's line becomes the board spec, the sheets and the file's own totals are checked against the
+  // BoM, and the details (name, part number, revision, board) go where the app keeps them.
   let summary: PackSummary | null = null;
   if (pack) {
-    const before = scrubRows(rows, headerRow, mapping, new Map());
-    const extra = notFittedRows(pack, rows[headerRow], mapping, new Set(before.flatMap((l) => expandRefDes(l.refDes))));
-    if (extra.length) rows = [...rows, ...extra];
-    const lines = extra.length ? scrubRows(rows, headerRow, mapping, new Map()) : before;
-    const bare = findBareBoard(rows, headerRow, mapping);
-    const spec = bare ? parseBoardSpec(bare.text) : null;
-    summary = {
-      sheets: pack.sheets,
-      placementSource: pack.placementSource,
-      placements: pack.placements.length,
-      notFitted: pack.notFitted,
-      added: extra.map((r) => r[mapping.indexOf("refDes")]),
-      findings: [...pack.findings, ...checkPackAgainstBom(pack, lines.map((l) => ({ refDes: l.refDes, mpn: l.mpn, dnp: l.dnp })))],
-      board: bare && spec ? { text: bare.text, label: boardSpecLabel(spec), customerPn: bare.customerPn } : null,
-      boardNotes: board?.notes ?? [],
-    };
-    // Nothing worth keeping for a plain one-table BoM.
-    if (summary.sheets.length < 2 && !summary.board && !summary.boardNotes.length && !summary.findings.length) summary = null;
-    if (spec) {
-      // The BoM's own words fill what the project does not say yet; what the project already says stays.
+    const read = summarisePack(pack, { rows, headerRow, mapping, boardNotes: board?.notes ?? [] });
+    rows = read.rows;
+    summary = read.summary;
+    // A revision the file itself states (not one read off the file name alone) that differs from the one typed.
+    const fileRev = pickDetail(pack.details, "revision");
+    if (fileRev && fileRev.via !== "file-name" && !sameRevision(fileRev.value, input.revision)) summary.findings.push({ level: "amber", text: `This upload is rev ${input.revision}; the file says rev ${fileRev.value} (${fileRev.from}).` });
+    if (!summaryWorthKeeping(summary)) summary = null;
+    // The file's own words fill what the project does not say yet (the bare board's line first, then a details
+    // sheet); what the project already says stays.
+    const spec = read.spec;
+    const fromLine = spec ? { layers: spec.layers, thicknessMm: spec.thicknessMm, finish: spec.finish, mask: spec.mask, silk: spec.silk, sizeMm: spec.sizeMm, copperOz: spec.copperOz, material: spec.material } : {};
+    const said = Object.fromEntries(Object.entries({ ...boardSpecFromDetails(pack.details), ...fromLine }).filter(([, v]) => v !== undefined));
+    if (Object.keys(said).length) {
       const current = (project.boardSpec ?? {}) as Record<string, unknown>;
-      const said = Object.fromEntries(Object.entries({ layers: spec.layers, thicknessMm: spec.thicknessMm, finish: spec.finish, mask: spec.mask, silk: spec.silk, sizeMm: spec.sizeMm, copperOz: spec.copperOz, material: spec.material }).filter(([, v]) => v !== undefined));
       const merged = { ...said, ...current };
       if (JSON.stringify(merged) !== JSON.stringify(current)) project = await db.project.update({ where: { id: project.id }, data: { boardSpec: merged as Prisma.InputJsonValue } });
     }
+    // The assembly's own number, when the BoM does not have one yet.
+    const partNumber = pickDetail(pack.details, "partNumber");
+    if (partNumber && !bom.assemblyPartNumber) await db.bom.update({ where: { id: bom.id }, data: { assemblyPartNumber: partNumber.value.slice(0, 60) } });
   } else if (board?.notes.length) {
     summary = { sheets: [], placementSource: null, placements: 0, notFitted: [], added: [], findings: [], board: null, boardNotes: board.notes };
   }
@@ -176,6 +174,8 @@ export async function uploadBom(_prev: ActionState, form: FormData): Promise<Act
       headerRow,
       columnMapping: mapping,
       pack: (summary ?? undefined) as Prisma.InputJsonValue | undefined,
+      // The file's own notes (scope, build remarks), each with where it was read.
+      notes: pack?.details.notes.length ? pack.details.notes.map((n) => `${n.text} — ${n.from}`).join("\n").slice(0, 8000) : undefined,
       buildQty: input.buildQty,
       uploadedById: user.id,
     },
@@ -217,7 +217,7 @@ export async function uploadBom(_prev: ActionState, form: FormData): Promise<Act
       action: fromBoard ? "bom.fromBoard" : "bom.upload",
       entity: "BomRevision",
       entityId: revision.id,
-      data: { file: fileName, rows: rows.length, template: !!template, boardFiles: boardUploads.map((f) => f.name), preview: preview?.id ?? null, components: fromBoard ? found?.source : undefined, gerbersOnly: fromBoard && !preview, sheets: pack?.sheets.map((s) => `${s.name}: ${s.kind}`), panel: board?.panel ? board.panel.count : undefined },
+      data: { file: fileName, rows: rows.length, template: !!template, boardFiles: boardUploads.map((f) => f.name), preview: preview?.id ?? null, components: fromBoard ? found?.source : undefined, gerbersOnly: fromBoard && !preview, sheets: pack?.sheets.map((s) => `${s.name}: ${s.kind}${s.used ? "" : " (not used)"}`), bomSheets: pack?.bomSheets, details: pack?.details.items.filter((d) => d.key).map((d) => `${d.key}: ${d.value}`), panel: board?.panel ? board.panel.count : undefined },
     },
   });
   if (fromBoard) {
@@ -260,10 +260,13 @@ export async function confirmMapping(input: z.infer<typeof mappingSchema>): Prom
   await db.bomRevision.update({ where: { id: revisionId }, data: { headerRow, columnMapping: mapping, status: "MAPPED" } });
 
   if (saveTemplate) {
+    // Saved for the customer's own header: the columns the upload added after it are not part of their file.
     const customer = rev.bom.project.customer;
-    const signature = headerSignature(rows[headerRow]);
+    const kept = readPackSummary(rev.pack)?.ownColumns;
+    const own = kept && headerRow === rev.headerRow ? Math.min(kept, mapping.length) : mapping.length;
+    const signature = headerSignature(rows[headerRow].slice(0, own));
     const templates = ((customer.bomTemplates ?? []) as Template[]).filter((t) => t.signature !== signature);
-    templates.push({ signature, mapping, savedAt: new Date().toISOString() });
+    templates.push({ signature, mapping: mapping.slice(0, own), savedAt: new Date().toISOString() });
     await db.customer.update({ where: { id: customer.id }, data: { bomTemplates: templates as unknown as Prisma.InputJsonValue } });
   }
 
