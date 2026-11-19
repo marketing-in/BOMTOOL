@@ -1,16 +1,19 @@
 import Link from "next/link";
 import { BookOpen, Check, CircleAlert, FileSpreadsheet, FileUp, TriangleAlert } from "lucide-react";
-import type { FootprintMatch, MatchStatus, RefResult } from "@/lib/board/footprint-match";
+import type { FootprintMatch, MatchStatus, RefResult, ValuePair } from "@/lib/board/footprint-match";
 import type { PartBody } from "@/lib/board/placement-film";
 import { ORDER, STATUS } from "@/components/bom/footprint-status";
-import { PlacementFilm, type BoardArt } from "@/components/bom/placement-film";
+import type { BoardArt } from "@/components/bom/placement-film";
+import { FootprintBoard } from "@/components/bom/footprint-board";
+import type { ViewerData } from "@/components/viewer/types";
 import { compressRefs } from "@/lib/board/find-parts";
 import { cn } from "@/lib/utils";
 import { Ring } from "@/components/viz/ring";
 
 /**
  * Step 3, "Footprint match" (Phase 24), as a picture: a ring of how many designators agree, a count per result, the
- * board with every part placed by a head in turn (mismatches burst), and only the problems listed.
+ * board with every part flying in onto its pads (3D, or the flat 2D film; mismatches blink red), and only the problems
+ * listed.
  */
 
 const TONE = {
@@ -33,21 +36,33 @@ function MatchRing({ m }: { m: FootprintMatch }) {
   );
 }
 
-type Row = { status: MatchStatus; refs: string[]; lineNo: number | null; mpn: string | null; bomPkg: string | null; footprint: string | null; why: string };
+type Row = { status: MatchStatus; refs: string[]; lineNo: number | null; mpn: string | null; bomPkg: string | null; footprint: string | null; why: string; values: ValuePair | null };
 
-/** Designators with the same line, result and footprint become one row. */
+/** Designators with the same line, result, footprint and reason become one row (two wrong values stay apart). */
 function rows(refs: RefResult[]): Row[] {
   const by = new Map<string, Row>();
   for (const r of refs) {
-    const key = `${r.status}|${r.lineNo}|${r.bomPkg}|${r.footprint}`;
+    const key = `${r.status}|${r.lineNo}|${r.bomPkg}|${r.footprint}|${r.status === "match" ? "" : r.why}|${r.values ? `${r.values.bom}/${r.values.board}` : ""}`;
     const row = by.get(key);
     if (row) row.refs.push(r.ref);
-    else by.set(key, { status: r.status, refs: [r.ref], lineNo: r.lineNo, mpn: r.mpn, bomPkg: r.bomPkg, footprint: r.footprint, why: r.why });
+    else by.set(key, { status: r.status, refs: [r.ref], lineNo: r.lineNo, mpn: r.mpn, bomPkg: r.bomPkg, footprint: r.footprint, why: r.why, values: r.values ?? null });
   }
   return [...by.values()];
 }
 
-function Table({ list }: { list: Row[] }) {
+/** The values both sides give: one when they agree ("100 nF"), both when they differ. */
+function ValueCell({ v, tone }: { v: ValuePair | null; tone: string }) {
+  if (!v) return <span className="font-sans text-muted-foreground">—</span>;
+  if (v.same) return <>{v.board}</>;
+  return (
+    <span className={cn("font-medium", tone)}>
+      <span className="font-sans font-normal text-muted-foreground">BoM</span> {v.bom} <span className="font-sans font-normal text-muted-foreground">· board</span> {v.board}
+    </span>
+  );
+}
+
+/** showValues: a Value column, when the board files carry values that were compared. */
+function Table({ list, showValues = false }: { list: Row[]; showValues?: boolean }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -57,6 +72,7 @@ function Table({ list }: { list: Row[] }) {
             <th className="px-4 py-2 font-medium">BoM line</th>
             <th className="px-4 py-2 font-medium">BoM package</th>
             <th className="px-4 py-2 font-medium">Board footprint</th>
+            {showValues ? <th className="px-4 py-2 font-medium">Value</th> : null}
             <th className="px-4 py-2 font-medium">Result</th>
           </tr>
         </thead>
@@ -69,6 +85,11 @@ function Table({ list }: { list: Row[] }) {
                 <td className="px-4 py-2">{r.lineNo ? <><span className="num text-muted-foreground">L{r.lineNo}</span> <span className="num">{r.mpn ?? ""}</span></> : <span className="text-muted-foreground">—</span>}</td>
                 <td className="num px-4 py-2">{r.bomPkg ?? <span className="font-sans text-muted-foreground">—</span>}</td>
                 <td className="num px-4 py-2">{r.footprint ?? <span className="font-sans text-muted-foreground">—</span>}</td>
+                {showValues ? (
+                  <td className="num px-4 py-2">
+                    <ValueCell v={r.values} tone={S.text} />
+                  </td>
+                ) : null}
                 <td className="px-4 py-2">
                   <span className={cn("inline-flex items-center gap-1.5 font-medium", S.text)}><S.icon className="size-4" aria-hidden /> {S.label}</span>
                   {r.status !== "match" ? <span className="block text-xs text-muted-foreground">{r.why}</span> : null}
@@ -91,6 +112,7 @@ export function FootprintMatchView({
   art = null,
   bodies,
   mask,
+  viewer = null,
 }: {
   match: FootprintMatch;
   revisionId: string;
@@ -100,6 +122,8 @@ export function FootprintMatchView({
   bodies?: Record<string, PartBody>;
   /** Solder-mask colour name of the board (green when not given). */
   mask?: string | null;
+  /** The assembled board for the 3D view (null: the 2D film only). */
+  viewer?: ViewerData | null;
 }) {
   const t = TONE[m.level];
   const all = rows(m.refs);
@@ -146,12 +170,12 @@ export function FootprintMatchView({
             })}
           </ul>
 
-          <PlacementFilm refs={m.refs} board={board} art={art} bodies={bodies} mask={mask} counts={m.counts} />
+          <FootprintBoard refs={m.refs} board={board} art={art} bodies={bodies} mask={mask} counts={m.counts} viewer={viewer} />
 
           {problems.length ? (
             <section aria-labelledby="to-fix" className="overflow-hidden rounded-xl border bg-card">
               <h2 id="to-fix" className="border-b px-5 py-4 text-base font-semibold">To fix or check <span className="num font-normal text-muted-foreground">· {problems.reduce((s, r) => s + r.refs.length, 0)} designators</span></h2>
-              <Table list={problems} />
+              <Table list={problems} showValues={m.valuesChecked > 0} />
             </section>
           ) : null}
 
@@ -162,7 +186,7 @@ export function FootprintMatchView({
                 <span className="ml-auto text-xs font-normal text-muted-foreground group-open:hidden">Show</span>
                 <span className="ml-auto hidden text-xs font-normal text-muted-foreground group-open:inline">Hide</span>
               </summary>
-              <div className="border-t"><Table list={good} /></div>
+              <div className="border-t"><Table list={good} showValues={m.valuesChecked > 0} /></div>
             </details>
           ) : null}
         </>

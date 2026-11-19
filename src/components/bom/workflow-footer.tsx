@@ -6,7 +6,17 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { WORKFLOW, locate, neighbours } from "@/lib/bom/workflow";
 
 /** Back and Next at the foot of every step, so a BoM is taken through its process one step at a time. */
-export function WorkflowFooter({ id, matchBlocked = false }: { id: string; /** The footprints do not match: going on from step 3 is possible, but not the main action. */ matchBlocked?: boolean }) {
+export function WorkflowFooter({
+  id,
+  matchBlocked = false,
+  heldNote,
+}: {
+  id: string;
+  /** A footprint or a value does not match the board: going on from step 3 is possible, but not the main action. */
+  matchBlocked?: boolean;
+  /** What to fix first, named for what is red ("Fix the values first"). */
+  heldNote?: string | null;
+}) {
   const pathname = usePathname();
   const base = `/boms/${id}`;
   const { step } = locate(pathname.startsWith(base) ? pathname.slice(base.length) : "");
@@ -28,7 +38,7 @@ export function WorkflowFooter({ id, matchBlocked = false }: { id: string; /** T
       </span>
       {next && held ? (
         <span className="flex flex-wrap items-center gap-3">
-          <span className="text-sm font-medium text-risk-red">Fix the footprints first</span>
+          <span className="text-sm font-medium text-risk-red">{heldNote || "Fix the footprints and values first"}</span>
           <Link href={`${base}${next.path}`} className={`${link} border bg-card hover:bg-muted`}>
             Continue anyway: {next.n}. {next.label} <ArrowRight className="size-4" aria-hidden />
           </Link>

@@ -1,11 +1,12 @@
 "use client";
 
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { CircuitBoard } from "lucide-react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { CircuitBoard, FlipVertical2 } from "lucide-react";
 import type { MatchStatus, RefResult } from "@/lib/board/footprint-match";
 import { BEFORE, FINAL, LIFT_SCALE, buildFilm, extent, filmFrame, fxAt, padsPath, type Film, type FilmPart, type Geo, type PartBody } from "@/lib/board/placement-film";
 import { MASK } from "@/components/viz/board-iso";
 import { OCHRE, STATUS } from "@/components/bom/footprint-status";
+import { RefCard } from "@/components/bom/ref-card";
 import { cn } from "@/lib/utils";
 
 /** The Gerber drawing of the top side and where it sits in the placements' own frame (mm). */
@@ -160,7 +161,7 @@ type Handles = { el: Record<string, SVGElement | undefined>; state: number };
 
 const LEGEND: MatchStatus[] = ["match", "check", "mismatch", "not-in-bom", "not-on-board"];
 
-function LegendGlyph({ s }: { s: MatchStatus }) {
+export function LegendGlyph({ s }: { s: MatchStatus }) {
   const c = STATUS[s].color;
   return (
     <svg viewBox="0 0 16 16" className="size-4 shrink-0" aria-hidden>
@@ -189,13 +190,51 @@ function LegendGlyph({ s }: { s: MatchStatus }) {
 
 const fmt = (n: number) => n.toLocaleString("en-IN");
 
+/** A dashed outline: a bottom-side part in the 2D film, a part not fitted on the 3D board. */
+const DashedGlyph = () => (
+  <svg viewBox="0 0 16 16" className="size-4 shrink-0" aria-hidden>
+    <rect x="3" y="5" width="10" height="6" rx="1" fill="none" stroke="currentColor" strokeWidth="1.1" strokeDasharray="2 1.3" />
+  </svg>
+);
+
+/**
+ * Every result with its count, and how many parts sit on the bottom side. On the 3D board (flip) the bottom side is
+ * under the board, shown by the flip tool's icon, and the dashed outlines there are parts not fitted (dnp).
+ */
+export function FilmLegend({ counts, bottoms, bottomNote, flip = false, dnp = 0 }: { counts: Record<MatchStatus, number>; bottoms: number; bottomNote?: string; flip?: boolean; dnp?: number }) {
+  return (
+    <ul className="flex flex-wrap gap-x-4 gap-y-2 px-5 pt-3 pb-4 text-xs" aria-label="Legend">
+      {LEGEND.map((s) => (
+        <li key={s} className={cn("inline-flex items-center gap-1.5", !counts[s] && "opacity-45")}>
+          <LegendGlyph s={s} />
+          <span>{STATUS[s].label}</span>
+          <span className="num font-semibold tabular-nums">{fmt(counts[s])}</span>
+        </li>
+      ))}
+      {dnp ? (
+        <li className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <DashedGlyph />
+          Not fitted (DNP) <span className="num tabular-nums">{fmt(dnp)}</span>
+        </li>
+      ) : null}
+      {bottoms ? (
+        <li className="inline-flex items-center gap-1.5 text-muted-foreground">
+          {flip ? <FlipVertical2 className="size-4 shrink-0" aria-hidden /> : <DashedGlyph />}
+          Bottom side <span className="num tabular-nums">{fmt(bottoms)}</span>
+          {bottomNote ? <span>· {bottomNote}</span> : null}
+        </li>
+      ) : null}
+    </ul>
+  );
+}
+
 /**
  * Step 4's board coming alive (Phase 24): when it scrolls into view, every part flies onto its pads in a quick sweep
  * (2–4 s), then stays. Matching parts settle with a green glow; a part whose footprint does not match blinks red;
  * "check by eye" is outlined ochre; parts with no BoM line leave bare pads in a dotted outline. Reduced motion: the
  * parts are simply there. The tables below the board are the text alternative.
  */
-export function PlacementFilm({ refs, board, art, bodies, mask, counts }: { refs: RefResult[]; board: { widthMm: number; heightMm: number } | null; art: BoardArt | null; bodies?: Record<string, PartBody>; mask?: string | null; counts: Record<MatchStatus, number> }) {
+export function PlacementFilm({ refs, board, art, bodies, mask, counts, tools }: { refs: RefResult[]; board: { widthMm: number; heightMm: number } | null; art: BoardArt | null; bodies?: Record<string, PartBody>; mask?: string | null; counts: Record<MatchStatus, number>; tools?: ReactNode }) {
   const frame = useMemo(() => filmFrame(refs, board, art?.box ?? null), [refs, board, art]);
   // SVG ids from the data, not useId: the same on server and client even if the tree above differs.
   const uid = useMemo(() => {
@@ -318,6 +357,7 @@ export function PlacementFilm({ refs, board, art, bodies, mask, counts }: { refs
       <style>{BLINK_CSS}</style>
       <figcaption className="flex items-center gap-2 px-5 pt-4 text-sm font-semibold">
         <CircuitBoard className="size-4 text-primary" aria-hidden /> The board, part by part
+        {tools ? <span className="ml-auto font-normal">{tools}</span> : null}
       </figcaption>
       <div ref={stageRef} className="relative px-2 pt-3 sm:px-5">
         {/* The marks on the board use the bright (dark-theme) risk colours: the light ones vanish on green solder mask. */}
@@ -350,30 +390,7 @@ export function PlacementFilm({ refs, board, art, bodies, mask, counts }: { refs
             className="pointer-events-none absolute z-10 w-60 rounded-lg border bg-popover p-3 text-xs text-popover-foreground shadow-lg"
             style={{ left: Math.max(8, Math.min(tip.x + 14, tip.sw - 248)), top: tip.y + 14 + 140 > tip.sh ? Math.max(8, tip.y - 150) : tip.y + 14 }}
           >
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="num text-sm font-semibold">{tipRef.ref}</span>
-              <span className={cn("inline-flex items-center gap-1 font-medium", STATUS[tipRef.status].text)}>
-                {(() => {
-                  const I = STATUS[tipRef.status].icon;
-                  return <I className="size-3.5" aria-hidden />;
-                })()}
-                {STATUS[tipRef.status].label}
-              </span>
-            </div>
-            {tipRef.mpn ? (
-              <div className="num mt-1 truncate">
-                {tipRef.lineNo ? <span className="text-muted-foreground">L{tipRef.lineNo} </span> : null}
-                {tipRef.mpn}
-              </div>
-            ) : null}
-            <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
-              <dt className="text-muted-foreground">BoM</dt>
-              <dd className="num truncate">{tipRef.bomPkg ?? "—"}</dd>
-              <dt className="text-muted-foreground">Board</dt>
-              <dd className="num truncate">{tipRef.footprint ?? "—"}</dd>
-            </dl>
-            {tipRef.status !== "match" ? <p className="mt-1.5 text-muted-foreground">{tipRef.why}</p> : null}
-            {tipPart.bottom ? <p className="mt-1 text-muted-foreground">Bottom side</p> : null}
+            <RefCard r={tipRef} bottom={tipPart.bottom} />
           </div>
         ) : null}
       </div>
@@ -394,23 +411,7 @@ export function PlacementFilm({ refs, board, art, bodies, mask, counts }: { refs
         </div>
       ) : null}
 
-      <ul className="flex flex-wrap gap-x-4 gap-y-2 px-5 pt-3 pb-4 text-xs" aria-label="Legend">
-        {LEGEND.map((s) => (
-          <li key={s} className={cn("inline-flex items-center gap-1.5", !counts[s] && "opacity-45")}>
-            <LegendGlyph s={s} />
-            <span>{STATUS[s].label}</span>
-            <span className="num font-semibold tabular-nums">{fmt(counts[s])}</span>
-          </li>
-        ))}
-        {bottoms ? (
-          <li className="inline-flex items-center gap-1.5 text-muted-foreground">
-            <svg viewBox="0 0 16 16" className="size-4" aria-hidden>
-              <rect x="3" y="5" width="10" height="6" rx="1" fill="none" stroke="currentColor" strokeWidth="1.1" strokeDasharray="2 1.3" />
-            </svg>
-            Bottom side <span className="num tabular-nums">{fmt(bottoms)}</span>
-          </li>
-        ) : null}
-      </ul>
+      <FilmLegend counts={counts} bottoms={bottoms} />
     </figure>
   );
 }

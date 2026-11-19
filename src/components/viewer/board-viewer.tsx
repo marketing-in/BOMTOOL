@@ -534,6 +534,14 @@ export default function BoardViewer({
   const [studioMode, setStudioMode] = useState<StudioMode>("3D");
   /** The assembled board is drawn by the circuitflow studio; bare board, layers and box stay on the scene below. */
   const usesStudio = mode === "pcba";
+  const sides = useMemo(
+    () => ({
+      top: data.parts.filter((p) => !p.dnp && p.side !== "BOTTOM").length,
+      bottom: data.parts.filter((p) => !p.dnp && p.side === "BOTTOM").length,
+      dnp: data.parts.filter((p) => p.dnp).length,
+    }),
+    [data.parts],
+  );
   const stack = useMemo(() => (tex ? buildStack(data, tex) : []), [data, tex]);
   const sel = data.parts.find((p) => p.refDes === selected) ?? null;
   const size = Math.max(data.board.width, data.board.height, data.enclosure && mode === "box" ? data.enclosure.length : 0);
@@ -678,6 +686,15 @@ export default function BoardViewer({
             </span>
           )}
         </div>
+
+        {/* Where the parts are: the top shows only the top side's fitted parts, so say how many sit underneath or are not fitted. */}
+        {usesStudio && (sides.bottom || sides.dnp) ? (
+          <p className="pointer-events-none absolute top-14 left-3 inline-flex flex-wrap items-center gap-x-2 rounded-md border bg-card/95 px-2.5 py-1 text-xs backdrop-blur">
+            <span><b className="font-semibold tabular-nums">{sides.top}</b> on top</span>
+            {sides.bottom ? <span>· <b className="font-semibold tabular-nums">{sides.bottom}</b> underneath — flip to see</span> : null}
+            {sides.dnp ? <span className="text-muted-foreground">· {sides.dnp} not fitted (dashed)</span> : null}
+          </p>
+        ) : null}
 
         {/* Floating toolbar, right edge: full screen, zoom, reset, pan. The studio has its own. */}
         {usesStudio ? null : (

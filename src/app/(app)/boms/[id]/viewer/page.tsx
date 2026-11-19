@@ -4,6 +4,8 @@ import { getDisplayCurrency } from "@/lib/prefs";
 import { getViewerData } from "@/server/board-view";
 import { PageHeader } from "@/components/data/page-header";
 import { ViewerLoader } from "@/components/viewer/viewer-loader";
+import { BoardFitNote } from "@/components/bom/board-fit-note";
+import { boardFitFor } from "@/server/workflow";
 import SmtLineSection from "../_sections/smt-line";
 
 export const metadata = { title: "3D view" };
@@ -15,7 +17,7 @@ export default async function BomViewerPage({ params, searchParams }: { params: 
   const { id } = await params;
   const sp = await searchParams;
   const { step } = sp;
-  const data = await getViewerData(id, await getDisplayCurrency());
+  const [data, fit] = await Promise.all([getDisplayCurrency().then((c) => getViewerData(id, c)), boardFitFor(id).catch(() => null)]);
   if (!data) notFound();
   return (
     <>
@@ -28,6 +30,7 @@ export default async function BomViewerPage({ params, searchParams }: { params: 
           </a>
         }
       />
+      <BoardFitNote fit={fit} className="mb-4" />
       <ViewerLoader data={data} initialStep={step ?? null} />
       <section id="smt-line" aria-label="SMT line" className="mt-16 scroll-mt-32 border-t pt-12">
         <SmtLineSection id={id} searchParams={sp} />

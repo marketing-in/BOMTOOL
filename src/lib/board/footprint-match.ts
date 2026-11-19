@@ -1,6 +1,5 @@
 import { expandRefDes } from "@/lib/refdes";
-import { parseDescription } from "@/lib/bom/describe";
-import { formatSi } from "@/lib/bom/mpn-decode";
+import { formatValue, isNoValue, looksLikePartName, milliMegaSlip, readReading, sameReading, samePartName, valueKindOf, type Quantity, type Reading, type ValueKind } from "@/lib/board/part-value";
 
 /**
  * Do the BoM and the board agree? (Phase 24) Every designator of the BoM, with the package its line names, against
@@ -90,36 +89,175 @@ export function compare(bomPkg: string | null | undefined, footprint: string | n
   return { status: "check", why: `cannot compare “${bomPkg.trim()}” with “${footprint.trim()}”` };
 }
 
-/** text: the line's value and description; value: what the design file carries for the designator. */
-export type MatchLineIn = { id: string; lineNo: number; refDes: string | null; pkg: string | null; mpn: string | null; dnp: boolean; text?: string | null };
+/**
+ * One BoM line. value / description: the line's value cell and description (the value is read from the value cell, else
+ * the description); text: both in one string, for callers that do not keep them apart. catalogPkg: the package of the
+ * part matched to the line, from our catalogue — compared with the board on its own, since a BoM's package column is
+ * often copied from the same CAD data as the board. catalogConfirmed: false when that match is our own guess, not yet
+ * confirmed (a disagreement is then to check, not a stop). rawMpn: the part numbers as uploaded (may list alternates).
+ * customerPn: the customer's own part number, which a board's value cell sometimes carries.
+ */
+export type MatchLineIn = {
+  id: string;
+  lineNo: number;
+  refDes: string | null;
+  pkg: string | null;
+  mpn: string | null;
+  dnp: boolean;
+  text?: string | null;
+  value?: string | null;
+  description?: string | null;
+  rawMpn?: string | null;
+  catalogPkg?: string | null;
+  catalogConfirmed?: boolean;
+  customerPn?: string | null;
+};
 export type MatchPlacementIn = { refDes: string; footprint: string | null; x: number; y: number; side: string; value?: string | null };
 
-const NOT_A_VALUE = /^(dnp|dnf|dni|dnl|dnm|nc|n\/c|nf|tbd|n\/a|-+)$/i;
+/**
+ * One thing found about a designator. level "mismatch" is a stop (red); "check" is for a person to confirm (amber).
+ * on: footprint (BoM package vs board footprint), catalogue (catalogue package vs board footprint), value (the BoM's
+ * value vs the board's), part (part names), kind (a footprint named for another kind of part), package (a package or
+ * footprint we cannot read or compare). text goes into the designator's why; detail is the mismatch list's line.
+ */
+export type RefNote = { on: "board" | "footprint" | "catalogue" | "value" | "part" | "kind" | "package"; level: "mismatch" | "check"; text: string; detail: string };
+
+type ValueLineIn = Pick<MatchLineIn, "text" | "value" | "description" | "mpn" | "rawMpn" | "customerPn">;
+
+/** What both sides give for a designator's value, as shown beside its footprint ("220 pF" / "1.5 nF"). */
+export type ValuePair = { bom: string; board: string; same: boolean };
 
 /**
- * The value the BoM line gives against the value the design file carries for the same designator (C, R and L only).
- * They differ when the BoM was changed after the layout — a tuned value, a later revision — or by mistake; either
- * way someone confirms which is right. Returns what differs, or null.
+ * The BoM's value for the quantity: the value cell, else the description. A bare number in the value cell ("1") is
+ * weaker than a value with its unit or prefix in the description ("RES 10K 1%"), so the description wins over it.
  */
-export function valueDiffers(ref: string, bomText: string | null | undefined, designValue: string | null | undefined): string | null {
-  const design = (designValue ?? "").trim();
-  if (!design || !bomText?.trim() || NOT_A_VALUE.test(design)) return null;
-  const prefix = ref.match(/^[A-Za-z]+/)?.[0].toUpperCase();
-  const kind = prefix === "C" ? "capacitor" : prefix === "R" ? "resistor" : prefix === "L" ? "inductor" : null;
-  if (!kind) return null;
-  const bare = /^\d+(?:\.\d+)?\s*[pnuµμm]$/i.test(design);
-  const have = parseDescription(kind === "capacitor" ? `CAP ${design}${bare ? "F" : ""}` : kind === "inductor" ? `IND ${design}${bare ? "H" : ""}` : `RES ${design}`);
-  const want = parseDescription(bomText);
-  if (want.kind !== kind || have.kind !== kind) return null;
-  const key = kind === "capacitor" ? "capacitance" : kind === "resistor" ? "resistance" : "inductance";
-  const a = want[key];
-  const b = have[key];
-  if (a === undefined || b === undefined || Math.abs(a - b) <= Math.max(Math.abs(a), Math.abs(b)) * 0.01) return null;
-  const unit = kind === "capacitor" ? "F" : kind === "resistor" ? "Ω" : "H";
-  return `value: BoM ${formatSi(a, unit)}, design file ${formatSi(b, unit)}`;
+function bomReading(line: ValueLineIn, q: Quantity): Reading | null {
+  const cell = readReading(line.value, q, "field");
+  if (cell && cell.tier < 2) return cell;
+  const desc = readReading(line.description, q);
+  if (desc && desc.tier < 2) return desc;
+  return cell ?? desc ?? readReading(line.text, q);
 }
 
-export type RefResult = { ref: string; status: MatchStatus; why: string; lineNo: number | null; mpn: string | null; bomPkg: string | null; footprint: string | null; x: number | null; y: number | null; side: string | null };
+/** The kind of value to compare for a designator, given both sides; null when there is nothing to compare. */
+function kindFor(ref: string, line: ValueLineIn, board: string): ValueKind | null {
+  const kind = valueKindOf(ref, [line.value, line.description, line.text].filter(Boolean).join(" "));
+  // A crystal under Q (older European and Eagle designs): compared by frequency when the board gives it in hertz.
+  if (kind === "part" && /^Q\d/i.test(ref.trim()) && readReading(board, "frequency", "field")?.tier === 0) return "frequency";
+  return kind;
+}
+
+/**
+ * The value the BoM gives against the value the board files carry for the same designator. A different value is a
+ * different part — the BoM changed after the layout, or one of them is wrong — so it is a mismatch, like a footprint;
+ * except the same digits with milli and mega swapped (10 MΩ / 10 mΩ), a typing slip to confirm. Part names (ICs,
+ * transistors, diodes) that clearly differ are only to check: CAD libraries often carry generic names. Nothing is
+ * said when either side has no readable value, or the board's says "not fitted". compared: both sides gave one.
+ */
+export function compareValue(ref: string, line: ValueLineIn, boardValue: string | null | undefined): { note: RefNote | null; compared: boolean; pair: ValuePair | null } {
+  const none = { note: null, compared: false, pair: null };
+  const board = (boardValue ?? "").trim();
+  if (isNoValue(board)) return none;
+  const kind = kindFor(ref, line, board);
+  if (!kind) return none;
+  if (kind === "part") {
+    if (!looksLikePartName(board)) return none;
+    const same = samePartName(board, [line.mpn, line.rawMpn], [line.value, line.description, line.text, line.customerPn]);
+    if (same === null) return none;
+    const bom = line.mpn ?? line.rawMpn ?? "";
+    const pair = { bom, board, same };
+    return { note: same ? null : { on: "part", level: "check", text: `part: BoM ${bom}, board ${board}`, detail: `BoM ${bom} · board ${board}` }, compared: true, pair };
+  }
+  const want = bomReading(line, kind);
+  const have = readReading(board, kind, "field");
+  if (!want || !have) return none;
+  const a = formatValue(want.v, kind);
+  const b = formatValue(have.v, kind);
+  if (sameReading(want, have)) return { note: null, compared: true, pair: { bom: a, board: b, same: true } };
+  const pair = { bom: a, board: b, same: false };
+  if (milliMegaSlip(want.v, have.v)) return { note: { on: "value", level: "check", text: `value to confirm: BoM ${a}, board ${b} (milli or mega?)`, detail: `BoM ${a} · board ${b}: milli or mega?` }, compared: true, pair };
+  return { note: { on: "value", level: "mismatch", text: `value: BoM ${a}, board ${b}`, detail: `BoM ${a} · board ${b}` }, compared: true, pair };
+}
+
+/** The note alone (see compareValue). */
+export function checkValue(ref: string, line: ValueLineIn, boardValue: string | null | undefined): RefNote | null {
+  return compareValue(ref, line, boardValue).note;
+}
+
+/** The value difference alone, as the designator's why says it ("value: BoM 220 pF, board 1.5 nF"), or null. */
+export function valueDiffers(ref: string, bomText: string | null | undefined, boardValue: string | null | undefined): string | null {
+  const v = checkValue(ref, { text: bomText, mpn: null }, boardValue);
+  return v?.on === "value" ? v.text : null;
+}
+
+type PartKindName = "capacitor" | "resistor" | "inductor";
+const KIND_OF_REF: Record<string, PartKindName> = { C: "capacitor", R: "resistor", L: "inductor" };
+const FOOTPRINT_KIND: [RegExp, PartKindName][] = [
+  [/^(?:C|CP|CAP|CAPC|CAPACITOR)(?=[ -]?\d|[ -]|$)/, "capacitor"],
+  [/^(?:R|RES|RESC|RESISTOR)(?=[ -]?\d|[ -]|$)/, "resistor"],
+  [/^(?:L|IND|INDC|INDUCTOR)(?=[ -]?\d|[ -]|$)/, "inductor"],
+];
+
+/** The kind of part a footprint's name is for ("C_0402" → capacitor, "IND_7MH2-1" → inductor), or null. */
+export function footprintKind(footprint: string | null | undefined): PartKindName | null {
+  const f = (footprint ?? "").toUpperCase().replace(/_/g, " ").trim();
+  return FOOTPRINT_KIND.find(([re]) => re.test(f))?.[1] ?? null;
+}
+
+/**
+ * A footprint named for another kind of part ("C_0402" under an inductor): often one generic chip library used for
+ * both, which is fine, but sometimes the wrong land under the part. Only to check by eye, never a stop.
+ */
+export function kindCheck(ref: string, footprint: string | null | undefined): RefNote | null {
+  const want = KIND_OF_REF[ref.match(/^[A-Za-z]+/)?.[0].toUpperCase() ?? ""];
+  const named = footprintKind(footprint);
+  if (!want || !named || want === named) return null;
+  const text = `footprint named for ${named === "inductor" ? "an" : "a"} ${named} on ${want === "inductor" ? "an" : "a"} ${want}`;
+  return { on: "kind", level: "check", text, detail: `${footprint?.trim()} is named for ${named === "inductor" ? "an" : "a"} ${named}; ${ref} is ${want === "inductor" ? "an" : "a"} ${want}` };
+}
+
+const sameSignature = (a: string, b: string) => {
+  const sa = signature(a);
+  const sb = signature(b);
+  return plain(a) === plain(b) || (!!sa && !!sb && signatureLabel(sa) === signatureLabel(sb));
+};
+
+/**
+ * The package of the part matched to the line, from our catalogue, against the board's footprint. Says something
+ * only when the catalogue's package differs from the BoM's package column and clearly disagrees with the board. A
+ * stop when the match is confirmed (an exact part number, or a person chose it); when it is still our own guess, the
+ * guess may be what is wrong, so it is only to check.
+ */
+export function catalogueCheck(line: Pick<MatchLineIn, "pkg" | "catalogPkg" | "mpn" | "catalogConfirmed">, footprint: string | null | undefined): RefNote | null {
+  const cat = line.catalogPkg?.trim();
+  if (!cat || !footprint?.trim() || (line.pkg?.trim() && sameSignature(line.pkg, cat))) return null;
+  if (compare(cat, footprint).status !== "mismatch") return null;
+  const s = signature(footprint);
+  const fp = s ? signatureLabel(s) : footprint.trim();
+  const part = line.mpn ? `catalogue part ${line.mpn}` : "the catalogue part";
+  if (line.catalogConfirmed === false) {
+    const matched = line.mpn ? `the matched catalogue part ${line.mpn}` : "the matched catalogue part";
+    return { on: "catalogue", level: "check", text: `${matched} is ${cat}, board ${fp}: confirm the match`, detail: `board ${fp} · ${matched} is ${cat} (match not confirmed)` };
+  }
+  return { on: "catalogue", level: "mismatch", text: `footprint ${fp}, ${part} is ${cat}`, detail: `board ${fp} · ${part} is ${cat}` };
+}
+
+export type RefResult = {
+  ref: string;
+  status: MatchStatus;
+  why: string;
+  lineNo: number | null;
+  mpn: string | null;
+  bomPkg: string | null;
+  footprint: string | null;
+  x: number | null;
+  y: number | null;
+  side: string | null;
+  /** What was found, most serious first (empty or absent for a match, not-on-board and not-in-bom). */
+  notes?: RefNote[];
+  /** The value (or part name) each side gives, when both give one and they were compared. */
+  values?: ValuePair;
+};
 
 export type FootprintMatch = {
   level: Level;
@@ -128,15 +266,49 @@ export type FootprintMatch = {
   title: string;
   summary: string;
   counts: Record<MatchStatus, number>;
-  /** Designators whose footprint matches but whose value differs between the BoM and the design file. */
+  /** Designators whose value differs between the BoM and the board files (each is a mismatch; a milli/mega slip to confirm is not counted). */
   valueDiffs: number;
+  /** Designators whose value (or part name) both sides give, and so was compared. */
+  valuesChecked: number;
   total: number;
   refs: RefResult[];
+  /** Do the placements sit on the Gerbers (src/lib/board/placement-fit.ts)? Absent when there were no Gerbers to look at. */
+  fit?: { level: "green" | "amber" | "red"; note: string; foreign: boolean; misses: number };
 };
+
+/** What the footprint check needs from the placement-against-Gerber check: designator (upper case) → why it misses. */
+export type FitIn = { level: "green" | "amber" | "red"; note: string; foreign: boolean; why: Record<string, string> };
 
 const n = (k: number, one: string, many = `${one}s`) => `${k.toLocaleString("en-IN")} ${k === 1 ? one : many}`;
 
-export function matchFootprints(lines: MatchLineIn[], placements: MatchPlacementIn[]): FootprintMatch {
+const NOTE_ORDER: RefNote["on"][] = ["footprint", "catalogue", "value", "package", "kind", "part"];
+const byWeight = (a: RefNote, b: RefNote) => (a.level === b.level ? NOTE_ORDER.indexOf(a.on) - NOTE_ORDER.indexOf(b.on) : a.level === "mismatch" ? -1 : 1);
+
+/** Everything found for one placed designator of a BoM line: its status, why, and the notes behind them. */
+export function judgeRef(ref: string, l: MatchLineIn, p: Pick<MatchPlacementIn, "footprint" | "value">): { status: "match" | "mismatch" | "check"; why: string; notes: RefNote[]; valueCompared: boolean; values: ValuePair | null } {
+  const c = compare(l.pkg, p.footprint);
+  const notes: RefNote[] = [];
+  if (c.status === "mismatch") notes.push({ on: "footprint", level: "mismatch", text: c.why, detail: `BoM ${l.pkg ?? "—"} · board ${p.footprint ?? "—"}` });
+  else if (c.status === "check") notes.push({ on: "package", level: "check", text: c.why, detail: `BoM ${l.pkg ?? "names no package"} · board ${p.footprint ?? "—"}` });
+  const cat = catalogueCheck(l, p.footprint);
+  if (cat) notes.push(cat);
+  const v = compareValue(ref, l, p.value);
+  if (v.note) notes.push(v.note);
+  const k = kindCheck(ref, p.footprint);
+  if (k) notes.push(k);
+  notes.sort(byWeight);
+  const status = notes.some((n) => n.level === "mismatch") ? "mismatch" : notes.length ? "check" : "match";
+  return { status, why: notes.length ? notes.map((n) => n.text).join(" · ") : c.why, notes, valueCompared: v.compared, values: v.pair };
+}
+
+/** Whether a designator's value (not its part name) differs between the BoM and the board: a stop. */
+const valueStop = (notes: RefNote[] | undefined) => (notes ?? []).some((x) => x.on === "value" && x.level === "mismatch");
+
+/**
+ * `fit`, when the Gerbers were read: a placement that does not sit on them (outside the board, or no copper pad under it)
+ * is a mismatch whatever its footprint name says — the board cannot be built as drawn.
+ */
+export function matchFootprints(lines: MatchLineIn[], placements: MatchPlacementIn[], fit?: FitIn | null): FootprintMatch {
   const counts: Record<MatchStatus, number> = { match: 0, mismatch: 0, check: 0, "not-on-board": 0, "not-in-bom": 0 };
   const placed = new Map(placements.map((p) => [p.refDes.toUpperCase(), p]));
   const fitted = lines.filter((l) => !l.dnp);
@@ -149,14 +321,19 @@ export function matchFootprints(lines: MatchLineIn[], placements: MatchPlacement
       level: "amber",
       hasBoard: false,
       title: "No board to compare with yet",
-      summary: `The BoM has ${n(total, "designator")}, but no Gerbers or pick-and-place file say where the parts sit. Add them to check the footprints.`,
+      summary: `The BoM has ${n(total, "designator")}, but no Gerbers or pick-and-place file say where the parts sit. Add them to check the footprints and values.`,
       counts,
       valueDiffs: 0,
+      valuesChecked: 0,
       total: 0,
       refs,
     };
   }
   let valueDiffs = 0;
+  let valuesChecked = 0;
+  let valuesAgree = 0;
+  let footprintDiffs = 0;
+  let boardMisses = 0;
   for (const l of fitted)
     for (const ref of expandRefDes(l.refDes)) {
       if (seen.has(ref)) continue;
@@ -166,44 +343,82 @@ export function matchFootprints(lines: MatchLineIn[], placements: MatchPlacement
         refs.push({ ref, status: "not-on-board", why: "in the BoM, not placed on the board", lineNo: l.lineNo, mpn: l.mpn, bomPkg: l.pkg, footprint: null, x: null, y: null, side: null });
         continue;
       }
-      const c = compare(l.pkg, p.footprint);
-      // The footprint can match while the value does not: that is for a person to settle, not a pass.
-      const v = valueDiffers(ref, l.text, p.value);
-      if (v) valueDiffs++;
-      refs.push({ ref, status: v && c.status === "match" ? "check" : c.status, why: v ? `${c.why} · ${v}` : c.why, lineNo: l.lineNo, mpn: l.mpn, bomPkg: l.pkg, footprint: p.footprint, x: p.x, y: p.y, side: p.side });
+      const j = judgeRef(ref, l, p);
+      const off = fit?.why[ref];
+      if (off) {
+        // Not on the Gerbers: that comes first, and makes the designator red whatever its footprint name says.
+        boardMisses++;
+        j.notes.unshift({ on: "board", level: "mismatch", text: off, detail: off });
+        j.why = j.status === "match" ? off : `${off} · ${j.why}`;
+        j.status = "mismatch";
+      }
+      if (valueStop(j.notes)) valueDiffs++;
+      if (j.notes.some((x) => x.level === "mismatch" && x.on !== "value" && x.on !== "board")) footprintDiffs++;
+      if (j.valueCompared) valuesChecked++;
+      if (j.values?.same) valuesAgree++;
+      refs.push({ ref, status: j.status, why: j.why, lineNo: l.lineNo, mpn: l.mpn, bomPkg: l.pkg, footprint: p.footprint, x: p.x, y: p.y, side: p.side, notes: j.notes, ...(j.values ? { values: j.values } : {}) });
     }
   for (const p of placements) {
     const ref = p.refDes.toUpperCase();
     if (seen.has(ref) || dnp.has(ref)) continue;
-    refs.push({ ref, status: "not-in-bom", why: "placed on the board, no BoM line", lineNo: null, mpn: null, bomPkg: null, footprint: p.footprint, x: p.x, y: p.y, side: p.side });
+    refs.push({ ref, status: "not-in-bom", why: fit?.why[ref] ? `placed on the board, no BoM line · ${fit.why[ref]}` : "placed on the board, no BoM line", lineNo: null, mpn: null, bomPkg: null, footprint: p.footprint, x: p.x, y: p.y, side: p.side });
   }
   for (const r of refs) counts[r.status]++;
   const total = refs.length;
   const bad = counts.mismatch + counts["not-on-board"] + counts["not-in-bom"];
   const level: Level = bad ? "red" : counts.check ? "amber" : "green";
   const problems = [
-    counts.mismatch ? n(counts.mismatch, "footprint") + ` ${counts.mismatch === 1 ? "does" : "do"} not match` : null,
+    boardMisses ? `${n(boardMisses, "placement")} not on the Gerbers` : null,
+    footprintDiffs ? n(footprintDiffs, "footprint") + ` ${footprintDiffs === 1 ? "does" : "do"} not match` : null,
+    valueDiffs ? `${n(valueDiffs, "value")} ${valueDiffs === 1 ? "differs" : "differ"} between the BoM and the board` : null,
     counts["not-on-board"] ? `${n(counts["not-on-board"], "BoM designator")} not on the board` : null,
     counts["not-in-bom"] ? `${n(counts["not-in-bom"], "placed part")} not in the BoM` : null,
     counts.check ? `${counts.check.toLocaleString("en-IN")} to check by eye` : null,
-    valueDiffs ? `${n(valueDiffs, "value")} ${valueDiffs === 1 ? "differs" : "differ"} from the design file` : null,
   ].filter(Boolean);
+  const agree = valuesChecked ? `, and the ${n(valuesChecked, "value")} both name agree` : "";
+  // Where some values are wrong, say how many were compared and agree, so nobody wonders whether the rest were looked at.
+  const compared = valuesChecked ? ` ${valuesAgree.toLocaleString("en-IN")} of the ${n(valuesChecked, "value")} both name agree.` : "";
   return {
     level,
     hasBoard: true,
-    title: level === "green" ? "BoM and board match" : level === "amber" ? "Almost — a few to check by eye" : "BoM and board do not match",
-    summary: level === "green" ? `All ${n(total, "designator")} have the same footprint in the BoM and on the board.` : `${counts.match.toLocaleString("en-IN")} of ${n(total, "designator")} match. ${problems.join(" · ")}.`,
+    title: fit?.foreign ? "The Gerbers do not fit the placements" : level === "green" ? "BoM and board match" : level === "amber" ? "Almost — a few to check by eye" : "BoM and board do not match",
+    summary: fit?.foreign
+      ? `${fit.note}${/[.?!]$/.test(fit.note) ? "" : "."} Nothing below can be trusted until the Gerbers and the pick-and-place file are the same board.`
+      : level === "green"
+        ? `All ${n(total, "designator")} have the same footprint in the BoM and on the board${agree}.`
+        : `${counts.match.toLocaleString("en-IN")} of ${n(total, "designator")} match. ${problems.join(" · ")}.${compared}`,
     counts,
     valueDiffs,
+    valuesChecked,
     total,
     refs,
+    ...(fit ? { fit: { level: fit.level, note: fit.note, foreign: fit.foreign, misses: Object.keys(fit.why).length } } : {}),
   };
 }
 
 /** The strip's one-line note for the step. */
-export function matchNote(m: Pick<FootprintMatch, "level" | "hasBoard" | "counts" | "total">): string {
+export function matchNote(m: Pick<FootprintMatch, "level" | "hasBoard" | "counts" | "total"> & Partial<Pick<FootprintMatch, "valueDiffs" | "refs" | "fit">>): string {
   if (!m.hasBoard) return "Add Gerbers to check the footprints";
+  if (m.fit?.foreign) return "The Gerbers do not fit the placements";
   if (m.level === "green") return `${m.total.toLocaleString("en-IN")} of ${m.total.toLocaleString("en-IN")} footprints match`;
   const bad = m.counts.mismatch + m.counts["not-on-board"] + m.counts["not-in-bom"];
-  return bad ? `${n(bad, "designator")} do not match the board`.replace("1 designator do", "1 designator does") : `${m.counts.check.toLocaleString("en-IN")} to check by eye`;
+  if (!bad) return `${m.counts.check.toLocaleString("en-IN")} to check by eye`;
+  const values = m.valueDiffs ?? 0;
+  // Only values are wrong: say so, so nobody looks for a footprint problem.
+  const onlyValues = values > 0 && values === bad && (m.refs ?? []).every((r) => r.status !== "mismatch" || (r.notes ?? []).every((x) => x.level !== "mismatch" || x.on === "value"));
+  if (onlyValues) return `${n(values, "value")} ${values === 1 ? "does" : "do"} not match the board`;
+  const base = `${n(bad, "designator")} ${bad === 1 ? "does" : "do"} not match the board`;
+  return values ? `${base}, ${values.toLocaleString("en-IN")} by value` : base;
+}
+
+/**
+ * What has to be fixed before going on from the step, named for what is actually red: "Fix the values first",
+ * "Fix the footprints and values first", "Fix the missing designators first".
+ */
+export function matchHeldNote(m: Pick<FootprintMatch, "counts" | "refs">): string {
+  const reds = m.refs.filter((r) => r.status === "mismatch");
+  const footprints = reds.some((r) => !r.notes?.length || r.notes.some((x) => x.level === "mismatch" && x.on !== "value"));
+  const what = [footprints ? "footprints" : null, reds.some((r) => valueStop(r.notes)) ? "values" : null, m.counts["not-on-board"] + m.counts["not-in-bom"] ? "missing designators" : null].filter((x): x is string => !!x);
+  if (!what.length) return "Fix the BoM or the board files first";
+  return `Fix the ${what.length > 1 ? `${what.slice(0, -1).join(", ")} and ${what[what.length - 1]}` : what[0]} first`;
 }

@@ -4,6 +4,8 @@ import { Box, ChevronDown, Files, Layers, Upload } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { boardStackFor } from "@/server/board-thumb";
+import { BoardFitNote } from "@/components/bom/board-fit-note";
+import { boardFitFor } from "@/server/workflow";
 import { RiskDot } from "@/components/data/badges";
 import { BoardUploadForm } from "@/components/viewer/board-upload-form";
 import { RemoveBoardFilesButton } from "@/components/bom/delete-controls";
@@ -32,7 +34,9 @@ export default async function GerbersSection({ id }: { id: string }) {
   const gerbers = rev.board?.source === "gerber";
   const placements = rev._count.placements;
   const uploaded = gerbers || placements > 0;
-  const [stack, viewer] = uploaded ? await Promise.all([boardStackFor(id).catch(() => null), getDisplayCurrency().then((c) => getViewerData(id, c)).catch(() => null)]) : [null, null];
+  const [stack, viewer, fit] = uploaded
+    ? await Promise.all([boardStackFor(id).catch(() => null), getDisplayCurrency().then((c) => getViewerData(id, c)).catch(() => null), boardFitFor(id).catch(() => null)])
+    : [null, null, null];
 
   const onFile = (
     <ul className="space-y-2 text-sm" aria-label="On file">
@@ -85,6 +89,7 @@ export default async function GerbersSection({ id }: { id: string }) {
               },
             ]}
           />
+          <BoardFitNote fit={fit} />
           {viewer ? (
             <section aria-label="The assembled board">
               <StudioLoader data={viewer} />

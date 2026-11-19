@@ -4,7 +4,7 @@
 // flip to the bottom, full screen and the layer split. Stripped: GLB boards and part models, the cobot gripper and
 // SMT-rig playback, the part summary card (the app renders its own via renderTip) and the Gerber re-parse — layer
 // pictures come from the app (board.layerImages). Chrome restyled to the app's tokens; no blue.
-import React,{useEffect,useMemo,useRef,useState} from 'react';
+import React,{useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import * as THREE from 'three';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -32,8 +32,26 @@ function texFrom(src,onLoad){
  return new THREE.TextureLoader().load(src,()=>onLoad?.());
 }
 
+// A rounded rectangle centred on 0,0 (half sizes hx, hy, corner r) drawn into a Shape or Path.
+function roundRect(P,hx,hy,r){r=Math.max(0,Math.min(r,hx,hy));P.moveTo(-hx+r,-hy);P.lineTo(hx-r,-hy);P.quadraticCurveTo(hx,-hy,hx,-hy+r);P.lineTo(hx,hy-r);P.quadraticCurveTo(hx,hy,hx-r,hy);P.lineTo(-hx+r,hy);P.quadraticCurveTo(-hx,hy,-hx,hy-r);P.lineTo(-hx,-hy+r);P.quadraticCurveTo(-hx,-hy,-hx+r,-hy);return P}
+// Flat on the board (XZ plane): a band round a part (width w), a filled patch, or dots along the outline.
+const flat=g=>g.rotateX(Math.PI/2);
+function bandGeo(hx,hz,w,r){const sh=roundRect(new THREE.Shape(),hx,hz,r);sh.holes.push(roundRect(new THREE.Path(),hx-w,hz-w,r-w));return flat(new THREE.ShapeGeometry(sh,6))}
+function patchGeo(hx,hz,r){return flat(new THREE.ShapeGeometry(roundRect(new THREE.Shape(),hx,hz,r),6))}
+function dotsGeo(hx,hz,r,dot,gap){const path=roundRect(new THREE.Path(),hx,hz,r);const n=Math.max(8,Math.min(400,Math.round(path.getLength()/gap)));const geos=path.getSpacedPoints(n).slice(0,n).map(p=>flat(new THREE.CircleGeometry(dot,8)).translate(p.x,0,p.y));const g=mergeGeometries(geos,false);geos.forEach(x=>x.dispose());return g}
+// A part's pads and body together, half sizes in its own frame (mm).
+function partExtent(p,padsOnly){let hx=padsOnly?0:p.w/2,hz=padsOnly?0:p.d/2;for(const q of partPads(p)){const a=(q.rot||0)*Math.PI/180,c=Math.abs(Math.cos(a)),sn=Math.abs(Math.sin(a));hx=Math.max(hx,Math.abs(q.x)+(q.w*c+q.h*sn)/2);hz=Math.max(hz,Math.abs(q.y)+(q.w*sn+q.h*c)/2)}if(!(hx>0&&hz>0)){hx=p.w/2;hz=p.d/2}return {hx,hz}}
+// A soft white spot (tinted per material) for a match's glow. One per scene, disposed with it: a texture kept for
+// good would keep every renderer that ever drew it.
+function haloTexture(){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');const g=x.createRadialGradient(64,64,10,64,64,64);g.addColorStop(0,'rgba(255,255,255,.95)');g.addColorStop(.45,'rgba(255,255,255,.5)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,128,128);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.userData.own=true;return t}
+
 // Builds every mesh of a board into `group`. Returns the pickable component meshes.
-function buildBoard(group,board,parts,s,invalidate){
+// opts (all optional, for the footprint check): marks {ref: {color, ring:'solid'|'dotted', empty, glow, fill}} lays
+// result outlines (and a match's glow: a soft patch and a ring) on the board round each part and leaves `empty` parts
+// as bare pads; fly also gives each part its own leads and caps (opts.out.flyers[ref]) so they can fly in with the
+// body, and keeps the shared meshes (opts.out.settled) out of sight until every part is down. Marks land in opts.out.marks.
+function buildBoard(group,board,parts,s,invalidate,opts={}){
+ const marks=opts.marks||null,fly=!!opts.fly,out=opts.out||{};const empty=p=>!!marks?.[p.ref]?.empty;
  const clickable=[];const mat=(color,metalness=.1,roughness=.6)=>new THREE.MeshStandardMaterial({color,metalness,roughness});
  const look={...LOOK,...board.look};
  const W=board.width*s,H=board.height*s;
@@ -80,13 +98,16 @@ function buildBoard(group,board,parts,s,invalidate){
  // A part that is not fitted (DNP) is only a dashed footprint on the board, with an unseen box to click.
  for(const p of parts){
   const sign=p.side==='bottom'?-1:1,layer='parts-'+(p.side==='bottom'?'bottom':'top');
-  if(p.dnp){
+  // A part with no BoM line (footprint check) is bare pads: no body, no dashes, only the box to point at.
+  if(p.dnp||empty(p)){
    const w=Math.max(.04,p.w*s),d=Math.max(.04,p.d*s);
-   const pts=[[-w/2,-d/2],[w/2,-d/2],[w/2,d/2],[-w/2,d/2],[-w/2,-d/2]].map(([x,z])=>new THREE.Vector3(x,0,z));
-   const dash=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineDashedMaterial({color:look.silk,dashSize:.035,gapSize:.025}));dash.computeLineDistances();
-   dash.position.set(p.x*s,sign*(THICK/2+.008),p.y*s);dash.rotation.y=p.rot*Math.PI/180;dash.userData.layer=layer;group.add(dash);
+   if(p.dnp){
+    const pts=[[-w/2,-d/2],[w/2,-d/2],[w/2,d/2],[-w/2,d/2],[-w/2,-d/2]].map(([x,z])=>new THREE.Vector3(x,0,z));
+    const dash=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineDashedMaterial({color:look.silk,dashSize:.035,gapSize:.025}));dash.computeLineDistances();
+    dash.position.set(p.x*s,sign*(THICK/2+.008),p.y*s);dash.rotation.y=p.rot*Math.PI/180;dash.userData.layer=layer;group.add(dash);
+   }
    const geo=new THREE.BoxGeometry(w,.05,d);const hit=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({visible:false}));
-   hit.position.set(p.x*s,sign*(THICK/2+.025),p.y*s);hit.rotation.y=p.rot*Math.PI/180;hit.userData={part:p,kind:'dnp',h:.05,lift:0,hitOnly:true,layer};
+   hit.position.set(p.x*s,sign*(THICK/2+.025),p.y*s);hit.rotation.y=p.rot*Math.PI/180;hit.userData={part:p,kind:p.dnp?'dnp':'bare',h:.05,lift:0,hitOnly:true,layer};
    const outline=new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:HIGHLIGHT}));outline.visible=false;outline.scale.set(1.12,1.12,1.12);hit.add(outline);hit.userData.outline=outline;
    group.add(hit);clickable.push(hit);continue;
   }
@@ -113,12 +134,18 @@ function buildBoard(group,board,parts,s,invalidate){
    const mr=mergeGeometries(ring,false),mh=mergeGeometries(hole,false);if(mr){const vm=new THREE.Mesh(mr,mat(look.pad,.75,.3));vm.userData.layer='core';group.add(vm)}if(mh){const hv=new THREE.Mesh(mh,new THREE.MeshBasicMaterial({color:0x07090a}));hv.userData.layer='core';group.add(hv)}[...ring,...hole].forEach(g=>g.dispose())}
  }
  // Leads, end caps, through-hole pins and solder: planned per part in millimetres, merged per material.
- const det={};const push=(k,side,g)=>{(det[k+'|'+side]||=[]).push(g)};let pieces=0;
+ const det={};let pieces=0;
+ const metal={lead:mat(0xc7cbcf,.85,.3),cap:mat(0xd4d6d8,.8,.35),pin:mat(0xbfc4c8,.85,.28),solder:mat(0xb7bcc1,.9,.22)};
+ if(fly)out.flyers={};
  for(const p of parts){
-  if(pieces>LIMITS.pads*2)break;if(p.dnp)continue;
+  if(pieces>LIMITS.pads*2)break;if(p.dnp||empty(p))continue;
   const d=partDetail(p),a=p.rot*Math.PI/180,sign=p.side==='bottom'?-1:1,lift=p.pads?.02:.06,h=Math.max(.04,p.h*s);
   const surf=sign*(THICK/2),bodyBottom=sign*(THICK/2+lift);
-  const place=(g,lx,ly,yy)=>{g.translate(lx*s,yy,ly*s);g.rotateY(a);g.translate(p.x*s,0,p.y*s);return g};
+  // Flying in: leads, caps, pins and solder also in the part's own frame, in a group of its own, so the pads are bare
+  // until it lands; the shared meshes take over once every part is down.
+  const own=fly?{}:null;
+  const push=(k,side,g)=>{if(own)(own[k]||=[]).push(g.clone());(det[k+'|'+side]||=[]).push(g.translate(p.x*s,0,p.y*s))};
+  const place=(g,lx,ly,yy)=>{g.translate(lx*s,yy,ly*s);g.rotateY(a);return g};
   const lt=Math.max(.004,.15*s),sd=p.side==='bottom'?'bottom':'top';
   for(const l of d.leads){
    // Gull wing: shoulder out of the body side, a bend down, and a foot on the pad.
@@ -135,11 +162,35 @@ function buildBoard(group,board,parts,s,invalidate){
    if(q.joint){const g=new THREE.CylinderGeometry(r*.35,r,Math.max(.012,.55*s),16);if(ss<0)g.rotateX(Math.PI);push('solder',ss<0?'bottom':'top',place(g,q.x,q.y,ss*(THICK/2+Math.max(.006,.275*s))))}
    else if(!d.caps.length||!board.surface){const g=new THREE.SphereGeometry(r,12,6,0,Math.PI*2,0,Math.PI/2);g.scale(1,.32,1);if(ss<0)g.rotateX(Math.PI);push('solder',ss<0?'bottom':'top',place(g,q.x,q.y,ss*(THICK/2+.003)))}
    pieces++}
+  if(own){const fg=new THREE.Group();fg.position.set(p.x*s,0,p.y*s);fg.userData={layer:'parts-'+sd,flyer:true,bx:p.x*s,bz:p.y*s};
+   for(const k in own){const merged=mergeGeometries(own[k],false);if(merged){const m=new THREE.Mesh(merged,metal[k]);m.castShadow=k!=='solder';m.userData.detail=true;fg.add(m)}own[k].forEach(g=>g.dispose())}
+   if(fg.children.length){group.add(fg);out.flyers[p.ref]=fg}}
  }
- const metal={lead:mat(0xc7cbcf,.85,.3),cap:mat(0xd4d6d8,.8,.35),pin:mat(0xbfc4c8,.85,.28),solder:mat(0xb7bcc1,.9,.22)};
- for(const key in det)if(det[key].length){const [k,side]=key.split('|');const merged=mergeGeometries(det[key],false);if(merged){const m=new THREE.Mesh(merged,metal[k]);m.userData.layer='parts-'+side;m.userData.detail=true;m.castShadow=k!=='solder';group.add(m)}det[key].forEach(g=>g.dispose())}
+ if(fly)out.settled=[];
+ for(const key in det)if(det[key].length){const [k,side]=key.split('|');const merged=mergeGeometries(det[key],false);if(merged){const m=new THREE.Mesh(merged,metal[k]);m.userData.layer='parts-'+side;m.userData.detail=true;m.castShadow=k!=='solder';group.add(m);if(fly){m.userData.notYet=true;m.visible=false;out.settled.push(m)}}det[key].forEach(g=>g.dispose())}
  const labelled=parts.length<=160?parts:parts.filter(p=>['chip','module','connector','transistor','diode','crystal','switch'].includes(p.type)).slice(0,160);
  for(const p of board.surface?[]:labelled){if(p.side==='bottom')continue;const size=Math.max(.2,Math.min(.42,Math.max(p.w,p.d)*s*.5));label(p.ref,p.x*s,p.y*s+p.d*s/2+size*.55,size)}
+ // Result marks on the board round each part (footprint check): a band with a dark edge under it so it reads on any
+ // mask, a dotted line round bare pads, a faint wash inside, and for a match's glow a soft patch and a ring (the body
+ // keeps its own colour). Unlit, so the colour is the colour asked for. They start unseen; the scene brings them up.
+ if(marks){
+  out.marks={};const band=.05,edge=.013,size=Math.max(board.width,board.height)*s;let halo=null;const haloMap=()=>halo||(halo=haloTexture());
+  const flatMat=(color,opacity)=>new THREE.MeshBasicMaterial({color,transparent:true,opacity,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+  for(const p of parts){const mk=marks[p.ref];if(!mk||p.dnp)continue;
+   const sign=p.side==='bottom'?-1:1,layer='parts-'+(p.side==='bottom'?'bottom':'top');
+   const e=partExtent(p,!!mk.empty),gap=Math.max(band+.03,.45*s,size*.005),hx=e.hx*s+gap,hz=e.hz*s+gap,r=Math.min(hx,hz)*.4;
+   const place=(m,lift,order)=>{m.position.set(p.x*s,sign*(THICK/2+lift),p.y*s);m.rotation.y=p.rot*Math.PI/180;m.renderOrder=order;m.userData.layer=layer;m.userData.notYet=true;m.visible=false;group.add(m);return m};
+   const o={};
+   if(mk.ring){
+    o.under=place(new THREE.Mesh(bandGeo(hx+edge,hz+edge,band+edge*2,r+edge),flatMat(0x000000,0)),.011,2);o.under.userData.base=mk.ring==='dotted'?.18:.45;
+    o.ring=place(new THREE.Mesh(mk.ring==='dotted'?dotsGeo(hx-band/2,hz-band/2,r,band*.66,band*2.1):bandGeo(hx,hz,band,r),flatMat(mk.color,0)),.014,3);o.ring.userData.base=1;
+   }
+   if(mk.fill){o.fill=place(new THREE.Mesh(patchGeo(hx,hz,r),flatMat(mk.color,0)),.009,1);o.fill.userData.base=mk.fill}
+   if(mk.glow){const R=Math.max(hx,hz)*1.35+gap;const m=new THREE.MeshBasicMaterial({map:haloMap(),color:mk.glow,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide});o.halo=place(new THREE.Mesh(flat(new THREE.PlaneGeometry(R*2,R*2)),m),.016,4);o.halo.userData.base=.85;
+    o.glow=place(new THREE.Mesh(bandGeo(hx,hz,band,r),flatMat(mk.glow,0)),.014,3);o.glow.userData.base=.95}
+   out.marks[p.ref]=o;
+  }
+ }
  return clickable;
 }
 
@@ -151,10 +202,19 @@ const segBtn=on=>'inline-flex h-9 items-center justify-center rounded-[5px] px-3
  * parts (circuitflow parts; `dnp` = not fitted), mode '3D'|'2D', selected ref, related refs (same BoM line),
  * tint {ref: colour} (risk overlay), focus refs (process step) or null, bottom (show the solder side),
  * onSelect(part|null), renderTip(part) for the hover card, onToggleFull/full to full-screen the host page's stage.
+ * Optional, for the footprint check (absent: the studio behaves as it always has): intro {duration, at(ref,t), blink(t),
+ * steady} flies the parts in once the board is well in view (reduced motion: settled at once), marks {ref: mark} lays
+ * result outlines on the board, onIntro('start'|'end'), onFail() when WebGL cannot start or its context is lost, and
+ * clearTools frames the board beside the tool column on narrow stages (phones) instead of under it.
  */
-export default function Board({board,parts,mode='3D',selected=null,related=null,tint=null,focus=null,bottom=false,onSelect,onHover,renderTip,onToggleFull,full:fullProp}){
- const host=useRef(),wrap=useRef(),tip=useRef(),sceneRef=useRef(),cb=useRef({});cb.current={onSelect,onHover};
+export default function Board({board,parts,mode='3D',selected=null,related=null,tint=null,focus=null,bottom=false,onSelect,onHover,renderTip,onToggleFull,full:fullProp,intro=null,marks=null,onIntro,onFail,clearTools=false}){
+ const host=useRef(),wrap=useRef(),tip=useRef(),tools=useRef(),sceneRef=useRef(),cb=useRef({});cb.current={onSelect,onHover,onIntro,onFail};
  const partsRef=useRef(parts);partsRef.current=parts;
+ // The fly-in and result marks: read by the scene each frame, so a new intro object does not rebuild it. The clock
+ // outlives a rebuild (a resize, the 3D/2D drawing switch): once flown in, the parts stay.
+ const introRef=useRef(intro);introRef.current=intro;const marksRef=useRef(marks);marksRef.current=marks;
+ const flyOn=!!intro,markKey=useMemo(()=>marks?JSON.stringify(marks):'',[marks]);
+ const clock=useRef({key:null,t0:null,done:false});
  // The 3D scene is rebuilt only when geometry changes; selection, tint and focus restyle the meshes in place.
  const geomKey=useMemo(()=>board.id+'|'+parts.map(p=>[p.ref,p.x,p.y,p.rot,p.w,p.d,p.h,p.side,p.type,p.package,p.mpn,p.value,p.leads,p.dnp?1:0,(p.pads||[]).length].join(',')).join(';'),[board.id,parts]);
  const [ownFull,setOwnFull]=useState(false);const full=fullProp??ownFull;
@@ -165,38 +225,58 @@ export default function Board({board,parts,mode='3D',selected=null,related=null,
  useEffect(()=>{setFlipped(!!bottom);if(bottom)setExploded(false)},[bottom]);
  const scale=Math.min(10/board.width,6.7/board.height);
  const setHovered=p=>{setHover(p);cb.current.onHover?.(p)};
- const moveTip=(x,y)=>{const el=tip.current,h=wrap.current;if(!el||!h)return;const r=h.getBoundingClientRect();let left=x-r.left+16,top=y-r.top+18;if(left+el.offsetWidth>r.width-8)left=x-r.left-el.offsetWidth-16;if(top+el.offsetHeight>r.height-8)top=y-r.top-el.offsetHeight-14;el.style.transform=`translate(${Math.max(4,left)}px,${Math.max(4,top)}px)`};
+ const lastPt=useRef(null);
+ const moveTip=(x,y)=>{lastPt.current=[x,y];const el=tip.current,h=wrap.current;if(!el||!h)return;const r=h.getBoundingClientRect();let left=x-r.left+16,top=y-r.top+18;if(left+el.offsetWidth>r.width-8)left=x-r.left-el.offsetWidth-16;if(top+el.offsetHeight>r.height-8)top=y-r.top-el.offsetHeight-14;el.style.transform=`translate(${Math.max(4,left)}px,${Math.max(4,top)}px)`};
+ // A new part's card is measured once it has rendered (its size decides whether it flips above or left of the pointer).
+ useLayoutEffect(()=>{if(hover&&lastPt.current)moveTip(...lastPt.current)},[hover]);
  useEffect(()=>{setHover(null)},[board.id,mode]);
  // How each part is drawn right now (read by the scene on hover and on every restyle).
  const style=useRef({});style.current={selected,related:new Set(related||[]),tint:tint||{},focus:focus?new Set(focus):null};
  useEffect(()=>{
   if(mode==='2D')return;
   let renderer;
-  try{renderer=new THREE.WebGLRenderer({antialias:true,alpha:true})}catch{setFailed(true);return}
+  try{renderer=new THREE.WebGLRenderer({antialias:true,alpha:true})}catch{setFailed(true);cb.current.onFail?.();return}
   const reduce=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // The footprint check (intro / marks): the parts fly in and show their results. Without it, the studio as always.
+  const check=flyOn||!!marksRef.current;
   const el=host.current;el.appendChild(renderer.domElement);renderer.domElement.style.display='block';
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.setClearColor(0x000000,0);renderer.outputColorSpace=THREE.SRGBColorSpace;
-  let dirty=true;const invalidate=()=>{dirty=true};
+  // With the footprint check the shadows are drawn again only when something moved (shade): a blink changes colours only.
+  if(check)renderer.shadowMap.autoUpdate=false;
+  let dirty=true,shade=true;const invalidate=()=>{dirty=true;shade=true};
   const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(36,1,.1,100);camera.position.set(...CAMERAS.overview);
   const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=!reduce;controls.minDistance=2.5;controls.maxDistance=34;controls.maxPolarAngle=Math.PI*.48;
+  // OrbitControls listens for keys on the canvas's root node, the page. Teardown runs once React has taken the canvas off
+  // the page, when its root is no longer the page: kept here, or that listener keeps the whole scene and its GPU context.
+  const keyRoot=renderer.domElement.getRootNode();
   controls.addEventListener('change',invalidate);
   scene.add(new THREE.AmbientLight(0xffffff,2));
   const light=new THREE.DirectionalLight(0xffffff,4);light.position.set(3,12,8);light.castShadow=true;light.shadow.mapSize.set(1024,1024);scene.add(light);
   const rim=new THREE.DirectionalLight(0xf1efe9,2);rim.position.set(-8,6,-5);scene.add(rim);
   const under=new THREE.DirectionalLight(0xecebe6,1.2);under.position.set(2,-9,-4);scene.add(under);
   const group=new THREE.Group();scene.add(group);
-  const clickable=buildBoard(group,board,partsRef.current,scale,invalidate);
-  const memory=viewMemory.get(board.id);if(memory){camera.position.copy(memory.pos)}
-  // Narrow canvases (phones, beside side panels): the camera presets step back so the whole board still fits.
-  const fitK=()=>Math.max(1,1.15/Math.max(.35,camera.aspect));const far=pos=>new THREE.Vector3(...pos).multiplyScalar(fitK());
+  // The fly-in's clock, per board and geometry. Once flown in the parts stay: a rebuild draws them settled, without
+  // the per-part pieces a flight needs.
+  const ck=clock.current,ckKey=board.id+'|'+geomKey;if(ck.key!==ckKey){ck.key=ckKey;ck.t0=null;ck.done=!introRef.current}
+  const built={};const clickable=buildBoard(group,board,partsRef.current,scale,invalidate,check?{marks:marksRef.current,fly:flyOn&&!ck.done&&!reduce,out:built}:undefined);
+  // A fly-in watches the whole board: it starts from the overview, not from where the last visit left the camera
+  // (once it has played, a rebuild keeps the camera where the user put it).
+  const memory=flyOn&&ck.t0===null&&!ck.done?null:viewMemory.get(board.id);if(memory){camera.position.copy(memory.pos)}
+  // Narrow canvases (phones, beside side panels): the camera presets step back so the whole board still fits. With
+  // clearTools a narrow stage frames the board in the width the tool column leaves free (aspect: of that width).
+  let aspect=1;const fitK=()=>Math.max(1,1.15/Math.max(.35,aspect));const far=pos=>new THREE.Vector3(...pos).multiplyScalar(fitK());
   const ground=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.ShadowMaterial({opacity:.09}));ground.rotation.x=-Math.PI/2;ground.position.y=-.3;ground.receiveShadow=true;scene.add(ground);
   // Each body's own colours, so tint, focus and highlight can be laid on and taken off again.
   for(const m of clickable){const list=[];m.traverse(o=>{if(o===m.userData.outline||!o.material||o.isLineSegments)return;for(const x of [].concat(o.material))if(x.color&&!list.some(e=>e.m===x))list.push({m:x,c:x.color.clone(),e:x.emissive?.clone(),own:o===m})});m.userData.mats=list}
   let hovered=null;
   const restyle=m=>{const st=style.current,p=m.userData.part,ref=p.ref;
    const on=ref===st.selected,line=st.related.has(ref),inFocus=st.focus?.has(ref),dim=!!st.focus&&!inFocus&&!on,t=st.tint[ref];
-   for(const e of m.userData.mats||[]){e.m.color.copy(t&&e.own?new THREE.Color(t):e.c);if(dim)e.m.color.multiplyScalar(.45);const glow=m===hovered?HOVER_GLOW:on?SELECT_GLOW:line?LINE_GLOW:null;if(e.m.emissive){if(glow===null)e.m.emissive.copy(e.e);else e.m.emissive.setHex(glow)}}
-   const o=m.userData.outline;if(o){o.visible=on||!!inFocus||(line&&!!st.selected);o.material.color.setHex(on||inFocus?HIGHLIGHT:0x9a6fd0)}};
+   // fx: a mismatch's red on the body (footprint check), laid over whatever else it shows. There a picked part is
+   // outlined white without the violet glow (on a red blink it reads magenta, its yellow box ochre), and a blinking
+   // part keeps its red under the pointer (calm).
+   const fx=m.userData.fx;const glow=m===hovered?(m.userData.calm?null:HOVER_GLOW):on?(check?null:SELECT_GLOW):line?LINE_GLOW:null;
+   for(const e of m.userData.mats||[]){e.m.color.copy(t&&e.own?new THREE.Color(t):e.c);if(dim)e.m.color.multiplyScalar(.45);if(e.m.emissive){if(glow===null)e.m.emissive.copy(e.e);else e.m.emissive.setHex(glow);if(fx&&fx.k>0)e.m.emissive.lerp(fx.c,fx.k)}}
+   const o=m.userData.outline;if(o){o.visible=on||!!inFocus||(line&&!!st.selected);o.material.color.setHex(on||inFocus?(check?0xffffff:HIGHLIGHT):0x9a6fd0)}};
   const restyleAll=()=>{for(const m of clickable)restyle(m);invalidate()};restyleAll();
   const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();let start=null,dragging=false,raf=0,lastEvent=null,desired=null;
   const cast=e=>{const b=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-b.left)/b.width*2-1,-((e.clientY-b.top)/b.height)*2+1);ray.setFromCamera(pointer,camera);const hit=ray.intersectObjects(clickable,false).find(h=>h.object.visible);return hit?hit.object:null};
@@ -207,7 +287,13 @@ export default function Board({board,parts,mode='3D',selected=null,related=null,
   const down=e=>{start=[e.clientX,e.clientY];dragging=true;travelled=0};
   const up=e=>{dragging=false;if(!start||travelled>5||Math.hypot(e.clientX-start[0],e.clientY-start[1])>5)return;const m=cast(e);clearHover();cb.current.onSelect?.(m?m.userData.part:null)};
   const dom=renderer.domElement;dom.style.cursor='grab';dom.addEventListener('pointermove',track);dom.addEventListener('pointerdown',down);dom.addEventListener('pointerup',up);dom.addEventListener('pointermove',move);dom.addEventListener('pointerleave',clearHover);dom.addEventListener('pointercancel',clearHover);
-  let sized=false;const resize=()=>{const w=el.clientWidth,h=el.clientHeight;if(!w||!h)return;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();controls.maxDistance=34*fitK();if(!sized&&!memory)camera.position.set(...CAMERAS.overview).multiplyScalar(fitK());sized=true;invalidate()};const ro=new ResizeObserver(resize);ro.observe(el);resize();
+  // A lost GPU context: a host with its own drawing takes over (onFail); a restored one is drawn again.
+  const lost=()=>cb.current.onFail?.(),restored=()=>invalidate();dom.addEventListener('webglcontextlost',lost);dom.addEventListener('webglcontextrestored',restored);
+  let sized=false;const resize=()=>{const w=el.clientWidth,h=el.clientHeight;if(!w||!h)return;renderer.setSize(w,h);
+   // clearTools on a narrow stage: the picture's centre moves to the middle of the width left of the tool column.
+   let free=w;if(clearTools&&w<640&&tools.current){const t=tools.current.getBoundingClientRect(),b=el.getBoundingClientRect();if(t.width)free=Math.round(Math.min(w,Math.max(w*.6,t.left-b.left-6)))}
+   aspect=free/h;if(free<w)camera.setViewOffset(2*w-free,h,w-free,0,w,h);else{camera.clearViewOffset();camera.aspect=w/h}camera.updateProjectionMatrix();
+   controls.maxDistance=34*fitK();if(!sized&&!memory)camera.position.set(...CAMERAS.overview).multiplyScalar(fitK());sized=true;invalidate()};const ro=new ResizeObserver(resize);ro.observe(el);resize();
   // Layer split: every tagged object rides to its layer's height, labels name each layer, and the core turns
   // laminate-coloured once the mask has lifted off it. Gerber boards swap their face for the app's layer pictures.
   const OFF={'parts-top':3.4,'silk-top':2.65,'mask-top':1.95,'surface-top':1.95,'copper-top':1.2,'core':0,'copper-bottom':-1.2,'mask-bottom':-1.95,'surface-bottom':-1.95,'silk-bottom':-2.65,'parts-bottom':-3.4};
@@ -230,7 +316,7 @@ export default function Board({board,parts,mode='3D',selected=null,related=null,
   const applyExplode=()=>{
    const k=ex.k,on=k>.02;
    for(const c of group.children){const L=c.userData.layer;if(!L)continue;c.position.y=c.userData.baseY+(OFF[L]||0)*k;
-    const groupKey=L.replace('surface','mask');c.visible=!ex.hidden.has(groupKey)&&(!c.userData.explodeOnly||on)&&!(c.userData.gerberLayer&&!on)&&!(L.startsWith('surface')&&on&&ex.gerber)}
+    const groupKey=L.replace('surface','mask');c.visible=!ex.hidden.has(groupKey)&&(!c.userData.explodeOnly||on)&&!(c.userData.gerberLayer&&!on)&&!(L.startsWith('surface')&&on&&ex.gerber)&&!c.userData.notYet}
    coreMats.forEach((m,i)=>m.color.copy(coreColors[i]).lerp(laminate,Math.min(1,k*1.4)));
    const right=(board.width*scale)/2+1.9,list=present();for(const key of list){const sp=labelFor(key);sp.visible=on&&!ex.hidden.has(key);sp.position.set(right,(OFF[key]||0)*k+.05,0);sp.material.opacity=Math.min(1,k*1.2)}
    for(const [key,sp] of labelSprites)if(!list.includes(key))sp.visible=false;invalidate()};
@@ -247,13 +333,69 @@ export default function Board({board,parts,mode='3D',selected=null,related=null,
   setLayerList(present());
   const goTo=pos=>{controls.target.set(0,0,0);if(reduce){camera.position.copy(far(pos));invalidate()}else desired=far(pos)};
   sceneRef.current={fresh:true,camera,controls,clickable,group,setExplode,setHidden,addGerberLayers,restyleAll,invalidate,goTo,zoom:f=>{camera.position.multiplyScalar(f);invalidate()},layersFor:null};
+  // The footprint check (intro / marks): once the board is well in view every part drops in from just above the top of
+  // the picture and lands on its pads, then shows its result — a match glows green on the board for a moment, a
+  // mismatch blinks red (steady with reduced motion). Bodies are never faded: before their turn they are not there yet.
+  const motion=(()=>{
+   const I0=introRef.current,M=marksRef.current;if(!I0&&!M)return null;
+   if(reduce&&!ck.done){ck.done=true;cb.current.onIntro?.('end')}
+   const W2=board.width*scale/2,D2=board.height*scale/2,list=[];
+   for(const m of clickable){const p=m.userData.part,mk=M?.[p.ref]||null;if(p.dnp||(!I0&&!mk))continue;
+    const fg=built.flyers?.[p.ref]||null,casters=[];for(const r of [m,fg])r?.traverse(o=>{if(o.castShadow)casters.push(o)});
+    if(mk?.blink)m.userData.calm=true;
+    list.push({m,ref:p.ref,mk,o:built.marks?.[p.ref]||null,fg,casters,air:false,sign:p.side==='bottom'?-1:1,bx:m.position.x,by:m.position.y,bz:m.position.z,ry:m.rotation.y,drop:6,tintC:mk?.tint?new THREE.Color(mk.tint):null})}
+   const blinkers=list.filter(e=>e.mk?.blink);
+   const still={shown:true,lift:0,dx:0,dz:0,spin:0,squash:0,glow:0,mark:1};
+   // Only the side facing the camera flies; parts on the far side are simply there once their turn has landed.
+   const apply=(e,fx,b)=>{let f=fx||still;const {m,fg,o}=e,L=m.userData.layer,exo=(OFF[L]||0)*ex.k,hid=ex.hidden.has(L);
+    if(e.sign!==(group.rotation.x>Math.PI/2?-1:1)&&f.lift>0)f={...f,shown:false,lift:0,dx:0,dz:0,spin:0};
+    const dy=e.sign*f.lift*e.drop,dx=f.dx*W2,dz=f.dz*D2,spin=f.spin*Math.PI/180,sq=f.squash;
+    if(!m.userData.hitOnly){m.userData.notYet=!f.shown;m.visible=f.shown&&!hid;m.position.set(e.bx+dx,e.by+exo+dy-e.sign*(m.userData.h||0)*sq/2,e.bz+dz);m.rotation.y=e.ry+e.sign*spin;m.scale.set(1+sq*.3,1-sq,1+sq*.3)}
+    if(fg){fg.userData.notYet=!f.shown;fg.visible=f.shown&&!hid;fg.position.set(fg.userData.bx+dx,exo+dy,fg.userData.bz+dz);fg.rotation.y=spin}
+    // No shadow while in the air: it would fall on the floor beside the board. It comes back as the part lands.
+    const air=f.lift*e.drop>.15;if(air!==e.air){e.air=air;for(const c of e.casters)c.castShadow=!air}
+    if(o){const lvl=e.mk.blink?.18+.82*b:1;
+     for(const k of ['under','ring','fill','halo','glow']){const x=o[k];if(!x)continue;const a=(k==='halo'||k==='glow'?f.glow:f.mark)*x.userData.base*(k==='ring'?lvl:1);x.material.opacity=a;x.userData.notYet=a<=.002;x.visible=a>.002&&!hid;x.position.y=x.userData.baseY+exo}}
+    const k=e.tintC&&f.mark>0?f.mark*b*.85:0,had=!!m.userData.fx;
+    m.userData.fx=k>0?{c:e.tintC,k}:null;if(k>0||had)restyle(m)};
+   // Every part is down: the per-part leads, caps and solder give way to the shared meshes (a few draws, not one a part).
+   const land=()=>{for(const e of list)e.fg=null;const fl=built.flyers||{};for(const ref in fl){group.remove(fl[ref]);fl[ref].traverse(o=>o.geometry?.dispose())}built.flyers=null;
+    for(const m of built.settled||[]){m.userData.notYet=false;m.visible=!ex.hidden.has(m.userData.layer)}built.settled=null;invalidate()};
+   // How high each part sets off: just above the top edge of the picture from this camera, so it flies in from outside.
+   // A bottom part is reckoned with its side turned to the camera (the board flipped: y and z change sign).
+   const dropFor=e=>{camera.updateMatrixWorld();const q=new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse).elements;
+    const x=e.bx,z=e.sign*e.bz,by=Math.abs(e.by);
+    const A=q[1]*x+q[9]*z+q[13],B=q[5],C=q[3]*x+q[11]*z+q[15],D=q[7],edge=1.15,den=B-edge*D;let y=den>1e-6?(edge*C-A)/den:12;if(!(y>0)||C+D*y<=0)y=12;return Math.min(16,Math.max(2.5,y-by))};
+   const blinkAt=now=>{const I=introRef.current;return reduce||!I?(I?.steady??1):I.blink(now/1000)};
+   const start=()=>{if(ck.t0!==null||ck.done)return;for(const e of list)e.drop=dropFor(e);ck.t0=performance.now();cb.current.onIntro?.('start');invalidate()};
+   if(ck.done||!I0)for(const e of list)apply(e,I0?I0.at(e.ref,Infinity):null,blinkAt(performance.now()));
+   else{if(ck.t0!==null)for(const e of list)e.drop=dropFor(e);for(const e of list)apply(e,I0.at(e.ref,ck.t0===null?-1:(performance.now()-ck.t0)/1000),1)}
+   // Starts when a third of the board is in view; blinks only while any of it is.
+   let seen=false;const io=typeof IntersectionObserver==='function'&&wrap.current?new IntersectionObserver(es=>{for(const x of es){seen=x.isIntersecting;if(x.isIntersecting&&x.intersectionRatio>=.35&&introRef.current)start()}invalidate()},{threshold:[0,.35,.6]}):null;
+   if(io)io.observe(wrap.current);else{seen=true;if(I0)start()}
+   let lastQ=-1;
+   // 'move': parts moved (shadows too); 'paint': colours only; false: nothing to draw.
+   const tick=now=>{const I=introRef.current;
+    if(I&&ck.t0!==null&&!ck.done){const t=(now-ck.t0)/1000,b=blinkAt(now);for(const e of list)apply(e,I.at(e.ref,t),b);if(t>=I.duration){ck.done=true;for(const e of list)apply(e,I.at(e.ref,Infinity),b);land();cb.current.onIntro?.('end')}return 'move'}
+    // A soft 1 Hz blink reads smoothly at ~15 frames a second.
+    if(I&&ck.done&&blinkers.length&&seen&&!reduce){const q=Math.floor(now/66);if(q===lastQ)return false;lastQ=q;const b=blinkAt(now);for(const e of blinkers)apply(e,I.at(e.ref,Infinity),b);return 'paint'}
+    return false};
+   return {tick,stop:()=>io?.disconnect()};
+  })();
   // Draws only when something moved: a still board costs nothing on a tablet.
   let frame;const animate=()=>{frame=requestAnimationFrame(animate);
    if(Math.abs(ex.k-ex.target)>.002){ex.k+=(ex.target-ex.k)*.12;if(Math.abs(ex.k-ex.target)<.003)ex.k=ex.target;applyExplode()}
    if(desired){camera.position.lerp(desired,.14);dirty=true;if(camera.position.distanceTo(desired)<.02)desired=null}
-   if(controls.update())dirty=true;if(dirty){dirty=false;renderer.render(scene,camera)}};animate();
-  return()=>{viewMemory.set(board.id,{pos:camera.position.clone()});cancelAnimationFrame(frame);if(raf)cancelAnimationFrame(raf);ro.disconnect();controls.dispose();dom.removeEventListener('pointermove',track);dom.removeEventListener('pointerdown',down);dom.removeEventListener('pointerup',up);dom.removeEventListener('pointermove',move);dom.removeEventListener('pointerleave',clearHover);dom.removeEventListener('pointercancel',clearHover);scene.traverse(o=>{o.geometry?.dispose();if(o.isSprite)o.material.map?.dispose();if(o.material){for(const m of [].concat(o.material)){if(m.map&&(!m.map.isCanvasTexture||m.map.userData.own))m.map.dispose();m.dispose()}}});renderer.dispose();dom.remove();sceneRef.current=null};
- },[mode,board,geomKey,scale]);
+   const mv=motion?.tick(performance.now());if(mv){dirty=true;if(mv==='move')shade=true}
+   if(controls.update())dirty=true;if(dirty){dirty=false;if(shade){renderer.shadowMap.needsUpdate=true;shade=false}renderer.render(scene,camera)}};animate();
+  return()=>{motion?.stop();viewMemory.set(board.id,{pos:camera.position.clone()});cancelAnimationFrame(frame);if(raf)cancelAnimationFrame(raf);ro.disconnect();
+   keyRoot.removeEventListener('keydown',controls._interceptControlDown,{capture:true});keyRoot.removeEventListener('keyup',controls._interceptControlUp,{capture:true});controls.dispose();
+   dom.removeEventListener('pointermove',track);dom.removeEventListener('pointerdown',down);dom.removeEventListener('pointerup',up);dom.removeEventListener('pointermove',move);dom.removeEventListener('pointerleave',clearHover);dom.removeEventListener('pointercancel',clearHover);dom.removeEventListener('webglcontextlost',lost);dom.removeEventListener('webglcontextrestored',restored);
+   // Every texture goes too, the shared part markings included (a board still on screen uploads them again when it next
+   // draws): a texture holds on to every renderer that drew it until it is disposed.
+   scene.traverse(o=>{o.geometry?.dispose();if(o.material){for(const m of [].concat(o.material)){m.map?.dispose();m.dispose()}}});
+   renderer.dispose();try{renderer.forceContextLoss()}catch{}dom.remove();sceneRef.current=null};
+ },[mode,board,geomKey,scale,markKey,flyOn,clearTools]);
  // New part data with unchanged geometry: update the meshes in place, then restyle.
  useEffect(()=>{const sc=sceneRef.current;if(!sc?.clickable)return;const byRef=new Map(parts.map(p=>[p.ref,p]));for(const m of sc.clickable){const p=byRef.get(m.userData.part?.ref);if(p)m.userData.part=p}},[parts]);
  const styleKey=[selected,(related||[]).join(','),JSON.stringify(tint||{}),(focus||[]).join(',')].join('|');
@@ -312,7 +454,7 @@ export default function Board({board,parts,mode='3D',selected=null,related=null,
   <div ref={tip} className={'pointer-events-none absolute top-0 left-0 z-10 transition-opacity duration-100 motion-reduce:transition-none [@media(hover:none)]:hidden '+(hover?'opacity-100':'opacity-0')} role="status" aria-live="polite">
    {hover?(renderTip?renderTip(hover):<div className="rounded-lg border bg-card px-2.5 py-1.5 text-xs"><b>{hover.ref}</b> · {displayName(hover)}</div>):null}
   </div>
-  <div role="toolbar" aria-label="View tools" aria-orientation="vertical" className="absolute top-1/2 right-3 z-10 flex -translate-y-1/2 flex-col gap-0.5 rounded-lg border bg-card/95 p-1 backdrop-blur">
+  <div ref={tools} role="toolbar" aria-label="View tools" aria-orientation="vertical" className="absolute top-1/2 right-3 z-10 flex -translate-y-1/2 flex-col gap-0.5 rounded-lg border bg-card/95 p-1 backdrop-blur">
    <button type="button" className={toolBtn(full)} aria-label={full?'Leave full screen':'Full screen'} title={full?'Leave full screen':'Full screen'} aria-pressed={full} onClick={toggleFull}>{full?<Minimize className="size-4" aria-hidden/>:<Maximize className="size-4" aria-hidden/>}</button>
    {!show2D&&<>
     <button type="button" className={toolBtn(false)} aria-label="Zoom in" title="Zoom in" onClick={()=>sceneRef.current?.zoom(.85)}><ZoomIn className="size-4" aria-hidden/></button>

@@ -9,9 +9,9 @@ export const DESIGN_FOR_ASSEMBLY_ARTICLES: Article[] = [
     slug: "bom-gerber-footprint-match",
     domain: "PROCESS",
     title: "Checking the BoM against the Gerbers",
-    summary: "Why every designator's package in the BoM must be the footprint on the board, what the footprint match compares, and how to clear each kind of mismatch before the machine check.",
-    tags: ["footprint", "BoM", "Gerber", "pick and place", "centroid", "designator", "mismatch", "NPI", "data check"],
-    version: 1,
+    summary: "Why every designator's package and value in the BoM must be the footprint and value on the board, what the footprint match compares, and how to clear each kind of mismatch before the machine check.",
+    tags: ["footprint", "BoM", "Gerber", "pick and place", "centroid", "designator", "mismatch", "value", "NPI", "data check"],
+    version: 2,
     related: ["footprints-land-patterns", "pcb-design-data", "dfm-dfa-checklist", "smt-line"],
     standards: [
       { code: "IPC-2581 / ODB++", title: "Design data exchange that carries BoM, footprints and placements together" },
@@ -32,8 +32,9 @@ export const DESIGN_FOR_ASSEMBLY_ARTICLES: Article[] = [
         steps: [
           { title: "Reads the BoM", detail: "Every line's designators (C1–C8, U3) and its package: the Package column as uploaded, or the package of the part matched to the line." },
           { title: "Reads the board", detail: "The footprint under each designator, from the pick-and-place file, the Gerber component layer, or the designators on X2 pads." },
-          { title: "Compares names by meaning", detail: "C_0603_1608Metric, RESC1608X55N and 0603 are the same chip; LQFP-48 and TQFP-48_7x7mm are the same land; SOIC-8 and TSSOP-8 are not." },
-          { title: "Sorts every designator", detail: "Match · do not match · check by eye · in the BoM but not on the board · on the board but not in the BoM. Do-not-populate lines are left out." },
+          { title: "Compares names by meaning", detail: "C_0603_1608Metric, RESC1608X55N and 0603 are the same chip; LQFP-48 and TQFP-48_7x7mm are the same land; SOIC-8 and TSSOP-8 are not. When the line is matched to a catalogue part, the footprint is also compared with that part's own package: a BoM's Package column is often copied from the same CAD data as the board, so it cannot catch a wrong land by itself. When that match is still a guess (not an exact part number, nobody has confirmed it), a disagreement is only to confirm." },
+          { title: "Compares values by meaning", detail: "When the pick-and-place or placement report carries a value, it is compared with the BoM's value cell, or its description: capacitance for C, resistance for R, inductance for L, frequency for Y and X, current for F, impedance for FB. 100nF, 0.1µF, 100n and 0u1 are the same; 4K7, 4.7k and 4700 are the same; 7.2MH on an inductor is 7.2 mH. The voltage, current, tolerance and temperature in a description are never taken as the value. ICs and transistors are compared by part name (SNP739 is SNP739D01CLE, STM32F103C8Tx is STM32F103C8T6)." },
+          { title: "Sorts every designator", detail: "Match · do not match (another footprint or another value) · check by eye · in the BoM but not on the board · on the board but not in the BoM. Do-not-populate lines, and board values of DNP, NC or TBD, are left out." },
         ],
       },
       {
@@ -42,9 +43,10 @@ export const DESIGN_FOR_ASSEMBLY_ARTICLES: Article[] = [
         columns: ["Result", "Usual cause", "What to do"],
         rows: [
           ["Do not match", "BoM revision behind the layout, or an alternate with another package", "Confirm with the designer which is right; fix the BoM line or get new Gerbers. Never 'make it fit' on the line."],
+          ["Do not match: value", "A value tuned after layout (filter, crystal load, RF match) and changed in only one place, or a typing error — 220 pF in the BoM, 1.5 nF on the board", "A different value is a different part: ask the customer which is right before buying or placing, and get the BoM or the CAD data corrected."],
           ["Not on the board", "Part removed from the layout but left in the BoM; or a mechanical part with a designator", "Remove the line, mark it DNP, or confirm it is fitted by hand (heatsink, label)."],
           ["Not in the BoM", "Part added in layout, BoM not regenerated; test points and fiducials exported as parts", "Add the line, or confirm it is a fiducial/test point and exclude it from the placement file."],
-          ["Check by eye", "The BoM has no Package column, or the footprint has a custom library name", "Open the datasheet's land pattern beside the Gerber pads; add the package to the BoM so the next revision checks itself."],
+          ["Check by eye", "The BoM has no Package column, the footprint has a custom library name, a footprint is named for another kind of part (an inductor on C_0402), the board names another part number, a catalogue match not yet confirmed has another package, or a value differs only by milli and mega (10 mΩ / 10 MΩ)", "Open the datasheet's land pattern beside the Gerber pads; add the package to the BoM so the next revision checks itself. One generic chip library for capacitors and inductors is common and fine once the land is confirmed."],
         ],
       },
       {

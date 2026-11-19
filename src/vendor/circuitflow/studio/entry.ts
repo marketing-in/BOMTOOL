@@ -34,6 +34,53 @@ export type StudioBoard = {
 
 export type StudioMode = "3D" | "2D";
 
+/** A part at one moment of the fly-in (see src/lib/board/fly-in.ts, which plans it). */
+export type StudioMotion = {
+  /** The body is there (false before its turn, and for bare pads). Bodies are never faded. */
+  shown: boolean;
+  /** 1 = set off (just above the top of the picture), 0 = on its pads. */
+  lift: number;
+  /** Drift still to go, as a share of the board's half width / half depth, and turn still to go (degrees). */
+  dx: number;
+  dz: number;
+  spin: number;
+  /** Pressed flat as it settles (share of its height). */
+  squash: number;
+  /** A match's green glow (0–1). */
+  glow: number;
+  /** How far the result's outline has come up (0–1). */
+  mark: number;
+};
+
+/** The fly-in: plays once, when a third of the board is in view; with reduced motion the board is settled at once. */
+export type StudioIntro = {
+  /** Seconds until every part has settled. */
+  duration: number;
+  /** A part's state t seconds in (t = Infinity: settled); null for a designator that is not in the fly-in. */
+  at: (ref: string, t: number) => StudioMotion | null;
+  /** How strongly a blinking mark shows (0–1) at t seconds on the page clock. */
+  blink: (t: number) => number;
+  /** The same with reduced motion: steady. */
+  steady: number;
+};
+
+/** A result laid on the board round one designator. Colours are CSS hex. */
+export type StudioMark = {
+  /** The outline's colour. */
+  color: string;
+  ring?: "solid" | "dotted";
+  /** The outline blinks and the body takes `tint` with it. */
+  blink?: boolean;
+  /** No body: the part is bare pads. */
+  empty?: boolean;
+  /** As it lands, a soft patch and a ring of this colour come up on the board round it and fade; the body keeps its colour. */
+  glow?: string;
+  /** The body's colour while the outline blinks. */
+  tint?: string;
+  /** A faint wash of the outline colour inside it (0–1). */
+  fill?: number;
+};
+
 export type BoardStudioProps = {
   board: StudioBoard;
   parts: StudioPart[];
@@ -55,6 +102,16 @@ export type BoardStudioProps = {
   /** Full screen the host's stage instead of the studio alone. */
   onToggleFull?: () => void;
   full?: boolean;
+  /** The footprint check's fly-in (absent: the parts are simply there, as always). */
+  intro?: StudioIntro | null;
+  /** Result outlines per designator (absent: none). */
+  marks?: Record<string, StudioMark> | null;
+  /** The fly-in started, or the board is settled (at once with reduced motion). */
+  onIntro?: (phase: "start" | "end") => void;
+  /** WebGL could not start (the studio falls back to its 2D drawing), or its context was lost (the host's own drawing should take over). */
+  onFail?: () => void;
+  /** On narrow stages (under 640 px) frame the board in the width the tool column leaves free, not under it (absent: centred on the whole stage). */
+  clearTools?: boolean;
 };
 
 export const BoardStudio = BoardImpl as (props: BoardStudioProps) => ReactElement;
