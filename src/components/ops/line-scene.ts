@@ -1,8 +1,8 @@
 import * as THREE from "three";
-import { lookFrame } from "@/knowledge/machine-looks";
+import { MACHINE_LOOKS, lookFrame } from "@/knowledge/machine-looks";
 import { layoutLine, type LineItem } from "@/lib/ops/line-layout";
 import { createLineModels, LINE_LAYOUT } from "@/vendor/circuitflow/factoryModels.js";
-import { realMachine } from "./machine-3d";
+import { REAL_BUILDERS, realMachine, type RealBuilder } from "./machine-3d";
 import { createKit, type ScreenInfo } from "./machine-3d/kit";
 
 /**
@@ -54,8 +54,10 @@ export type LineScene = {
   /** Everything of the line; its children are in line coordinates (x from 0 to length). */
   root: THREE.Group;
   units: Unit[];
-  /** The link conveyors drawn between generic machines. */
+  /** The link conveyors drawn between machines: not machines of the line, so no number and no sheet. */
   links: THREE.Object3D[];
+  /** What moves on those conveyors: call with the same (t, busy, clock) as a machine's update. */
+  movers: ((t: number, busy: boolean, clock: number) => void)[];
   items: LineItem<Machine3D>[];
   length: number;
   /** What a click is tested against, and whose machine each object is. */
@@ -88,11 +90,15 @@ export function buildLine(machines: Machine3D[], running: boolean): LineScene {
   const cy = PASS_HEIGHT;
   const root = new THREE.Group();
   const real = new Map(machines.map((m) => [m.id, realMachine(m.type, m.vendor, m.model)]));
-  const { items, length } = layoutLine(machines, (m) => real.get(m.id)?.look ?? null);
+  // A link conveyor stands between every two machines that have none between them on the sheet.
+  const bridgeLook = MACHINE_LOOKS.find((l) => l.key === BRIDGE) ?? null;
+  const bridgeBuild = REAL_BUILDERS[BRIDGE] as RealBuilder | undefined;
+  const { items, length } = layoutLine(machines, (m) => real.get(m.id)?.look ?? null, { bridge: bridgeBuild ? bridgeLook : null });
   root.position.x = -length / 2;
 
   const units: Unit[] = [];
   const links: THREE.Object3D[] = [];
+  const movers: LineScene["movers"] = [];
   const targets: THREE.Object3D[] = [];
   const owner = new Map<THREE.Object3D, string>();
   const hitMaterial = new THREE.MeshBasicMaterial();
@@ -113,6 +119,19 @@ export function buildLine(machines: Machine3D[], running: boolean): LineScene {
       const link = models.link(it.x0, it.x1, cy);
       links.push(link);
       root.add(link);
+      continue;
+    }
+    if (it.kind === "bridge") {
+      try {
+        const built = bridgeBuild!(kit, { look: it.look, cy, vendor: "Ecopmin", model: "0.6 m link conveyor" });
+        built.group.position.set(it.x, 0, 0);
+        built.lamps.forEach((l, i) => ((l.material as THREE.MeshStandardMaterial).emissiveIntensity = i === (running ? 0 : 1) ? 1.6 : 0));
+        root.add(built.group);
+        links.push(built.group);
+        movers.push(built.update);
+      } catch (e) {
+        console.error("The link conveyor could not be drawn.", e);
+      }
       continue;
     }
     let unit: Unit | null = null;
@@ -148,6 +167,7 @@ export function buildLine(machines: Machine3D[], running: boolean): LineScene {
     root,
     units,
     links,
+    movers,
     items,
     length,
     targets,
@@ -164,6 +184,9 @@ export function buildLine(machines: Machine3D[], running: boolean): LineScene {
     },
   };
 }
+
+/** The conveyor that stands between machines. */
+const BRIDGE = "ecopmin-link-conveyor";
 
 /** The generic model that stands in when a real builder fails. */
 const LEGACY: Record<string, string> = { STENCIL_PRINTER: "printer", SPI: "spi", PICK_AND_PLACE: "pnp", REFLOW_OVEN: "reflow", AOI: "aoi", LASER_MARKER: "spi", BOARD_LOADER: "loader", OTHER: "spi" };

@@ -369,9 +369,11 @@ export default function Line3D({ machines, selected, onSelect, mode, running, sh
         controls.update();
       } else if (view === "walk") {
         for (const u of units) u.update(t, true, t);
+        for (const m of line.movers) m(t, true, t);
         walk(dt);
       } else {
         for (const u of units) u.update(running && !still ? t : 0, running && !still, t);
+        for (const m of line.movers) m(running && !still ? t : 0, running && !still, t);
         controls.update();
       }
       renderer.render(scene, camera);

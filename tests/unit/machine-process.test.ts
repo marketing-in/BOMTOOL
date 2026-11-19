@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { processOf, stepAt } from "@/knowledge/machine-process";
 import { LINES } from "../../prisma/seed-data/factory";
+import { findLook } from "@/knowledge/machine-looks";
+import { REAL_GAP, isSheetConveyor, itemSpan, layoutLine } from "@/lib/ops/line-layout";
 
 describe("what each machine does to the board", () => {
   const kinds: [string, string][] = [
@@ -42,5 +44,31 @@ describe("what each machine does to the board", () => {
 
   it("has a real process (not the fallback) for every machine on our lines", () => {
     for (const line of LINES) for (const m of line.machines) expect(processOf(m.type, m.model).what, `${m.vendor} ${m.model}`).not.toMatch(/not on file/);
+  });
+});
+
+describe("a conveyor between every two machines", () => {
+  const bridge = findLook("OTHER", "Ecopmin", "0.6 m link conveyor")!;
+
+  it("stands a link conveyor between neighbours that have none on the sheet, on every line", () => {
+    for (const line of LINES) {
+      const machines = line.machines.map((m, i) => ({ id: `${line.name}-${i}`, type: m.type, vendor: m.vendor, model: m.model }));
+      const { items, length } = layoutLine(machines, undefined, { bridge });
+      const placed = items.filter((it) => it.kind !== "bridge");
+      expect(placed.map((it) => it.m?.id)).toEqual(machines.map((m) => m.id));
+      // Between any two machines there is now a conveyor: one from the sheet, or one drawn.
+      for (let i = 1; i < items.length; i++) {
+        const a = items[i - 1], b = items[i];
+        const conveyor = (it: typeof a) => it.kind === "bridge" || (it.m ? isSheetConveyor(it.m) : true);
+        expect(conveyor(a) || conveyor(b), `${line.name}: ${a.m?.model} → ${b.m?.model}`).toBe(true);
+        expect(itemSpan(b)[0] - itemSpan(a)[1]).toBeCloseTo(REAL_GAP);
+      }
+      expect(itemSpan(items[items.length - 1])[1]).toBeCloseTo(length);
+    }
+  });
+
+  it("draws none unless asked", () => {
+    const machines = LINES[1].machines.map((m, i) => ({ id: String(i), type: m.type, vendor: m.vendor, model: m.model }));
+    expect(layoutLine(machines).items.some((it) => it.kind === "bridge")).toBe(false);
   });
 });

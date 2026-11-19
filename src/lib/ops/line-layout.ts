@@ -58,6 +58,8 @@ export const isSheetConveyor = (m: { type: string; model: string }): boolean => 
 export type LineItem<M extends LayoutMachine = LayoutMachine> =
   | { kind: "real"; m: M; look: MachineLook; x: number; w: number; d: number; z0: number; z1: number }
   | { kind: "generic"; m: M; spec: GenericSpec; x: number; w: number; d: number; z0: number; z1: number }
+  /** A link conveyor drawn between two machines that stand next to each other with no conveyor on the sheet between them. */
+  | { kind: "bridge"; m: null; look: MachineLook; x: number; w: number; d: number; z0: number; z1: number }
   | { kind: "link"; m: M | null; x0: number; x1: number };
 
 export type LineLayout<M extends LayoutMachine = LayoutMachine> = { items: LineItem<M>[]; length: number };
@@ -66,7 +68,12 @@ export type LineLayout<M extends LayoutMachine = LayoutMachine> = { items: LineI
  * Lay the machines out in the order given. lookOf says which machines have a real model (default: every look in
  * src/knowledge/machine-looks; the view passes "a look whose builder exists").
  */
-export function layoutLine<M extends LayoutMachine>(machines: M[], lookOf: (m: M) => MachineLook | null = (m) => findLook(m.type, m.vendor, m.model)): LineLayout<M> {
+export function layoutLine<M extends LayoutMachine>(
+  machines: M[],
+  lookOf: (m: M) => MachineLook | null = (m) => findLook(m.type, m.vendor, m.model),
+  /** bridge: the look of the link conveyor to stand between every two real machines that have none between them. */
+  opts: { bridge?: MachineLook | null } = {},
+): LineLayout<M> {
   let x = 0;
   const items: LineItem<M>[] = [];
   // Does the board ride out of the last thing placed on a conveyor?
@@ -76,8 +83,14 @@ export function layoutLine<M extends LayoutMachine>(machines: M[], lookOf: (m: M
     const last = items[items.length - 1];
     if (look) {
       const f = lookFrame(look);
-      if (last?.kind === "real") x += REAL_GAP;
-      else if (last?.kind === "generic") {
+      if (last?.kind === "real") {
+        x += REAL_GAP;
+        if (opts.bridge && !isSheetConveyor(last.m) && !isSheetConveyor(m)) {
+          const b = lookFrame(opts.bridge);
+          items.push({ kind: "bridge", m: null, look: opts.bridge, x: x + b.l / 2, w: b.l, d: b.d, z0: b.zBack, z1: b.zFront });
+          x += b.l + REAL_GAP;
+        }
+      } else if (last?.kind === "generic") {
         if (last.spec.inline) {
           items.push({ kind: "link", m: null, x0: x, x1: x + GENERIC_LINK });
           x += GENERIC_LINK;

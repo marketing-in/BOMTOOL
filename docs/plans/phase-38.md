@@ -148,3 +148,11 @@ The user: "the process shows but is not visible — make it visible" and "give e
   full screen, or the stage pinned over the page where that does not exist (Escape leaves). Added to the Lines
   stage, the die / package / PCB explorers, the dictionary's part model and the BoM viewer's SMT line. The board
   studio and the footprint studio already had one.
+
+## Added: a conveyor between every two machines (19 Nov 2026)
+
+The user: "add a conveyor to every line for every machine". The layout (`layoutLine`, option `bridge`) now stands
+the Ecopmin 0.6 m link conveyor between any two machines that have no conveyor between them on the machine sheet,
+on every line, in 3D, 2D and Walk, with boards riding on it while the line runs. These conveyors are drawn, not
+recorded: they are not machines in our records (no number, no sheet, not in the line's capacity). To make them
+machines of the line, add them on the Lines page or to prisma/seed-data/factory.ts.
