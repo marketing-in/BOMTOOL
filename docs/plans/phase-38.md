@@ -113,3 +113,23 @@ within budget) and the Lines page on the dev server for Lines 1, 2 and 3.
 
 Open: the two ovens and the laser marker are sized off the plant's photos (no maker outline on file); a close-up
 view of one machine; the BoM viewer's SMT-line simulation still draws the generic machines.
+
+## Added: descriptions, a walk along the line, one machine's process (19 Nov 2026)
+
+Asked for by the user: a description for each machine, the whole line at once to walk in with the process running,
+and a button for one machine's own process in 3D.
+
+- `src/knowledge/machine-process.ts`: per kind of machine, what it is for and its steps in plain words, each step
+  with its share of one board's time. Conveyors are told apart by their model (link, inspection, cooling).
+- Machine sheet: "What it does", the numbered steps, "How to recognise it" (from the machine's look), and the
+  button "Show this machine's process in 3D".
+- Under the line: "What happens on this line", one sentence per machine in flow order.
+- View switch 3D · 2D · **Walk**: eye height on the shop floor, every machine running. Drag to look round; arrow
+  keys, W A S D or the on-screen pad to walk (44 px, for the tablet); you cannot walk through the machines. A caption
+  names the machine you stand at, with "Show its process".
+- **One machine**: the selected machine alone, close up, turnable all round, running board after board; the step it
+  is at is lit in a list over the view. Builders report their cycle time (`RealBuilt.cycle`).
+- Kept light: one renderer, pixel ratio capped at 1.5, the walk floor is six flat meshes, hidden machines are not
+  updated in the one-machine view.
+
+Verified: `tests/unit/machine-process.test.ts`; both views opened on the real Lines page (Line 1).

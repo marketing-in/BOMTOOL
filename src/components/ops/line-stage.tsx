@@ -2,11 +2,13 @@
 
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { Check, ExternalLink, Pencil, X } from "lucide-react";
+import { Check, ExternalLink, Footprints, Pencil, Play, X } from "lucide-react";
 import type { MachineCard } from "@/lib/ops/machine-card";
 import type { PackageReach } from "@/lib/ops/package-reach";
 import { MachineDialog, MachineOrderButtons } from "@/components/ops/line-editor";
 import type { ViewMode } from "./line-3d";
+import { findLook } from "@/knowledge/machine-looks";
+import { processOf } from "@/knowledge/machine-process";
 import { cn } from "@/lib/utils";
 
 const Line3D = dynamic(() => import("./line-3d"), { ssr: false, loading: () => <div className="grid h-full place-items-center text-sm text-muted-foreground">Drawing the line…</div> });
@@ -59,29 +61,90 @@ export function LineStage({ machines, editable, running = false }: { machines: M
   const scene = useMemo(() => machines.map((x) => ({ id: x.id, type: x.type, vendor: x.vendor, short: x.short, model: x.model, color: x.color, position: x.position })), [machines]);
   const first = machines.find((m) => m.type === "PICK_AND_PLACE") ?? machines[0];
   const [sel, setSel] = useState<string | null>(first?.id ?? null);
+  const [step, setStep] = useState(0);
+  const [near, setNear] = useState<string | null>(null);
   const m = machines.find((x) => x.id === sel) ?? first;
-  if (!m) return null;
+  const process = useMemo(() => (m ? processOf(m.type, m.model) : null), [m]);
+  const shares = useMemo(() => process?.steps.map((x) => x.share), [process]);
+  if (!m || !process) return null;
   const idx = machines.findIndex((x) => x.id === m.id);
+  const look = findLook(m.type, m.vendor, m.model);
+  const at = machines.find((x) => x.id === near) ?? m;
+  const VIEWS: { v: ViewMode; label: string; title: string }[] = [
+    { v: "3d", label: "3D", title: "Turn the line in 3D" },
+    { v: "2d", label: "2D", title: "Floor plan from above" },
+    { v: "walk", label: "Walk", title: "Walk along the running line" },
+  ];
+  const go = (v: ViewMode) => {
+    setStep(0);
+    setNear(null);
+    setMode(v);
+  };
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_26rem]">
       <div className="min-w-0">
-        <div className="relative h-[340px] overflow-hidden rounded-xl border bg-muted/60 sm:h-[440px]">
-          <Line3D machines={scene} selected={m.id} onSelect={setSel} mode={mode} running={running} />
+        <div className={cn("relative overflow-hidden rounded-xl border bg-muted/60", mode === "walk" || mode === "machine" ? "h-[420px] sm:h-[540px]" : "h-[340px] sm:h-[440px]")}>
+          <Line3D machines={scene} selected={m.id} onSelect={setSel} mode={mode} running={running} shares={shares} onStep={setStep} onNear={setNear} />
           <div role="group" aria-label="View" className="absolute top-3 right-3 inline-flex rounded-md border bg-card p-0.5 text-xs">
-            {(["3d", "2d"] as const).map((v) => (
+            {VIEWS.map(({ v, label, title }) => (
               <button
                 key={v}
                 type="button"
-                onClick={() => setMode(v)}
+                onClick={() => go(v)}
                 aria-pressed={mode === v}
-                title={v === "3d" ? "Turn the line in 3D" : "Floor plan from above"}
-                className={cn("h-7 rounded px-2.5 font-semibold uppercase outline-none focus-visible:ring-2 focus-visible:ring-ring", mode === v ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}
+                title={title}
+                className={cn("inline-flex h-9 items-center gap-1.5 rounded px-3 font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring", mode === v ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}
               >
-                {v}
+                {v === "walk" ? <Footprints className="size-3.5" aria-hidden /> : null}
+                {label}
               </button>
             ))}
           </div>
+
+          {mode === "machine" ? (
+            <>
+              <button type="button" onClick={() => go("3d")} className="absolute top-3 left-3 inline-flex h-9 items-center gap-1.5 rounded-md border bg-card px-3 text-sm font-medium outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
+                <X className="size-4" aria-hidden /> Whole line
+              </button>
+              <div className="absolute right-3 bottom-3 left-3 rounded-lg border bg-card/95 p-3 sm:left-auto sm:w-80" aria-live="polite">
+                <p className="text-xs font-medium text-muted-foreground">
+                  {m.position} · {m.vendor} {m.model}
+                </p>
+                <ol className="mt-2 space-y-1">
+                  {process.steps.map((x, i) => (
+                    <li key={x.title} className={cn("flex items-start gap-2 rounded-md px-2 py-1 text-sm", i === step ? "bg-foreground text-background" : "text-muted-foreground")}>
+                      <span className="w-4 shrink-0 text-xs leading-5 font-semibold tabular-nums">{i + 1}</span>
+                      <span className="min-w-0">
+                        <span className="font-semibold">{x.title}</span>
+                        {i === step ? <span className="mt-0.5 block text-[13px] leading-snug opacity-90">{x.text}</span> : null}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </>
+          ) : null}
+
+          {mode === "walk" ? (
+            <>
+              <p className="pointer-events-none absolute top-3 left-3 rounded-md border bg-card/90 px-2.5 py-1.5 text-xs text-muted-foreground">Drag to look round · arrow keys, W A S D or the pad to walk · click a machine</p>
+              <div className="absolute right-3 bottom-3 left-40 rounded-lg border bg-card/95 p-3 sm:left-auto sm:w-96" aria-live="polite">
+                <p className="flex items-center gap-2 text-sm font-semibold">
+                  <span className="grid size-6 shrink-0 place-items-center rounded text-[11px] font-semibold text-white" style={{ background: at.color }}>
+                    {at.position}
+                  </span>
+                  <span className="min-w-0 truncate">
+                    {at.vendor} {at.model}
+                  </span>
+                </p>
+                <p className="mt-1.5 text-[13px] leading-snug text-muted-foreground">{processOf(at.type, at.model).short}</p>
+                <button type="button" onClick={() => { setSel(at.id); go("machine"); }} className="mt-2 inline-flex h-9 items-center gap-1.5 rounded-md border bg-card px-3 text-sm font-medium outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
+                  <Play className="size-3.5" aria-hidden /> Show its process
+                </button>
+              </div>
+            </>
+          ) : null}
         </div>
         <ol className="mt-3 flex flex-wrap gap-2" aria-label="Machines in flow order">
           {machines.map((x) => {
@@ -106,6 +169,27 @@ export function LineStage({ machines, editable, running = false }: { machines: M
             );
           })}
         </ol>
+
+        <section className="mt-6" aria-labelledby="line-flow">
+          <h3 id="line-flow" className="text-sm font-semibold">
+            What happens on this line
+          </h3>
+          <ol className="mt-2 divide-y rounded-lg border bg-card">
+            {machines.map((x) => (
+              <li key={x.id}>
+                <button type="button" onClick={() => setSel(x.id)} className={cn("flex w-full items-start gap-3 px-3 py-2 text-left text-sm outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset", x.id === m.id && "bg-muted")}>
+                  <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded text-[10px] font-semibold text-white" style={{ background: x.color }}>
+                    {x.position}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="font-medium">{x.short}</span>
+                    <span className="text-muted-foreground"> — {processOf(x.type, x.model).short}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </section>
       </div>
 
       <aside key={m.id} aria-live="polite" className="rounded-xl border bg-card p-6">
@@ -125,6 +209,34 @@ export function LineStage({ machines, editable, running = false }: { machines: M
           </div>
         </div>
         {m.oneLiner ? <p className="mt-4 text-sm leading-snug text-muted-foreground">{m.oneLiner}</p> : null}
+
+        <section className="mt-4">
+          <h4 className="text-sm font-semibold">What it does</h4>
+          <p className="mt-1.5 text-sm leading-snug text-muted-foreground">{process.what}</p>
+          <ol className="mt-3 space-y-1.5 text-sm">
+            {process.steps.map((x, i) => (
+              <li key={x.title} className="flex gap-2.5">
+                <span className="grid size-5 shrink-0 place-items-center rounded-full border text-[11px] font-semibold tabular-nums">{i + 1}</span>
+                <span className="min-w-0">
+                  <span className="font-medium">{x.title}.</span> <span className="text-muted-foreground">{x.text}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+          <button
+            type="button"
+            onClick={() => go("machine")}
+            aria-pressed={mode === "machine"}
+            className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-foreground px-4 text-sm font-semibold text-background outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <Play className="size-4" aria-hidden /> Show this machine&apos;s process in 3D
+          </button>
+          {look ? (
+            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+              <span className="font-medium text-foreground">How to recognise it:</span> {look.features.slice(0, 4).join(" · ")}.
+            </p>
+          ) : null}
+        </section>
 
         {m.big.length ? (
           <dl className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border">

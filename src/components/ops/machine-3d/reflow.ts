@@ -125,6 +125,7 @@ const oven =
       height: F.h,
       lamps,
       screen,
+      cycle: (2 * reach) / 0.35,
       update(t, busy) {
         board.visible = busy;
         if (busy) board.position.x = -reach + ((t * 0.35) % (2 * reach));

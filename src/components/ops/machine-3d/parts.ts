@@ -94,6 +94,7 @@ export function rig(K: Kit, { look, cy }: BuildInput, o: RigOpts) {
       height: F.h,
       lamps,
       screen,
+      cycle: CYCLE,
       update(time, busy, clock) {
         const p = busy ? time % CYCLE : 0;
         board.visible = busy;

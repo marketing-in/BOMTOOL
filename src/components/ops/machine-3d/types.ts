@@ -31,6 +31,8 @@ export type RealBuilt = {
    * Cheap: set a few positions, rotations and emissive intensities; allocate nothing.
    */
   update: (t: number, busy: boolean, clock: number) => void;
+  /** Seconds one board takes through the machine while it runs (the process view follows it). Default 7. */
+  cycle?: number;
 };
 
 /** A family file registers one of these per look key. Build with the kit only, then call K.seal(group, moving). */

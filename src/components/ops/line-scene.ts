@@ -14,7 +14,8 @@ import { createKit, type ScreenInfo } from "./machine-3d/kit";
 export type Machine3D = { id: string; type: string; vendor: string; short: string; model: string; color: string; position: number };
 
 /** 3D: turn the line freely. 2D: the floor plan from above, to scale. */
-export type ViewMode = "3d" | "2d";
+/** walk: on the floor at eye height, the whole line running. machine: one machine close up, running its process. */
+export type ViewMode = "3d" | "2d" | "walk" | "machine";
 
 /** The colour behind the line on the page in light mode (bg-muted/60 over the card). */
 export const STAGE_BACKGROUND = "#f5f5f4";
@@ -45,12 +46,16 @@ export type Unit = {
   lamps: THREE.Mesh[];
   screen: { draw: (info: ScreenInfo) => void };
   update: (t: number, busy: boolean, clock: number) => void;
+  /** Seconds one board takes through it. */
+  cycle: number;
 };
 
 export type LineScene = {
   /** Everything of the line; its children are in line coordinates (x from 0 to length). */
   root: THREE.Group;
   units: Unit[];
+  /** The link conveyors drawn between generic machines. */
+  links: THREE.Object3D[];
   items: LineItem<Machine3D>[];
   length: number;
   /** What a click is tested against, and whose machine each object is. */
@@ -87,6 +92,7 @@ export function buildLine(machines: Machine3D[], running: boolean): LineScene {
   root.position.x = -length / 2;
 
   const units: Unit[] = [];
+  const links: THREE.Object3D[] = [];
   const targets: THREE.Object3D[] = [];
   const owner = new Map<THREE.Object3D, string>();
   const hitMaterial = new THREE.MeshBasicMaterial();
@@ -99,12 +105,14 @@ export function buildLine(machines: Machine3D[], running: boolean): LineScene {
       if ((o as THREE.Mesh).isMesh) owner.set(o, it.m.id);
     });
     targets.push(built.group);
-    return { id: it.m.id, m: it.m, real: false, group: built.group, x: it.x, w, z0: -d / 2, z1: d / 2, top: 0, lamps: built.lamps, screen: built.screen, update: built.update };
+    return { id: it.m.id, m: it.m, real: false, group: built.group, x: it.x, w, z0: -d / 2, z1: d / 2, top: 0, lamps: built.lamps, screen: built.screen, update: built.update, cycle: 7 };
   };
 
   for (const it of items) {
     if (it.kind === "link") {
-      root.add(models.link(it.x0, it.x1, cy));
+      const link = models.link(it.x0, it.x1, cy);
+      links.push(link);
+      root.add(link);
       continue;
     }
     let unit: Unit | null = null;
@@ -122,7 +130,7 @@ export function buildLine(machines: Machine3D[], running: boolean): LineScene {
         root.add(hit);
         owner.set(hit, it.m.id);
         targets.push(hit);
-        unit = { id: it.m.id, m: it.m, real: true, group: built.group, x: it.x, w: it.w, z0: f.box.z0, z1: f.box.z1, top: 0, lamps: built.lamps, screen: built.screen, update: built.update };
+        unit = { id: it.m.id, m: it.m, real: true, group: built.group, x: it.x, w: it.w, z0: f.box.z0, z1: f.box.z1, top: 0, lamps: built.lamps, screen: built.screen, update: built.update, cycle: built.cycle ?? 7 };
       } catch (e) {
         // A builder that fails must not blank the line: draw the generic machine in its place.
         console.error(`Real model of ${it.m.vendor} ${it.m.model} failed; drawing the generic one.`, e);
@@ -139,6 +147,7 @@ export function buildLine(machines: Machine3D[], running: boolean): LineScene {
   return {
     root,
     units,
+    links,
     items,
     length,
     targets,
@@ -204,4 +213,41 @@ export function fitScale(mode: ViewMode, size: THREE.Vector3, w: number, h: numb
 /** Where a machine's number tag hangs: over it in 3D, behind it on the plan. */
 export function tagPoint(u: Unit, mode: ViewMode, rootX: number, out: THREE.Vector3): THREE.Vector3 {
   return out.set(u.x + rootX, mode === "2d" ? 0 : u.top + 0.35, mode === "2d" ? u.z0 - 0.45 : 0);
+}
+
+/** Light every unit's tower for running (green) or waiting (amber), and say so on its screen. */
+export function showState(u: Unit, on: boolean) {
+  u.lamps.forEach((l, i) => ((l.material as THREE.MeshStandardMaterial).emissiveIntensity = i === (on ? 0 : 1) ? 1.6 : 0));
+  u.screen.draw({ name: u.m.short, state: on ? "Running" : "Waiting", board: "—", cycle: `${Math.round(u.cycle)} s`, done: "—" });
+}
+
+/**
+ * The shop floor for walking the line: an epoxy floor with the yellow lane lines either side of the line and a wall
+ * behind it. A handful of flat meshes; shown only while walking.
+ */
+export function walkFloor(length: number, z0: number, z1: number): { group: THREE.Group; dispose: () => void } {
+  const g = new THREE.Group();
+  const made: { dispose: () => void }[] = [];
+  const flat = (w: number, d: number, color: number, x: number, y: number, z: number) => {
+    const geo = new THREE.PlaneGeometry(w, d), mat = new THREE.MeshStandardMaterial({ color, roughness: 0.75, metalness: 0 });
+    made.push(geo, mat);
+    const m = new THREE.Mesh(geo, mat);
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, y, z);
+    m.receiveShadow = true;
+    g.add(m);
+    return m;
+  };
+  const L = length + 16;
+  flat(L, 26, 0xcfd1cb, 0, -0.002, (z0 + z1) / 2);
+  for (const z of [z0 - 0.5, z1 + 0.5]) flat(length + 2, 0.08, 0xe3b82e, 0, 0.001, z);
+  flat(length + 6, 1.2, 0x3c7d5a, 0, 0.001, z1 + 2.2);
+  const wall = flat(L, 9, 0xecebe6, 0, 0, 0);
+  wall.rotation.x = 0;
+  wall.position.set(0, 4.5, z0 - 6);
+  const dado = flat(L, 1.2, 0x8a8c88, 0, 0, 0);
+  dado.rotation.x = 0;
+  dado.position.set(0, 0.6, z0 - 5.99);
+  g.visible = false;
+  return { group: g, dispose: () => made.forEach((x) => x.dispose()) };
 }

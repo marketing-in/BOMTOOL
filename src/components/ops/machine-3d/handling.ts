@@ -148,6 +148,7 @@ const conveyor =
     height: F.h,
     lamps,
     screen: { draw() {} },
+    cycle: (2 * reach) / 0.15,
     update(t, busy) {
       board.visible = busy;
       // 9 m/min on the sheet: 0.15 m/s.
