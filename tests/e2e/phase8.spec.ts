@@ -43,7 +43,7 @@ test("process route → show a step in 3D → the finished product in its box", 
   test.setTimeout(360_000);
   await login(page);
   await openGw200(page);
-  // The process route is section 5.2 of step 5, Line possible.
+  // The process route is section 4.2 of step 4, Line possible.
   await page.getByRole("navigation", { name: /^Process for/ }).getByRole("link", { name: /Line possible/ }).click();
   await expect(page).toHaveURL(/\/boms\/[a-z0-9]+\/lines$/);
   await page.getByRole("navigation", { name: "On this page" }).getByRole("link", { name: /Process route/ }).click();

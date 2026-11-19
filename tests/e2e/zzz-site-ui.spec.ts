@@ -85,14 +85,14 @@ for (const width of [390, 768]) {
     for (const url of ["/", "/boms", "/parts", "/sourcing", "/operations", "/inventory", "/knowledge", `/boms/${records.bom}`]) {
       await healthy(page, url);
     }
-    // No sidebar: the four parts sit on one menu line, the part's pages as tabs under it.
+    // No sidebar: the three parts sit on one menu line, the part's pages as tabs under it; the BoMs open Supply.
     const menu = page.getByRole("navigation", { name: "Main menu" });
     await expect(menu).toBeVisible();
     if (width < 768) await expect(page.getByRole("link", { name: "Open part search", exact: true })).toBeVisible();
     await menu.getByRole("link", { name: "Supply", exact: true }).click();
-    await expect(page).toHaveURL(/\/parts$/);
+    await expect(page).toHaveURL(/\/boms$/);
     const tabs = page.getByRole("navigation", { name: "Supply pages" });
-    await expect(tabs.getByRole("link", { name: "Parts catalogue", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect(tabs.getByRole("link", { name: "BoMs", exact: true })).toHaveAttribute("aria-current", "page");
     await tabs.getByRole("link", { name: "Inventory", exact: true }).click();
     await expect(page).toHaveURL(/\/inventory$/);
     await expect(tabs.getByRole("link", { name: "Inventory", exact: true })).toHaveAttribute("aria-current", "page");

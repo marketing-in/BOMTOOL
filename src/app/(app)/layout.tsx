@@ -12,7 +12,7 @@ import { CurrencySwitch, ThemeSwitch, UserMenu } from "@/components/shell/topbar
 import { AskPanel } from "@/components/assistant/ask-panel";
 
 /**
- * The frame of every page: one menu line — the logo (home), the four parts of the app, search and the account —
+ * The frame of every page: one menu line — the logo (home), the three parts of the app (Engineering · Supply · Factory), search and the account —
  * then the current part's pages as tabs, then the page. No sidebar.
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {

@@ -27,11 +27,11 @@ test("Upload BoM or Gerbers: Gerbers alone start the BoM, match the footprints a
   await page.getByLabel("Revision").fill(`G-${Date.now().toString(36).slice(-5)}`);
   await page.getByRole("button", { name: "Read the board and check the process" }).click();
 
-  // Step 4, footprint & mismatch: the board's components are the BoM, so everything agrees…
+  // Step 3, footprint & mismatch: the board's components are the BoM, so everything agrees…
   await expect(page).toHaveURL(/\/boms\/[a-z0-9]+\/match$/, { timeout: 180_000 });
   await expect(page.getByRole("heading", { name: "BoM and board match" })).toBeVisible();
-  // …and Next goes on to step 5, "Line possible": can our machines build it?
-  await page.getByRole("link", { name: /^Next: 5\. Line possible/ }).click();
+  // …and Next goes on to step 4, "Line possible": can our machines build it?
+  await page.getByRole("link", { name: /^Next: 4\. Line possible/ }).click();
   await expect(page).toHaveURL(/\/lines$/);
   await expect(page.getByRole("heading", { name: /Can our machines build it\?/ })).toBeVisible();
 });

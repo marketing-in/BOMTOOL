@@ -139,7 +139,7 @@ export default async function PartsSection({ id, searchParams }: { id: string; s
                       </span>
                       <span className="num block truncate text-xs text-muted-foreground">{l.refDes || "—"} · {l.qtyPerBoard}/board</span>
                       <span className="block truncate text-xs text-muted-foreground">
-                        {l.dnp ? "Do not place" : l.excluded === "box" ? "Priced with the box" : l.excluded === "board" ? "Priced in step 6 — the bare board" : (l.sourceLabel ?? "No source")}
+                        {l.dnp ? "Do not place" : l.excluded === "box" ? "Priced with the box" : l.excluded === "board" ? "Priced in step 5 — the bare board" : (l.sourceLabel ?? "No source")}
                         {l.pinned ? " · chosen" : ""}
                       </span>
                     </span>
@@ -487,7 +487,7 @@ async function LineDetail({
       {sel.excluded ? (
         <p className="flex items-center gap-2 rounded-md border bg-muted/40 px-4 py-3 text-sm">
           {sel.excluded === "box" ? <BoxIcon className="size-4 text-muted-foreground" aria-hidden /> : <Layers className="size-4 text-muted-foreground" aria-hidden />}
-          {sel.excluded === "box" ? "The enclosure — priced with the box." : "The bare board — priced in step 6."}
+          {sel.excluded === "box" ? "The enclosure — priced with the box." : "The bare board — priced in step 5."}
         </p>
       ) : null}
 

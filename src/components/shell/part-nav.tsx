@@ -16,7 +16,7 @@ function Pending() {
 
 const PART_BG: Record<string, string> = { bom: "bg-part-bom", engineering: "bg-part-engineering", supply: "bg-part-supply", factory: "bg-part-factory" };
 
-/** The menu: the four parts of the app on one line, each in its own colour; the page takes the current part's colour. */
+/** The menu: the three parts of the app on one line, each in its own colour; the page takes the current part's colour. */
 export function PartMenu() {
   const pathname = usePathname();
   const { part } = locatePage(pathname);
@@ -53,7 +53,7 @@ export function PartMenu() {
   );
 }
 
-/** The pages of the current part as quiet tabs under the menu; nothing on pages outside the four parts. */
+/** The pages of the current part as quiet tabs under the menu; nothing on pages outside the three parts. */
 export function PartTabs({ role }: { role: Role }) {
   const pathname = usePathname();
   const { part, page } = locatePage(pathname);

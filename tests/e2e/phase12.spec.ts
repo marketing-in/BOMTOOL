@@ -16,10 +16,9 @@ test("SMT line: the BoM's board runs through the line and a machine opens", asyn
   await page.goto("/boms");
   await page.getByText("GW-200 Main Board").first().click();
   await expect(page.getByText("To buy, landed")).toBeVisible();
-  // Step 6 of the BoM's numbered process.
-  await page.getByRole("navigation", { name: /^Process for GW-200 Main Board/ }).getByRole("link", { name: /SMT line/ }).click();
-  await expect(page).toHaveURL(/\/boms\/[a-z0-9]+\/line$/);
-  await expect(page.getByRole("heading", { name: "6. SMT line", level: 1 })).toBeVisible();
+  // The SMT line runs in the BoM's 3D view, under the board (no longer a step of its own).
+  await page.getByRole("navigation", { name: "Views" }).getByRole("link", { name: "3D view" }).click();
+  await expect(page).toHaveURL(/\/boms\/[a-z0-9]+\/viewer$/);
   // The board runs on the line the line fit picks: its name heads the section.
   await expect(page.getByRole("region", { name: "SMT line" }).getByRole("heading", { level: 2, name: /^SMT Line \d/ })).toBeVisible();
   await page.getByRole("button", { name: "Run production" }).click();

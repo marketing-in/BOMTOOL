@@ -28,8 +28,8 @@ test("Delete: remove a BoM's Gerbers, delete the BoM, delete a quick look", asyn
   await page.getByRole("button", { name: "Read the board and check the process" }).click();
   await expect(page).toHaveURL(/\/match$/, { timeout: 180_000 });
 
-  // 1 · Remove its board files on the Gerbers step: the BoM stays, the board falls back to the spec.
-  await page.getByRole("navigation", { name: /^Process for/ }).getByRole("link", { name: /Gerbers/ }).click();
+  // 1 · Remove its board files on the Gerber step: the BoM stays, the board falls back to the spec.
+  await page.getByRole("navigation", { name: /^Process for/ }).getByRole("link", { name: /Gerber/ }).click();
   await page.getByRole("button", { name: "Remove board files" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Remove board files" }).click();
   await expect(page.getByText("No Gerbers — the board is drawn from the project spec")).toBeVisible({ timeout: 60_000 });

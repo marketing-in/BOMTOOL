@@ -6,7 +6,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return stepTitle((await params).id, "Bare board");
 }
 
-/** Step 6: the bare board's estimate — what the fabs charge for it, and the one chosen. */
+/** Step 5: the bare board's estimate — what the fabs charge for it, and the one chosen. */
 export default async function BareBoardStepPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   await openRevision(id);

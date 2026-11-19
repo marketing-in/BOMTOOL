@@ -28,8 +28,8 @@ test("supply chain: board fabs, components by tier, box makers → BoM list besi
   await expect(page.getByText("Chennai Circuits (PCB fab) — sample")).toBeVisible();
   await expect(page.getByText("Peenya CNC & powder coat — sample")).toBeVisible();
 
-  // The 3D view is one of the BoM's other views, at the end of the strip.
-  await page.getByRole("navigation", { name: /^Process for/ }).getByRole("link", { name: "3D view" }).click();
+  // The 3D view is one of the BoM's views, on top beside Analysis and Supply chain.
+  await page.getByRole("navigation", { name: "Views" }).getByRole("link", { name: "3D view" }).click();
   const list = page.getByRole("list", { name: "BoM lines" });
   await expect(list).toBeVisible();
   await list.getByRole("button").filter({ hasText: "STM32G431CBU6" }).click();

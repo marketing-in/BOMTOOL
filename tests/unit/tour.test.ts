@@ -24,9 +24,12 @@ describe("app tour", () => {
     expect(TOUR.map((c) => c.title[0])).toEqual(["1", "2", "3", "4", "5", "6", "7"]);
   });
 
-  it("has exactly four parts in the menu, in order", () => {
-    expect(PARTS.map((p) => `${p.n} ${p.label}`)).toEqual(["1 BoM", "2 Engineering", "3 Supply", "4 Factory"]);
-    expect(locatePage("/boms/abc/lines").part?.key).toBe("bom");
+  it("has three parts in the menu, in order, with the BoMs inside Supply", () => {
+    expect(PARTS.map((p) => `${p.n} ${p.label}`)).toEqual(["1 Engineering", "2 Supply", "3 Factory"]);
+    expect(PARTS.find((p) => p.key === "supply")!.pages.map((i) => i.label)).toEqual(["BoMs", "Upload BoM & Gerbers", "Parts catalogue", "Sourcing & RFQ", "Inventory"]);
+    expect(locatePage("/boms/abc/lines").part?.key).toBe("supply");
+    expect(locatePage("/boms/abc/lines").page?.label).toBe("BoMs");
+    expect(locatePage("/boms/new").page?.label).toBe("Upload BoM & Gerbers");
     expect(locatePage("/operations/lines").page?.label).toBe("Lines & machines");
     expect(locatePage("/inventory").part?.key).toBe("supply");
     expect(locatePage("/").part).toBeNull();

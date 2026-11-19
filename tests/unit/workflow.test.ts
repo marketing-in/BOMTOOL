@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { MORE, WORKFLOW, locate, neighbours, sectionHref, sectionStates, stepProgress, stepState, type StepFacts } from "@/lib/bom/workflow";
 
 describe("the BoM process, in seven steps", () => {
-  it("runs BoM → Gerber → Footprint & mismatch → Line possible → Components → Bare board → Estimate & quote, with no box or SMT line step", () => {
-    expect(WORKFLOW.map((s) => `${s.n}:${s.key}`)).toEqual(["1:bom", "2:gerbers", "3:footprint", "4:lines", "5:parts", "6:board", "7:quote"]);
-    expect(WORKFLOW.map((s) => s.label)).toEqual(["BoM", "Gerber", "Footprint & mismatch", "Line possible", "Components", "Bare board", "Estimate & quote"]);
-    expect(WORKFLOW.map((s) => s.sections.map((x) => x.key))).toEqual([["bom"], ["gerbers"], ["match", "mismatch"], ["lines", "route"], ["parts"], ["board"], ["feasibility", "quote"]]);
+  it("runs BoM → Gerber → Footprint & mismatch → Line possible → Bare board → Components → Estimate & quote, with no box or SMT line step", () => {
+    expect(WORKFLOW.map((s) => `${s.n}:${s.key}`)).toEqual(["1:bom", "2:gerbers", "3:footprint", "4:lines", "5:board", "6:parts", "7:quote"]);
+    expect(WORKFLOW.map((s) => s.label)).toEqual(["BoM", "Gerber", "Footprint & mismatch", "Line possible", "Bare board", "Components", "Estimate & quote"]);
+    expect(WORKFLOW.map((s) => s.sections.map((x) => x.key))).toEqual([["bom"], ["gerbers"], ["match", "mismatch"], ["lines", "route"], ["board"], ["parts"], ["feasibility", "quote"]]);
     expect(WORKFLOW.some((s) => s.sections.some((x) => x.key === "box" || x.key === "line"))).toBe(false);
     expect(WORKFLOW.filter((s) => s.optional)).toEqual([]);
     expect(MORE.map((v) => v.key)).toEqual(["analysis", "supply", "viewer"]);
@@ -47,7 +47,8 @@ describe("the BoM process, in seven steps", () => {
 
   it("knows what comes before and after", () => {
     const board = WORKFLOW.find((s) => s.key === "board")!;
-    expect(neighbours(board)).toMatchObject({ prev: { key: "parts" }, next: { key: "quote" } });
+    expect(neighbours(board)).toMatchObject({ prev: { key: "lines" }, next: { key: "parts" } });
+    expect(neighbours(WORKFLOW.find((s) => s.key === "parts")!)).toMatchObject({ prev: { key: "board" }, next: { key: "quote" } });
     expect(neighbours(WORKFLOW[0]).prev).toBeNull();
     expect(neighbours(WORKFLOW[WORKFLOW.length - 1]).next).toBeNull();
   });
@@ -88,7 +89,7 @@ describe("how far a BoM has got", () => {
     const fresh = stepProgress(sectionStates(facts()));
     expect(fresh.steps.map((s) => s.n)).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect([fresh.done, fresh.look]).toEqual([3, 0]);
-    expect(fresh.next).toMatchObject({ n: 6, key: "board", path: "/build/board", state: "todo" });
+    expect(fresh.next).toMatchObject({ n: 5, key: "board", path: "/build/board", state: "todo" });
 
     // The earliest step that needs a look comes first, even when later ones are done.
     const unmatched = stepProgress(sectionStates(facts({ unmatched: 1, review: { passed: true, signed: 9, gates: 9 }, draft: { board: true, box: false, issued: true } })));

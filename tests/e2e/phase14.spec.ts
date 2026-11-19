@@ -35,7 +35,7 @@ test("Gerbers without a BoM: components read off the board, a BoM from them, a p
   // A fresh revision each run, so the spec also passes on a database it has run on before.
   await page.getByLabel("Revision").fill(`E2E-${Date.now().toString(36).slice(-5)}`);
   await page.getByRole("button", { name: "Create the BoM and quote it" }).click();
-  // A new BoM opens on step 4, footprint & mismatch: made from the board, every footprint agrees.
+  // A new BoM opens on step 3, footprint & mismatch: made from the board, every footprint agrees.
   await expect(page).toHaveURL(/\/match$/, { timeout: 180_000 });
   await expect(page.getByRole("heading", { name: "BoM and board match" })).toBeVisible();
 

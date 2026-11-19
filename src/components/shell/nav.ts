@@ -25,29 +25,19 @@ import {
 import type { Permission } from "@/lib/rbac";
 
 /**
- * The app has exactly four parts, and the menu is those four on one line: 1 BoM · 2 Engineering · 3 Supply ·
- * 4 Factory. A part's own pages are tabs inside that part, not menu entries. Home, the tour, alerts and user admin
- * sit under the logo and the account menu.
+ * The app has three parts, and the menu is those three on one line: 1 Engineering · 2 Supply · 3 Factory (the user
+ * moved the BoM into Supply on 19 Nov 2026). A part's own pages are tabs inside that part, not menu entries: Supply
+ * opens on the BoMs, then the parts catalogue, sourcing and inventory. Home, the tour, alerts and user admin sit
+ * under the logo and the account menu.
  */
 
 /** `permission` hides the page from roles that don't have it; `also` lists other paths that belong to it. */
 export type NavItem = { href: string; label: string; icon: LucideIcon; permission?: Permission; also?: string[] };
-export type Part = { n: 1 | 2 | 3 | 4; key: "bom" | "engineering" | "supply" | "factory"; label: string; icon: LucideIcon; href: string; pages: NavItem[] };
+export type Part = { n: 1 | 2 | 3; key: "engineering" | "supply" | "factory"; label: string; icon: LucideIcon; href: string; pages: NavItem[] };
 
 export const PARTS: Part[] = [
   {
     n: 1,
-    key: "bom",
-    label: "BoM",
-    icon: FileSpreadsheet,
-    href: "/boms",
-    pages: [
-      { href: "/boms", label: "BoMs", icon: FileSpreadsheet },
-      { href: "/boms/new", label: "Upload BoM & Gerbers", icon: FilePlus2 },
-    ],
-  },
-  {
-    n: 2,
     key: "engineering",
     label: "Engineering",
     icon: Wrench,
@@ -62,19 +52,21 @@ export const PARTS: Part[] = [
     ],
   },
   {
-    n: 3,
+    n: 2,
     key: "supply",
     label: "Supply",
     icon: Truck,
-    href: "/parts",
+    href: "/boms",
     pages: [
+      { href: "/boms", label: "BoMs", icon: FileSpreadsheet },
+      { href: "/boms/new", label: "Upload BoM & Gerbers", icon: FilePlus2 },
       { href: "/parts", label: "Parts catalogue", icon: Cpu },
       { href: "/sourcing", label: "Sourcing & RFQ", icon: ShoppingCart },
       { href: "/inventory", label: "Inventory", icon: Warehouse },
     ],
   },
   {
-    n: 4,
+    n: 3,
     key: "factory",
     label: "Factory",
     icon: Factory,
@@ -89,7 +81,7 @@ export const PARTS: Part[] = [
   },
 ];
 
-/** Pages outside the four parts, reached from the logo and the account menu. */
+/** Pages outside the three parts, reached from the logo and the account menu. */
 export const OTHER: NavItem[] = [
   { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/tour", label: "App tour", icon: Compass },

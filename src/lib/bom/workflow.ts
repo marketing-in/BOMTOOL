@@ -1,7 +1,7 @@
 /**
  * One BoM's process, in seven steps, as the user set them on 18 Nov 2026: 1 the BoM · 2 its Gerbers · 3 footprints
- * and mismatches (the BoM against the board) · 4 which of our lines can build it, with the process route · 5 its
- * components · 6 the bare board's estimate · 7 the estimate and quote. The steps run down the left side of every
+ * and mismatches (the BoM against the board) · 4 which of our lines can build it, with the process route · 5 the
+ * bare board's estimate · 6 its components · 7 the estimate and quote. The steps run down the left side of every
  * BoM page; the views (Analysis, Supply chain, 3D view) sit on top. The SMT line is no longer a step: it runs in the
  * 3D view, beside the board in 3D, 2D and layers. There is no box step either. A section's old address still works:
  * it opens its step's page (or the 3D view) at that section. Pure.
@@ -40,8 +40,8 @@ export const WORKFLOW: Step[] = [
       { key: "route", label: "Process route", path: "/route", anchor: "route" },
     ],
   },
-  { key: "parts", n: 5, label: "Components", path: "/build/parts", sections: [{ key: "parts", label: "Components", path: "/build/parts", anchor: "components" }] },
-  { key: "board", n: 6, label: "Bare board", path: "/build/board", sections: [{ key: "board", label: "Bare board", path: "/build/board", anchor: "bare-board", also: ["/build"] }] },
+  { key: "board", n: 5, label: "Bare board", path: "/build/board", sections: [{ key: "board", label: "Bare board", path: "/build/board", anchor: "bare-board", also: ["/build"] }] },
+  { key: "parts", n: 6, label: "Components", path: "/build/parts", sections: [{ key: "parts", label: "Components", path: "/build/parts", anchor: "components" }] },
   {
     key: "quote",
     n: 7,

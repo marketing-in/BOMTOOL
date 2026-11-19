@@ -16,7 +16,7 @@ export default async function BomLayout({ children, params }: { children: React.
       <div className="min-w-0">
         <BomTopBar id={id} name={wf.name} />
         {children}
-        <WorkflowFooter id={id} matchBlocked={wf.matchBlocked} />
+        <WorkflowFooter id={id} matchBlocked={wf.matchBlocked} heldNote={wf.matchHeld} />
       </div>
     </div>
   );

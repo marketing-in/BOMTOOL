@@ -59,7 +59,7 @@ export function BuildHeader({
   return (
     <div className="mb-6">
       {section ? (
-        // Components (5) and the bare board (6) are steps of their own and the box a page of its own: their titles already name them.
+        // The bare board (5) and components (6) are steps of their own and the box a page of its own: their titles already name them.
         current === "box" || current === "board" || current === "parts" ? null : (
           <h2 className="page-heading text-2xl leading-tight font-semibold tracking-tight">
             {STEP_TITLE[current]}
