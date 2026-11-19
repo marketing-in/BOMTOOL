@@ -30,7 +30,9 @@ export default async function GerbersSection({ id }: { id: string }) {
   });
   if (!rev) notFound();
   const linked = await db.placement.count({ where: { revisionId: id, bomLineId: { not: null } } });
-  const files = (rev.board?.files ?? []) as { name: string; type: string; side: string }[];
+  const files = (rev.board?.files ?? []) as { name: string; type: string; side: string; label?: string }[];
+  // Fabrication drawings received with the layers (via plugging, drill drawings): listed, never drawn.
+  const drawings = files.filter((f) => f.type === "drawing").length;
   const gerbers = rev.board?.source === "gerber";
   const placements = rev._count.placements;
   const uploaded = gerbers || placements > 0;
@@ -57,7 +59,7 @@ export default async function GerbersSection({ id }: { id: string }) {
         {files.map((f) => (
           <li key={f.name} className="flex justify-between gap-2 px-4 py-1.5">
             <span className="num truncate">{f.name}</span>
-            <span className="shrink-0 text-muted-foreground">{f.type} · {f.side}</span>
+            <span className="shrink-0 text-muted-foreground">{f.type === "drawing" ? `${f.label ?? "drawing"} · not used for the board` : `${f.type} · ${f.side}`}</span>
           </li>
         ))}
       </ul>
@@ -80,7 +82,7 @@ export default async function GerbersSection({ id }: { id: string }) {
             items={[
               { label: "Board size", value: rev.board ? `${rev.board.widthMm.toFixed(1)} × ${rev.board.heightMm.toFixed(1)}` : "—", unit: "mm" },
               { label: "Copper layers", value: rev.board?.layerCount ?? "—" },
-              { label: "Layer files", value: gerbers ? files.length : "none", tone: gerbers ? undefined : "amber", note: gerbers ? undefined : "drawn from the project spec" },
+              { label: "Layer files", value: gerbers ? files.length : "none", tone: gerbers ? undefined : "amber", note: gerbers ? (drawings ? `incl. ${drawings} fab drawing${drawings === 1 ? "" : "s"}, not drawn` : undefined) : "drawn from the project spec" },
               {
                 label: "Placements",
                 value: placements || "none",

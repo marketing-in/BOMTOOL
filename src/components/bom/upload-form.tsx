@@ -10,13 +10,15 @@ import { PackStrip } from "@/components/bom/pack-strip";
 import { sameCustomer, type FormDefaults } from "@/lib/bom/details";
 import type { PackSummary } from "@/lib/bom/workbook";
 import type { PreviewReply, PreviewRequest } from "@/lib/bom/preview.worker";
+import { boardAfter, routeFiles } from "@/lib/bom/route-files";
 import { cn } from "@/lib/utils";
 
 const ACCEPT = ".xlsx,.xls,.xlsm,.csv,.tsv,.txt";
 /** Files read in the browser before upload; a larger one is read on the server only. */
 const PREVIEW_BYTES = 10 * 1024 * 1024;
 
-type Preview = { summary: PackSummary; defaults: FormDefaults; bomSheets: string[]; bomFound: boolean };
+/** `columns`: whether the upload will take the columns without the mapping page, and the header's template signature. */
+type Preview = { summary: PackSummary; defaults: FormDefaults; bomSheets: string[]; bomFound: boolean; columns: { certain: boolean; signature: string } };
 type Filled = "project" | "bomName" | "revision" | "buildQty" | "customer";
 
 /**
@@ -59,6 +61,8 @@ const field =
 
 type Props = {
   customers: { id: string; name: string }[];
+  /** Each customer's saved column templates, by header signature: an upload with one of these headers skips the mapping page. */
+  templates?: Record<string, string[]>;
   projects: { name: string; customerId: string; boms: string[] }[];
   defaults: { customerId?: string; project?: string; bomName?: string; revision: string; stage: string };
   /** Revisions the BoM already has (a new revision of an existing BoM): the file's own is not offered when taken. */
@@ -71,7 +75,7 @@ function formatSize(bytes: number) {
   return bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(0)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export function UploadForm({ customers, projects, defaults, preview, takenRevisions = [] }: Props) {
+export function UploadForm({ customers, templates = {}, projects, defaults, preview, takenRevisions = [] }: Props) {
   const [state, action, pending] = useActionState(uploadBom, undefined);
   const [file, setFile] = useState<File | null>(null);
   // From a quick look with components, the board itself can be the BoM.
@@ -79,8 +83,11 @@ export function UploadForm({ customers, projects, defaults, preview, takenRevisi
   const [dragging, setDragging] = useState(false);
   // Gerbers alone are enough to start: their components become the BoM.
   const [boardFiles, setBoardFiles] = useState<File[]>([]);
+  const boardList = useRef<File[]>([]);
   const [draggingBoard, setDraggingBoard] = useState(false);
   const boardRef = useRef<HTMLInputElement>(null);
+  // A spreadsheet taken off the board box as the BoM, until the reader says it holds one (else it goes back).
+  const tentative = useRef<File | null>(null);
   const boardCount = boardFiles.length;
   const gerbersOnly = !fromBoard && !file && boardCount > 0;
   const hasBoard = !!preview || boardCount > 0;
@@ -165,7 +172,10 @@ export function UploadForm({ customers, projects, defaults, preview, takenRevisi
   /** Reads every sheet in the browser (the reader loads on first use), to show what will be taken before upload. */
   async function readFile(f: File, choice: string[] | null) {
     const seq = ++readSeq.current;
+    // Taken off the board box: only a BoM the reader confirms stays one. Too large to read here, the server decides.
+    const unsure = tentative.current === f && !choice;
     if (f.size > PREVIEW_BYTES) {
+      if (unsure) return giveBack(f);
       setRead(null);
       if (!choice) clearFilled();
       return;
@@ -174,17 +184,39 @@ export function UploadForm({ customers, projects, defaults, preview, takenRevisi
     try {
       const data = await readInBrowser(f, choice, seq, worker.current);
       if (seq !== readSeq.current) return;
+      if (unsure) tentative.current = null;
+      if (unsure && !data.bomFound) return giveBack(f);
       setRead({ status: "done", data });
       if (!choice) prefill(data.defaults);
     } catch (e) {
       if (seq !== readSeq.current) return;
+      if (unsure) return giveBack(f);
       setRead({ status: "error", message: e instanceof Error ? e.message : "The file could not be read." });
       if (!choice) clearFilled();
     }
   }
 
-  function takeFile(f: File | undefined | null) {
+  function clearBom() {
+    setFile(null);
+    setRead(null);
+    setBomChoice(null);
+    clearFilled();
+    tentative.current = null;
+    readSeq.current++;
+    worker.current.worker?.terminate();
+    worker.current.worker = null;
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
+  /** A spreadsheet from the board box that holds no BoM (a pick-and-place workbook): back with the board files. */
+  function giveBack(f: File) {
+    clearBom();
+    setBoard([...boardList.current.filter((b) => b !== f), f]);
+  }
+
+  function takeFile(f: File | undefined | null, fromBoardBox = false) {
     if (!f) return;
+    tentative.current = fromBoardBox ? f : null;
     setFile(f);
     setBomChoice(null);
     // Keep the real <input type=file> in sync so the form submits the dropped file.
@@ -206,9 +238,8 @@ export function UploadForm({ customers, projects, defaults, preview, takenRevisi
     void readFile(file, next);
   }
 
-  function takeBoard(list: FileList | File[] | null | undefined) {
-    const files = Array.from(list ?? []);
-    if (!files.length) return;
+  function setBoard(files: File[]) {
+    boardList.current = files;
     setBoardFiles(files);
     // Keep the real <input type=file> in sync so the form submits dropped files.
     if (boardRef.current) {
@@ -217,6 +248,25 @@ export function UploadForm({ customers, projects, defaults, preview, takenRevisi
       boardRef.current.files = dt.files;
     }
   }
+
+  /**
+   * Files dropped or picked on either box, each sent where it belongs: the BoM spreadsheet to the BoM, the Gerber zip,
+   * layers, drill and pick-and-place files to the board files. The BoM workbook and the Gerber zip can come together.
+   */
+  function takeFiles(list: FileList | File[] | null | undefined, zone: "bom" | "board") {
+    const files = Array.from(list ?? []);
+    if (!files.length) return;
+    const { bom, board } = routeFiles(files, { zone, hasBom: !!file });
+    // With a quick look's board there is no board box: only the BoM is taken. A pick on the board box always syncs its
+    // input again: the picker replaced the input's files, even when the pick was only the BoM.
+    const next = boardAfter(boardList.current, board, zone);
+    if (next && !preview) setBoard(next);
+    if (bom) takeFile(bom, zone === "board");
+  }
+
+  // Columns the upload will take without the mapping page: certain from the file, or this customer's saved template.
+  const columns = file && !fromBoard && read?.status === "done" ? read.data.columns : null;
+  const certain = !!columns && (columns.certain || (templates[customerId] ?? []).includes(columns.signature));
 
   // The flow in one picture: what is in so far lights up.
   const flow = [
@@ -283,7 +333,7 @@ export function UploadForm({ customers, projects, defaults, preview, takenRevisi
           onDrop={(e) => {
             e.preventDefault();
             setDragging(false);
-            takeFile(e.dataTransfer.files?.[0]);
+            takeFiles(e.dataTransfer.files, "bom");
           }}
           className={cn(
             "flex min-h-64 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed bg-card px-6 py-10 text-center transition-colors duration-150",
@@ -329,7 +379,7 @@ export function UploadForm({ customers, projects, defaults, preview, takenRevisi
             onDrop={(e) => {
               e.preventDefault();
               setDraggingBoard(false);
-              takeBoard(e.dataTransfer.files);
+              takeFiles(e.dataTransfer.files, "board");
             }}
             className={cn(
               "flex min-h-64 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border border-dashed bg-card px-6 py-10 text-center transition-colors duration-150",
@@ -337,7 +387,7 @@ export function UploadForm({ customers, projects, defaults, preview, takenRevisi
               draggingBoard ? "border-foreground bg-part-soft" : "hover:bg-part-soft/50",
             )}
           >
-            <input ref={boardRef} type="file" name="boardFiles" multiple className="sr-only" onChange={(e) => takeBoard(e.target.files)} aria-label="Board files" />
+            <input ref={boardRef} type="file" name="boardFiles" multiple className="sr-only" onChange={(e) => takeFiles(e.target.files, "board")} aria-label="Board files" />
             {boardCount ? (
               <>
                 <Layers className="size-8 text-risk-green" aria-hidden />
@@ -363,16 +413,7 @@ export function UploadForm({ customers, projects, defaults, preview, takenRevisi
         {file && !fromBoard ? (
           <button
             type="button"
-            onClick={() => {
-              setFile(null);
-              setRead(null);
-              setBomChoice(null);
-              clearFilled();
-              readSeq.current++;
-              worker.current.worker?.terminate();
-              worker.current.worker = null;
-              if (inputRef.current) inputRef.current.value = "";
-            }}
+            onClick={clearBom}
             className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
           >
             <X className="size-3" /> Remove file
@@ -498,9 +539,22 @@ export function UploadForm({ customers, projects, defaults, preview, takenRevisi
         {gerbersOnly ? (
           <p className="text-xs text-muted-foreground">No BoM file: the parts on the Gerbers become the BoM.</p>
         ) : null}
+        {certain ? <p className="text-xs text-muted-foreground">Columns recognised: no mapping step. Check them any time from step 3.</p> : null}
         <Button type="submit" className="h-10 w-full" disabled={(!file && !fromBoard && !boardCount) || pending}>
           {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
-          {pending && gerbersOnly ? "Reading the Gerbers…" : fromBoard ? "Create the BoM and quote it" : gerbersOnly ? "Read the board and check the process" : "Continue to column mapping"}
+          {pending && gerbersOnly
+            ? "Reading the Gerbers…"
+            : pending && certain
+              ? "Matching parts…"
+              : fromBoard
+                ? "Create the BoM and quote it"
+                : gerbersOnly
+                  ? "Read the board and check the process"
+                  : certain
+                    ? hasBoard
+                      ? "Check footprints"
+                      : "Match & score BoM"
+                    : "Continue to column mapping"}
         </Button>
       </div>
     </form>

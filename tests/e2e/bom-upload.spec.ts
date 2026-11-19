@@ -31,7 +31,11 @@ async function upload(page: Page, file: string, bomName: string) {
   await page.getByLabel("Project / product").fill("E2E test project");
   await page.getByLabel("Assembly / BoM name").fill(bomName);
   await page.getByLabel("Build qty").fill("250");
-  await page.getByRole("button", { name: "Continue to column mapping" }).click();
+  // Columns this clear are taken without asking: the upload matches the BoM and opens the footprint match (step 3).
+  await page.getByRole("button", { name: "Match & score BoM" }).click();
+  await expect(page).toHaveURL(/\/match$/, { timeout: 180_000 });
+  // The mapping page is one click away.
+  await page.getByRole("link", { name: "Check columns" }).click();
   await expect(page.getByRole("heading", { name: /Map columns/ })).toBeVisible();
 }
 

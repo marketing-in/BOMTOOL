@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { confirmMapping } from "@/app/(app)/boms/actions";
-import { BOM_FIELDS, BOM_FIELD_LABEL, type BomField, type ColumnMapping } from "@/lib/bom/fields";
+import { BOM_FIELDS, BOM_FIELD_LABEL, missingFields, type BomField, type ColumnMapping } from "@/lib/bom/fields";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -28,12 +28,7 @@ export function MappingEditor({ revisionId, rows, totalRows, initialHeaderRow, i
 
   const header = rows[headerRow] ?? [];
   const preview = rows.slice(headerRow + 1, headerRow + 13);
-  const missing = useMemo(() => {
-    const m: string[] = [];
-    if (!mapping.includes("mpn") && !mapping.includes("description") && !mapping.includes("value")) m.push("MPN, Description or Value");
-    if (!mapping.includes("qty") && !mapping.includes("refDes")) m.push("Qty or RefDes");
-    return m;
-  }, [mapping]);
+  const missing = useMemo(() => missingFields(mapping), [mapping]);
 
   function setField(col: number, value: string) {
     const field = (value || null) as BomField | null;

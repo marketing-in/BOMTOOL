@@ -94,9 +94,8 @@ test("compliance report, Excel export, alerts and revision diff", async ({ page 
   await page.getByLabel("Project / product").fill("LD-60 Constant-Current LED Driver");
   await page.getByLabel("Assembly / BoM name").fill("LD-60 Driver Board");
   await page.getByLabel("Revision").fill(`B${Date.now().toString().slice(-4)}`);
-  await page.getByRole("button", { name: "Continue to column mapping" }).click();
+  // The columns are clear: the upload matches the BoM and opens the footprint match; the BoM itself is step 1 of the strip.
   await page.getByRole("button", { name: "Match & score BoM" }).click();
-  // Matching opens the footprint match; the BoM itself is step 1 of the strip.
   await expect(page).toHaveURL(/\/match$/, { timeout: 180_000 });
   await page.getByRole("navigation", { name: /^Process for/ }).getByRole("link", { name: /^(1\s*)?BoM\b/ }).click();
   // Comparing revisions lives under More on the BoM page.

@@ -12,10 +12,10 @@ import { PackStrip } from "@/components/bom/pack-strip";
 
 export const metadata = { title: "Map columns" };
 
-export default async function MapPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ template?: string; boardError?: string }> }) {
+export default async function MapPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ template?: string; boardError?: string; matchError?: string }> }) {
   await requireUser("bom.write");
   const { id } = await params;
-  const { template, boardError } = await searchParams;
+  const { template, boardError, matchError } = await searchParams;
   const rev = await db.bomRevision.findUnique({ where: { id }, include: { bom: { include: { project: { include: { customer: true } } } }, board: { select: { source: true, layerCount: true, widthMm: true, heightMm: true } } } });
   if (!rev) notFound();
   const rows = (rev.rawRows ?? []) as string[][];
@@ -34,7 +34,7 @@ export default async function MapPage({ params, searchParams }: { params: Promis
           <>
             <span className="num">{rev.sourceFileName}</span>
             {rev.sheetName ? <> · sheet “{rev.sheetName}”</> : null} · {rows.length} rows ·{" "}
-            {template ? "saved template" : "auto-detected — check before matching"}
+            {rev.status !== "DRAFT" ? "matched with these columns — change one and match again" : template ? "saved template" : "auto-detected — check before matching"}
           </>
         }
         actions={impact ? <DeleteRevisionButton revisionId={rev.id} impact={impact} /> : undefined}
@@ -46,6 +46,11 @@ export default async function MapPage({ params, searchParams }: { params: Promis
       ) : boardError ? (
         <p role="alert" className="mb-4 rounded-md border border-risk-amber/40 bg-risk-amber-soft px-4 py-2.5 text-sm">
           The board files couldn&apos;t be drawn. Upload them again from <em>Gerbers &amp; centroid</em>.
+        </p>
+      ) : null}
+      {matchError && rev.status === "DRAFT" ? (
+        <p role="alert" className="mb-4 rounded-md border border-risk-amber/40 bg-risk-amber-soft px-4 py-2.5 text-sm">
+          The columns were recognised, but matching the parts failed. Check the columns and match again.
         </p>
       ) : null}
       {pack ? <PackStrip pack={pack} className="mb-4" /> : null}

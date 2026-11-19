@@ -121,3 +121,14 @@ export const workflowFor = cache(async (revisionId: string) => {
   const matchBlocked = rev.status !== "DRAFT" && match.hasBoard && match.level === "red";
   return { name: `${rev.bom.name} rev ${rev.revision}`, states: sectionStates(facts), matchBlocked, matchHeld: matchBlocked ? matchHeldNote(match) : null };
 });
+
+/**
+ * How the revision's columns were last taken: by the upload on its own (a saved template, or an automatic mapping it
+ * was sure of), or null when a person confirmed them on the mapping page. Read from the audit log.
+ */
+export const columnsTakenFor = cache(async (revisionId: string): Promise<{ via: "template" | "auto"; columns: string[] } | null> => {
+  const last = await db.auditLog.findFirst({ where: { entity: "BomRevision", entityId: revisionId, action: "bom.map" }, orderBy: { createdAt: "desc" }, select: { data: true } });
+  const d = (last?.data ?? null) as { auto?: unknown; via?: unknown; columns?: unknown } | null;
+  if (!d || d.auto !== true) return null;
+  return { via: d.via === "template" ? "template" : "auto", columns: Array.isArray(d.columns) ? d.columns.filter((c): c is string => typeof c === "string") : [] };
+});

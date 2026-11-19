@@ -8,11 +8,16 @@ import { groupFound, type FoundParts } from "@/lib/board/find-parts";
 
 export const metadata = { title: "Upload BoM" };
 
+/** The header signatures of a customer's saved column templates: the form says when an upload will use one. */
+function templateSignatures(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.map((t) => (t && typeof t === "object" && typeof (t as { signature?: unknown }).signature === "string" ? (t as { signature: string }).signature : "")).filter(Boolean) : [];
+}
+
 export default async function NewBomPage({ searchParams }: { searchParams: Promise<{ bom?: string; board?: string }> }) {
   const user = await requireUser();
   const { bom: bomId, board: previewId } = await searchParams;
   const [customers, projects, existing, preview] = await Promise.all([
-    db.customer.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    db.customer.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, bomTemplates: true } }),
     db.project.findMany({ orderBy: { name: "asc" }, select: { name: true, customerId: true, boms: { select: { name: true } } } }),
     bomId
       ? db.bom.findUnique({ where: { id: bomId }, include: { project: true, revisions: { select: { revision: true }, orderBy: { createdAt: "asc" } } } })
@@ -33,7 +38,8 @@ export default async function NewBomPage({ searchParams }: { searchParams: Promi
       />
       {can(user.role, "bom.write") ? (
         <UploadForm
-          customers={customers}
+          customers={customers.map((c) => ({ id: c.id, name: c.name }))}
+          templates={Object.fromEntries(customers.map((c) => [c.id, templateSignatures(c.bomTemplates)]))}
           projects={projects.map((p) => ({ name: p.name, customerId: p.customerId, boms: p.boms.map((b) => b.name) }))}
           preview={
             preview

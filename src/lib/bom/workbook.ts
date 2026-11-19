@@ -7,7 +7,8 @@
  */
 import { readSheets, type ReadSheet } from "./parse";
 import type { SheetKind } from "./sheet-kinds";
-import { autoMap, detectHeaderRow, isHeaderLike, normaliseHeader } from "./columns";
+import { autoMap, detectHeaderRow, headerSignature, isHeaderLike, normaliseHeader } from "./columns";
+import { certainMapping } from "./certain-mapping";
 import type { BomField, ColumnMapping } from "./fields";
 import { findBareBoard, scrubRows, type ScrubbedLine } from "./scrub";
 import { boardSpecLabel, parseBoardSpec, type BoardSpecText } from "./bare-board";
@@ -652,6 +653,28 @@ export function readJobPack(data: ArrayBuffer | Uint8Array, fileName: string, op
   return pack;
 }
 
+/** Spreadsheets that can carry a BoM when they come among the board files. A .txt there is a drill file. */
+export const BOM_AMONG_BOARD_FILES = /\.(xlsx|xlsm|xls|csv|tsv)$/i;
+
+/**
+ * The BoM sent among the board files: a customer often drops their workbook beside the Gerber zip. The first
+ * spreadsheet that reads as a BoM (a sheet that reads like one, not a fallback) is the BoM, and its placement sheet
+ * still says where the parts sit; a pick-and-place file holds no BoM and stays a board file. Null when there is none.
+ */
+export function bomAmong(files: { name: string; bytes: Uint8Array }[]): { index: number; pack: JobPack } | null {
+  for (let index = 0; index < files.length; index++) {
+    const f = files[index];
+    if (!BOM_AMONG_BOARD_FILES.test(f.name)) continue;
+    try {
+      const pack = readJobPack(f.bytes, f.name);
+      if (pack.bomFound) return { index, pack };
+    } catch {
+      // Not a table the reader can open: it stays a board file.
+    }
+  }
+  return null;
+}
+
 /** The pack against the BoM's own designators, once the columns are known. */
 export function checkPackAgainstBom(pack: Pick<JobPack, "placements" | "notFitted" | "loads"> & { boards?: JobPack["boards"] }, lines: { refDes: string | null; mpn: string | null; dnp: boolean }[]): PackFinding[] {
   const out: PackFinding[] = [];
@@ -845,9 +868,13 @@ export function summaryWorthKeeping(s: PackSummary): boolean {
 export function previewPack(data: ArrayBuffer | Uint8Array, fileName: string, opts: { bomSheets?: string[] } = {}) {
   const pack = readJobPack(data, fileName, opts);
   const header = pack.rows[pack.headerRow] ?? [];
-  const { mapping } = autoMap(header, pack.rows.slice(pack.headerRow + 1));
-  const { summary } = summarisePack(pack, { rows: pack.rows, headerRow: pack.headerRow, mapping });
-  return { summary, defaults: formDefaults(pack.details), bomSheet: pack.bomSheet, bomSheets: pack.bomSheets, bomFound: pack.bomFound, rows: pack.rows.length - pack.headerRow - 1 };
+  const { mapping, confidence } = autoMap(header, pack.rows.slice(pack.headerRow + 1));
+  const { summary, rows } = summarisePack(pack, { rows: pack.rows, headerRow: pack.headerRow, mapping });
+  // Whether the upload will skip the mapping page: the columns are certain, or a customer's saved template has this
+  // header's signature (the form knows each customer's signatures; the server decides again on upload).
+  const own = pack.ownColumns ? Math.min(pack.ownColumns, header.length) : header.length;
+  const certain = certainMapping({ rows, headerRow: pack.headerRow, mapping, confidence, bomFound: pack.bomFound }).certain;
+  return { summary, defaults: formDefaults(pack.details), bomSheet: pack.bomSheet, bomSheets: pack.bomSheets, bomFound: pack.bomFound, rows: pack.rows.length - pack.headerRow - 1, columns: { certain, signature: headerSignature(header.slice(0, own)) } };
 }
 
 export function readPackSummary(raw: unknown): PackSummary | null {

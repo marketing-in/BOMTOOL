@@ -29,7 +29,10 @@ export type BoardArtwork = {
 /** Renders Gerber/drill files with tracespace pcb-stackup into per-layer and composite SVGs. */
 export async function renderGerbers(files: { name: string; text: string }[], opts: { maskColor: string; finish: string }): Promise<{ artwork: BoardArtwork; files: (LayerInfo & { name: string })[] }> {
   const { default: pcbStackup } = (await import("pcb-stackup")) as unknown as { default: PcbStackupFn };
-  const classified = files.map((f) => ({ ...f, info: classifyLayer(f.name, f.text) })).filter((f) => f.info.type !== "unknown" && f.info.type !== "drawing");
+  const read = files.map((f) => ({ ...f, info: classifyLayer(f.name, f.text) }));
+  const classified = read.filter((f) => f.info.type !== "unknown" && f.info.type !== "drawing");
+  // Fabrication drawings (via plugging, drill drawings) are named among the files received but never drawn.
+  const drawings = read.filter((f) => f.info.type === "drawing");
   const MASK: Record<string, string> = { green: "rgba(0, 92, 38, 0.82)", black: "rgba(18, 18, 20, 0.88)", blue: "rgba(10, 52, 120, 0.82)", red: "rgba(120, 18, 18, 0.82)", white: "rgba(235, 235, 230, 0.9)" };
   const stack = await pcbStackup(
     classified.map((f) => ({ filename: f.name, gerber: f.text, type: f.info.type === "outline" ? "outline" : f.info.type, side: f.info.side })),
@@ -61,7 +64,7 @@ export async function renderGerbers(files: { name: string; text: string }[], opt
       layers,
       box: vb ? { x: (vb[0] / 1000) * scale, y: (vb[1] / 1000) * scale, w: (vb[2] / 1000) * scale, h: (vb[3] / 1000) * scale } : null,
     },
-    files: classified.map((f) => ({ name: f.name, ...f.info })),
+    files: [...classified, ...drawings].map((f) => ({ name: f.name, ...f.info })),
   };
 }
 
@@ -155,7 +158,7 @@ export async function saveGerbers(db: Db, revisionId: string, files: { name: str
     fab: (fabOf(files, opts.panel) ?? Prisma.JsonNull) as Prisma.InputJsonValue,
   };
   await db.boardModel.upsert({ where: { revisionId }, create: { revisionId, ...data }, update: data });
-  return { layers: info.length, copper, width: data.widthMm, height: data.heightMm };
+  return { layers: info.filter((f) => f.type !== "drawing").length, copper, width: data.widthMm, height: data.heightMm };
 }
 
 /** Renders a Gerber set that has no BoM yet into a shareable quick-look board. */

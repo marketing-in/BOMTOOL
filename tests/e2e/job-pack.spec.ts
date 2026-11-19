@@ -73,8 +73,18 @@ test("A job pack: every sheet is read, the panel is cut to one board, and the en
   await page.getByLabel("Project / product").fill(`E2E job pack ${Date.now().toString(36).slice(-5)}`);
   await page.getByLabel("Assembly / BoM name").fill("Sensor board");
   await page.getByLabel("Revision").fill("1.0");
-  await page.getByRole("button", { name: "Continue to column mapping" }).click();
-  await expect(page.getByRole("heading", { name: /Map columns/ })).toBeVisible({ timeout: 240_000 });
+  // This header is read the same way every time: the upload takes the columns and opens the footprint match (step 3).
+  await page.getByRole("button", { name: "Check footprints" }).click();
+  await expect(page).toHaveURL(/\/match$/, { timeout: 240_000 });
+  // Footprints agree; R1's value does not: 10 kΩ in the BoM, 4.7 kΩ on the board. A wrong value is a stop.
+  await expect(page.getByRole("heading", { name: "BoM and board do not match" })).toBeVisible();
+  await expect(page.getByText("value: BoM 10 kΩ, board 4.7 kΩ", { exact: true })).toBeVisible();
+  const id = page.url().match(/\/boms\/([a-z0-9]+)\//)![1];
+
+  // The columns were taken without the mapping page, which is one click away and shows what was read from the file.
+  await expect(page.getByText(/^Columns read (automatically|with the saved mapping)$/)).toBeVisible();
+  await page.getByRole("link", { name: "Check columns" }).click();
+  await expect(page.getByRole("heading", { name: /Map columns/ })).toBeVisible({ timeout: 120_000 });
 
   // Every sheet is named, the bare board's line is read, the not-fitted part is added, the panel is recognised.
   const read = page.getByRole("region", { name: "Read from the file" });
@@ -93,12 +103,11 @@ test("A job pack: every sheet is read, the panel is cut to one board, and the en
   await expect(page.getByLabel("Field for column Part", { exact: true })).toHaveValue("description");
   await expect(page.getByLabel("Field for column MFR P No")).toHaveValue("mpn");
 
+  // Confirming the columns matches again and comes back to step 3; a person has checked them now.
   await page.getByRole("button", { name: "Match & score BoM" }).click();
   await expect(page).toHaveURL(/\/match$/, { timeout: 240_000 });
-  // Footprints agree; R1's value does not: 10 kΩ in the BoM, 4.7 kΩ on the board. A wrong value is a stop.
   await expect(page.getByRole("heading", { name: "BoM and board do not match" })).toBeVisible();
-  await expect(page.getByText("value: BoM 10 kΩ, board 4.7 kΩ", { exact: true })).toBeVisible();
-  const id = page.url().match(/\/boms\/([a-z0-9]+)\//)![1];
+  await expect(page.getByRole("link", { name: "Check columns" })).toHaveCount(0);
 
   // The BoM: two fitted lines and the not-fitted one; the bare board is not a line.
   await page.goto(`/boms/${id}`);

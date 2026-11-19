@@ -5,7 +5,7 @@ import { WORKFLOW, type SectionKey, type StepKey } from "@/lib/bom/workflow";
  * One step of a BoM's process as one page: its number and name, a row of links to its sections, then each section in
  * order under a rule. Each section streams in on its own, so a slow one (the components) does not hold up the rest.
  */
-export function StepPage({ step: key, sections }: { step: StepKey; sections: Partial<Record<SectionKey, React.ReactNode>> }) {
+export function StepPage({ step: key, sections, note }: { step: StepKey; sections: Partial<Record<SectionKey, React.ReactNode>>; /** A quiet line under the heading. */ note?: React.ReactNode }) {
   const step = WORKFLOW.find((s) => s.key === key)!;
   const shown = step.sections.filter((s) => sections[s.key] !== undefined);
   return (
@@ -15,6 +15,7 @@ export function StepPage({ step: key, sections }: { step: StepKey; sections: Par
           <span className="num text-muted-foreground">{step.n}.</span> {step.label}
           {step.optional ? <span className="ml-3 align-middle text-sm font-normal text-muted-foreground">optional</span> : null}
         </h1>
+        {note}
         {shown.length > 1 ? (
           <nav aria-label="On this page" className="mt-4">
             <ol className="flex flex-wrap gap-2">

@@ -8,8 +8,9 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { MAX_BOM_BYTES } from "@/lib/bom/parse";
 import { autoMap, detectHeaderRow, headerSignature, templateMapping } from "@/lib/bom/columns";
-import { boardSpecFromDetails, pickDetail, readJobPack, readPackSummary, sameRevision, summarisePack, summaryWorthKeeping, type JobPack, type PackSummary } from "@/lib/bom/workbook";
-import { isBomField, type ColumnMapping } from "@/lib/bom/fields";
+import { BOM_AMONG_BOARD_FILES, boardSpecFromDetails, bomAmong, pickDetail, readJobPack, readPackSummary, sameRevision, summarisePack, summaryWorthKeeping, type JobPack, type PackSummary } from "@/lib/bom/workbook";
+import { isBomField, mappingProblem, type ColumnMapping } from "@/lib/bom/fields";
+import { certainMapping, decidingColumns, type Certainty } from "@/lib/bom/certain-mapping";
 import { ingestRevision, scoreRevision } from "@/server/bom-pipeline";
 import { MAX_UPLOAD_BYTES, sortBoardFiles, type BoardFiles } from "@/lib/board/upload";
 import { hasRealDesignators, linkPlacements, saveGerbers, savePlacements, savePlacementsFromFile, savePlacementsFromFound } from "@/server/board";
@@ -50,9 +51,28 @@ export async function uploadBom(_prev: ActionState, form: FormData): Promise<Act
   let found = (preview?.components ?? null) as FoundParts | null;
   let fromBoard = form.get("useFound") === "1";
 
+  const file = form.get("file");
+  const hasFile = file instanceof File && file.size > 0;
   // Board files (Gerber zip or layers, drill, centroid), or the Gerbers of a quick look. Read first: with no BoM
   // file, the Gerbers alone are enough to start — their components become the BoM.
-  const boardUploads = form.getAll("boardFiles").filter((f): f is File => f instanceof File && f.size > 0);
+  let boardUploads = form.getAll("boardFiles").filter((f): f is File => f instanceof File && f.size > 0);
+  // The BoM sent among the board files (a customer's workbook beside the Gerber zip): a spreadsheet there that reads as
+  // a BoM is the BoM, not the pick-and-place file. Its placement sheet still says where the parts sit.
+  const sent = hasFile ? file : null;
+  let bomFile: File | null = sent;
+  let packRead: JobPack | null = null;
+  // The same workbook given as the BoM and again among the board files is the BoM only.
+  if (sent) boardUploads = boardUploads.filter((f) => !(f.name === sent.name && f.size === sent.size));
+  else if (!fromBoard) {
+    const sheets = boardUploads.filter((f) => BOM_AMONG_BOARD_FILES.test(f.name) && f.size <= MAX_BOM_BYTES);
+    const among = bomAmong(await Promise.all(sheets.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) }))));
+    if (among) {
+      const taken = sheets[among.index];
+      bomFile = taken;
+      packRead = among.pack;
+      boardUploads = boardUploads.filter((f) => f !== taken);
+    }
+  }
   if (boardUploads.reduce((s, f) => s + f.size, 0) > MAX_UPLOAD_BYTES) return { error: "Board files exceed 20 MB in total." };
   let board: BoardFiles | null = null;
   if (boardUploads.length) {
@@ -64,8 +84,6 @@ export async function uploadBom(_prev: ActionState, form: FormData): Promise<Act
     if (!board.gerbers.length && !board.centroid) return { error: "No Gerber, drill or centroid files among the board files." };
   }
 
-  const file = form.get("file");
-  const hasFile = file instanceof File && file.size > 0;
   let rows: string[][];
   let sheetName: string | null = null;
   let fileName: string;
@@ -76,7 +94,7 @@ export async function uploadBom(_prev: ActionState, form: FormData): Promise<Act
     if (!found?.parts.length) return { error: "No components were found on that board — upload its BoM file instead." };
     rows = bomRowsFromFound(found);
     fileName = `${preview.name} — components from the Gerbers`;
-  } else if (!hasFile && board?.gerbers.length) {
+  } else if (!bomFile && board?.gerbers.length) {
     // Gerbers only: read the parts off the board (designators from a pick-and-place file or the Gerbers, else guessed from the pads).
     try {
       found = findParts(board.gerbers, board.centroid ? { name: board.centroid.name, text: new TextDecoder().decode(board.centroid.bytes) } : null);
@@ -88,18 +106,18 @@ export async function uploadBom(_prev: ActionState, form: FormData): Promise<Act
     rows = bomRowsFromFound(found);
     fileName = `${input.bomName} — components from the Gerbers`;
   } else {
-    if (!hasFile) return { error: "Choose a BoM file, or Gerber files, to upload." };
-    if (file.size > MAX_BOM_BYTES) return { error: "File is larger than 10 MB." };
+    if (!bomFile) return { error: "Choose a BoM file, or Gerber files, to upload." };
+    if (bomFile.size > MAX_BOM_BYTES) return { error: "File is larger than 10 MB." };
     // The BoM sheet(s) the person chose on the upload form, when the file has several that read like one.
     const bomSheets = form.getAll("bomSheet").filter((v): v is string => typeof v === "string" && !!v);
     try {
-      pack = readJobPack(new Uint8Array(await file.arrayBuffer()), file.name, { bomSheets });
+      pack = packRead ?? readJobPack(new Uint8Array(await bomFile.arrayBuffer()), bomFile.name, { bomSheets });
       rows = pack.rows;
       sheetName = pack.bomSheets.length > 1 ? pack.bomSheets.join(" + ").slice(0, 190) : pack.bomSheet;
     } catch (e) {
       return { error: e instanceof Error ? e.message : "Could not read the file." };
     }
-    fileName = file.name;
+    fileName = bomFile.name;
   }
   if (rows.length < 2) return { error: "The file has no table rows." };
   if (rows.length > MAX_ROWS) return { error: `BoM has ${rows.length} rows; the limit is ${MAX_ROWS}.` };
@@ -131,8 +149,8 @@ export async function uploadBom(_prev: ActionState, form: FormData): Promise<Act
   const signature = headerSignature(rows[headerRow].slice(0, own));
   const templates = (customer.bomTemplates ?? []) as Template[];
   const template = fromBoard ? undefined : templates.find((t) => t.signature === signature && t.mapping.length === own);
-  const auto = autoMap(rows[headerRow], rows.slice(headerRow + 1)).mapping;
-  const mapping = fromBoard ? FOUND_BOM_MAPPING : template ? templateMapping(template.mapping, auto, own) : auto;
+  const auto = autoMap(rows[headerRow], rows.slice(headerRow + 1));
+  const mapping = fromBoard ? FOUND_BOM_MAPPING : template ? templateMapping(template.mapping, auto.mapping, own) : auto.mapping;
 
   // What the file says beyond the BoM table: designators that are on the board and not fitted become not-fitted
   // lines, the bare board's line becomes the board spec, the sheets and the file's own totals are checked against the
@@ -162,6 +180,9 @@ export async function uploadBom(_prev: ActionState, form: FormData): Promise<Act
   } else if (board?.notes.length) {
     summary = { sheets: [], placementSource: null, placements: 0, notFitted: [], added: [], findings: [], board: null, boardNotes: board.notes };
   }
+  // Columns the upload can take without asking (a saved template, or an automatic mapping it is sure of): the mapping
+  // page is skipped and the footprint match opens (src/lib/bom/certain-mapping.ts).
+  const columns: Certainty | null = pack ? certainMapping({ rows, headerRow, mapping, confidence: auto.confidence, bomFound: pack.bomFound, template: !!template }) : null;
 
   const revision = await db.bomRevision.create({
     data: {
@@ -227,7 +248,34 @@ export async function uploadBom(_prev: ActionState, form: FormData): Promise<Act
     revalidatePath("/boms");
     redirect(`/boms/${revision.id}/match`);
   }
-  const query = [template ? "template=1" : "", boardNote].filter(Boolean).join("&");
+  // The columns are certain and the board files were read: what confirming the mapping does, without the page — match
+  // the lines, point the placements (saved before the lines existed) at them, and open the footprint match. No template
+  // is saved: a template means a person confirmed the columns. A board that could not be read goes to the mapping page,
+  // which says so.
+  let matchNote = "";
+  if (columns?.certain && !boardNote) {
+    let matched = false;
+    try {
+      await db.bomRevision.update({ where: { id: revision.id }, data: { status: "MAPPED" } });
+      await ingestRevision(db, revision.id);
+      await linkPlacements(db, revision.id);
+      matched = true;
+    } catch (e) {
+      // Back to the mapping page, which says the columns were recognised but matching failed. Confirming the columns
+      // there matches the lines again (ingestRevision replaces any lines this attempt wrote).
+      console.error(`Automatic matching failed for BoM revision ${revision.id}:`, e);
+      matchNote = "matchError=1";
+      await db.bomRevision.update({ where: { id: revision.id }, data: { status: "DRAFT" } }).catch(() => undefined);
+    }
+    if (matched) {
+      await db.auditLog.create({
+        data: { userId: user.id, action: "bom.map", entity: "BomRevision", entityId: revision.id, data: { saveTemplate: false, auto: true, via: columns.via, columns: decidingColumns(rows[headerRow], mapping) } },
+      });
+      revalidatePath("/boms");
+      redirect(`/boms/${revision.id}/match`);
+    }
+  }
+  const query = [template ? "template=1" : "", boardNote, matchNote].filter(Boolean).join("&");
   redirect(`/boms/${revision.id}/map${query ? `?${query}` : ""}`);
 }
 
@@ -245,12 +293,8 @@ export async function confirmMapping(input: z.infer<typeof mappingSchema>): Prom
   const { revisionId, headerRow, saveTemplate } = parsed.data;
   const mapping: ColumnMapping = parsed.data.mapping.map((f) => (isBomField(f) ? f : null));
 
-  const used = mapping.filter(Boolean);
-  if (new Set(used).size !== used.length) return { error: "Each field can only be mapped to one column." };
-  if (!mapping.includes("mpn") && !mapping.includes("description") && !mapping.includes("value")) {
-    return { error: "Map at least an MPN, Description or Value column so lines can be matched." };
-  }
-  if (!mapping.includes("qty") && !mapping.includes("refDes")) return { error: "Map a Qty or RefDes column." };
+  const problem = mappingProblem(mapping);
+  if (problem) return { error: problem };
 
   const rev = await db.bomRevision.findUnique({ where: { id: revisionId }, include: { bom: { include: { project: { include: { customer: true } } } } } });
   if (!rev) return { error: "BoM revision not found." };
