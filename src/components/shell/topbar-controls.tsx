@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useSyncExternalStore, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -22,6 +22,13 @@ import { can } from "@/lib/rbac";
 import { CURRENCIES, type Currency } from "@/lib/currency";
 import { CURRENCY_COOKIE_NAME } from "./constants";
 import { OTHER } from "./nav";
+import { animateSwitch, headingDark, isDark, measureSwitch, subscribeDark, useThemeWave, watchFlips, type ThemeChoice } from "./theme-wave";
+
+const THEME_CHOICES: { value: ThemeChoice; label: string; icon: typeof Sun }[] = [
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+  { value: "system", label: "System", icon: Monitor },
+];
 
 export function CurrencySwitch({ value }: { value: Currency }) {
   const router = useRouter();
@@ -50,10 +57,11 @@ export function CurrencySwitch({ value }: { value: Currency }) {
   );
 }
 
-/** The account menu also holds the pages outside the four parts: Home, the app tour and (admins) users. */
+/** The account menu also holds the pages outside the three parts: Home, the app tour and (admins) users. */
 export function UserMenu({ name, email, roleLabel, role }: { name: string; email: string; roleLabel: string; role: Role }) {
   const others = OTHER.filter((i) => !i.permission || can(role, i.permission));
-  const { theme, setTheme } = useTheme();
+  const { theme } = useTheme();
+  const changeTheme = useThemeWave();
   const initials = name
     .replace(/\(.*\)/, "")
     .trim()
@@ -88,16 +96,13 @@ export function UserMenu({ name, email, roleLabel, role }: { name: string; email
         ))}
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Theme</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={theme ?? "system"} onValueChange={setTheme}>
-          <DropdownMenuRadioItem value="light">
-            <Sun className="size-4" /> Light
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark">
-            <Moon className="size-4" /> Dark
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="system">
-            <Monitor className="size-4" /> System
-          </DropdownMenuRadioItem>
+        {/* The wave grows from the item chosen. */}
+        <DropdownMenuRadioGroup value={theme ?? "system"}>
+          {THEME_CHOICES.map((t) => (
+            <DropdownMenuRadioItem key={t.value} value={t.value} onSelect={(e) => changeTheme(t.value, e.currentTarget instanceof Element ? e.currentTarget : null)}>
+              <t.icon className="size-4" /> {t.label}
+            </DropdownMenuRadioItem>
+          ))}
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => signOut({ callbackUrl: "/login" })}>
@@ -108,24 +113,47 @@ export function UserMenu({ name, email, roleLabel, role }: { name: string; email
   );
 }
 
-/** Light / dark, one tap, always in the top bar. The account menu still offers "follow the system". */
+/**
+ * Light / dark, one tap, always in the top bar. The account menu still offers "follow the system".
+ * Its look (knob side, sun or moon, track colour) comes from the `dark` class on <html>, so it is right from the first
+ * paint; theme-wave.ts animates it on every flip and spreads the new theme from it as a wave.
+ */
 export function ThemeSwitch() {
-  const { resolvedTheme, setTheme } = useTheme();
-  const [ready, setReady] = useState(false);
-  useEffect(() => setReady(true), []);
-  const dark = ready && resolvedTheme === "dark";
+  const dark = useSyncExternalStore(subscribeDark, isDark, () => false);
+  const changeTheme = useThemeWave();
+  const ref = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const sw = ref.current;
+    if (!sw) return;
+    // Measured now and on resize, so a flip never has to stop and restyle the page to read them.
+    const resize = new ResizeObserver(() => measureSwitch(sw));
+    resize.observe(sw);
+    const stop = watchFlips((now) => animateSwitch(sw, now));
+    return () => {
+      resize.disconnect();
+      stop();
+    };
+  }, []);
   return (
     <button
+      ref={ref}
       type="button"
       role="switch"
       aria-checked={dark}
       aria-label="Dark mode"
       title={dark ? "Switch to light" : "Switch to dark"}
-      onClick={() => setTheme(dark ? "light" : "dark")}
-      className="relative inline-flex h-8 w-14 shrink-0 items-center rounded-full border bg-muted outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-ring"
+      onClick={(e) => changeTheme(headingDark() ? "light" : "dark", e.currentTarget)}
+      className="theme-switch"
+      data-theme-switch=""
     >
-      <span className={`absolute left-0.5 grid size-6.5 place-items-center rounded-full bg-card text-foreground shadow-sm transition-transform duration-200 ease-out ${dark ? "translate-x-6" : ""}`}>
-        {dark ? <Moon className="size-3.5" aria-hidden /> : <Sun className="size-3.5" aria-hidden />}
+      <span className="theme-switch-stars" data-stars aria-hidden>
+        <i />
+        <i />
+        <i />
+      </span>
+      <span className="theme-switch-knob" data-knob aria-hidden>
+        <Sun className="theme-switch-sun" data-sun />
+        <Moon className="theme-switch-moon" data-moon />
       </span>
     </button>
   );

@@ -75,7 +75,7 @@
   --card-foreground: #1a1a18;
   --popover: #ffffff;
   --popover-foreground: #1a1a18;
-  /* The current part's colour (set by data-part on <html>); ink outside the four parts. */
+  /* The current part's colour (set by data-part on <html>); ink outside the three parts. */
   --part: #1a1a18;
   --part-soft: #ecece8;
   --part-ink: #ffffff;
@@ -113,7 +113,7 @@
   --viewer-grid: rgb(60 45 20 / 7%);
   --viewer-grid-major: rgb(60 45 20 / 12%);
 
-  /* The four parts. */
+  /* The parts (bom is kept for any page still tagged with it; the BoMs now sit in Supply). */
   --part-bom: #a81f5c;
   --part-bom-soft: #f8e6ee;
   --part-engineering: #5a2f96;
@@ -355,4 +355,136 @@ html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) {
   .page-enter { animation: none; }
   html { scroll-behavior: auto; }
+}
+
+/* The light / dark switch in the top bar. Its resting look follows the `dark` class on <html>, so it is right from
+   the first paint; src/components/shell/theme-wave.ts animates it (knob on a spring, track colour, sun ↔ moon) with
+   web animations, which the `transition: none` put on everything during a theme flip does not stop. */
+@layer components {
+  .theme-switch {
+    --track-day: #e8e6df;
+    --track-night: #2d2a24;
+    --edge-day: #d6d3ca;
+    --edge-night: #48443b;
+    --knob-day: #ffffff;
+    --knob-night: #f3eedf;
+    --glyph-day: #a86400;
+    --glyph-night: #4b3f1f;
+    --knob-size: 1.625rem;
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    width: 3.5rem;
+    height: 2rem;
+    border-radius: 9999px;
+    border: 1px solid var(--edge-day);
+    background-color: var(--track-day);
+    box-shadow: inset 0 1px 2px rgb(40 30 10 / 0.1);
+  }
+  .dark .theme-switch {
+    border-color: var(--edge-night);
+    background-color: var(--track-night);
+    box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.45);
+  }
+  .theme-switch-knob {
+    position: absolute;
+    left: 2px;
+    width: var(--knob-size);
+    height: var(--knob-size);
+    border-radius: 9999px;
+    background-color: var(--knob-day);
+    color: var(--glyph-day);
+    box-shadow: 0 1px 3px rgb(40 30 10 / 0.22), 0 0 0 0.5px rgb(40 30 10 / 0.08);
+    transition: scale 120ms ease-out;
+  }
+  .dark .theme-switch-knob {
+    /* The track's inner width less the knob and the 2 px on each side. */
+    transform: translateX(calc(3.5rem - 2px - 4px - var(--knob-size)));
+    background-color: var(--knob-night);
+    color: var(--glyph-night);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.5), 0 0 10px rgb(243 230 180 / 0.18);
+  }
+  .theme-switch:active .theme-switch-knob { scale: 0.92; }
+  .theme-switch-knob > svg {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 0.9rem;
+    height: 0.9rem;
+  }
+  .theme-switch-moon { opacity: 0; transform: rotate(-120deg) scale(0.4); }
+  .dark .theme-switch-sun { opacity: 0; transform: rotate(120deg) scale(0.4); }
+  .dark .theme-switch-moon { opacity: 1; transform: none; }
+  /* Three small stars on the empty side of the track at night. */
+  .theme-switch-stars {
+    position: absolute;
+    left: 0.4rem;
+    top: 0;
+    bottom: 0;
+    width: 1.2rem;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .dark .theme-switch-stars { opacity: 1; }
+  .theme-switch-stars > i { position: absolute; border-radius: 9999px; background: #f4e3a3; }
+  .theme-switch-stars > i:nth-child(1) { left: 0.2rem; top: 0.45rem; width: 3px; height: 3px; }
+  .theme-switch-stars > i:nth-child(2) { left: 0.75rem; top: 0.8rem; width: 2px; height: 2px; opacity: 0.8; }
+  .theme-switch-stars > i:nth-child(3) { left: 0.35rem; top: 1.15rem; width: 2px; height: 2px; opacity: 0.65; }
+}
+
+/* The theme wave (src/components/shell/theme-wave.ts). While html.theme-wave is set:
+   - the new page grows over a still picture of the old one inside a rippled front (clip-path animated from the
+     script) — no cross-fade — and nothing transitions its colours, so the page under the front is already settled;
+   - the light on the front is three more layers above both pictures (echoes, the glowing band, the crest): empty
+     full-screen .theme-wave-layer elements whose layers are filled with light here, cut to rings by clip-path
+     animations, softened by a filter and faded by opacity animations. Outside those animations they show nothing;
+   - nothing else on the page may take a view-transition name for the flip (it would cross-fade instead of being
+     swept), and a closing account menu (the theme was just chosen from it) is left out of both pictures.
+   Taps during the wave land on <html> whatever pointer-events says; the script hands them on. */
+html.theme-wave::view-transition-group(root),
+html.theme-wave::view-transition-old(root),
+html.theme-wave::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html.theme-wave::view-transition-image-pair(root) { isolation: auto; }
+html.theme-wave::view-transition-old(root) { z-index: 1; }
+html.theme-wave::view-transition-new(root) { z-index: 2; }
+html.theme-wave::view-transition-group(theme-wave-echo),
+html.theme-wave::view-transition-group(theme-wave-glow),
+html.theme-wave::view-transition-group(theme-wave-crest),
+html.theme-wave::view-transition-image-pair(theme-wave-echo),
+html.theme-wave::view-transition-image-pair(theme-wave-glow),
+html.theme-wave::view-transition-image-pair(theme-wave-crest),
+html.theme-wave::view-transition-new(theme-wave-echo),
+html.theme-wave::view-transition-new(theme-wave-glow),
+html.theme-wave::view-transition-new(theme-wave-crest) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html.theme-wave::view-transition-image-pair(theme-wave-echo),
+html.theme-wave::view-transition-image-pair(theme-wave-glow),
+html.theme-wave::view-transition-image-pair(theme-wave-crest) { opacity: 0; }
+html.theme-wave::view-transition-new(theme-wave-echo),
+html.theme-wave::view-transition-new(theme-wave-glow),
+html.theme-wave::view-transition-new(theme-wave-crest) { clip-path: inset(50%); }
+html.theme-wave::view-transition-group(theme-wave-echo) { z-index: 3; filter: var(--theme-wave-echo-filter, none); }
+html.theme-wave::view-transition-group(theme-wave-glow) { z-index: 4; filter: var(--theme-wave-glow-filter, none); }
+html.theme-wave::view-transition-group(theme-wave-crest) { z-index: 5; filter: var(--theme-wave-crest-filter, none); }
+html.theme-wave::view-transition-new(theme-wave-echo),
+html.theme-wave::view-transition-new(theme-wave-glow) { background: rgb(var(--theme-wave-halo, 255, 255, 255)); }
+html.theme-wave::view-transition-new(theme-wave-crest) { background: rgb(var(--theme-wave-core, 255, 255, 255)); }
+html.theme-wave *,
+html.theme-wave *::before,
+html.theme-wave *::after {
+  transition: none !important;
+  view-transition-name: none !important;
+}
+html.theme-wave [data-slot="dropdown-menu-content"][data-state="closed"] { visibility: hidden; }
+.theme-wave-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  contain: strict;
 }

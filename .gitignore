@@ -53,6 +53,7 @@ next-env.d.ts
 
 # production build for `npm run serve`
 /.next-prod/
+/.next-prod.lock
 /.next-check/
 
 # local tools (cloudflared)

@@ -5,10 +5,11 @@
   "scripts": {
     "dev": "npm run -s db:ensure && next dev --turbopack",
     "dev:webpack": "npm run -s db:ensure && next dev",
-    "serve": "npm run -s db:ensure && tsx scripts/serve.ts",
+    "start": "tsx scripts/serve.ts",
+    "serve": "tsx scripts/serve.ts",
     "online": "npm run -s db:ensure && tsx scripts/online.ts",
     "build": "next build",
-    "start": "next start",
+    "start:next": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

@@ -1,5 +1,5 @@
 /**
- * Makes sure the local database is up before the app starts, so `npm run dev` and `npm run serve` work on their
+ * Makes sure the local database is up before the app starts, so `npm run dev` and `npm start` work on their
  * own without a second terminal running `npm run db:local`.
  *
  *   1. DATABASE_URL points somewhere other than this machine → nothing to manage, just check it answers.
@@ -49,7 +49,8 @@ async function pgCtl() {
 
 function prisma(args: string[]) {
   const bin = path.join(root, "node_modules", ".bin", process.platform === "win32" ? "prisma.cmd" : "prisma");
-  const res = spawnSync(bin, args, { stdio: "inherit", env: process.env, shell: process.platform === "win32" });
+  // No "update available" box: on the everyday start command it would push a major Prisma upgrade on plant users.
+  const res = spawnSync(bin, args, { stdio: "inherit", env: { ...process.env, PRISMA_HIDE_UPDATE_MESSAGE: "1" }, shell: process.platform === "win32" });
   if (res.status !== 0) throw new Error(`prisma ${args.join(" ")} failed`);
 }
 

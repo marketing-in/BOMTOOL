@@ -61,7 +61,30 @@ Spec: `docs/BoM_opti_Raj_v1200524.docx` · Phase plans and outcomes: `docs/plans
 
 ## Run it
 
-Node 22. Pick one way to run Postgres.
+Node 22. On this machine it is one command — `npm start` — after the first-time setup:
+
+```bash
+cp .env.example .env      # once: set NEXTAUTH_SECRET
+npm install               # once, and after pulling new dependencies
+npm start                 # the app: http://localhost:3000
+```
+
+`npm start` starts the database if it is stopped (creating and seeding it the first time), builds the app only
+when the code has changed since the last build — the first build takes a few minutes, later starts take seconds —
+and serves the fast production build on http://localhost:3000. It prints each step as it goes and, last, the
+address to open once the app answers. Force a fresh build with `npm start -- --rebuild`. `npm run serve` is the
+same command under its old name. To change the code, use `npm run dev` instead (below).
+
+Another port: `npm start -- --port 3001` works in every terminal. The environment-variable form depends on the
+shell: `PORT=3001 npm start` on macOS / Linux, `$env:PORT=3001; npm start` in PowerShell, `set PORT=3001 && npm start`
+in cmd.
+
+If the port is already taken, `npm start` stops and says so — the app may already be running there (open it), or
+another program has the port. A second `npm start` on another port serves the same build, but never rebuilds it
+while the first one runs (that would pull the files out from under it): it says so and serves the build it has.
+Stop every running `npm start` (Ctrl+C in its window) and start again to pick up code changes.
+
+In more detail — pick one way to run Postgres:
 
 **A. Docker (intended)** — Postgres, Redis, Meilisearch, the app and the BullMQ worker:
 
@@ -78,10 +101,10 @@ http://localhost:3000
 ```bash
 cp .env.example .env      # set NEXTAUTH_SECRET
 npm install
-npm run serve             # the app, fast: http://localhost:3000
+npm start                 # the app, fast: http://localhost:3000
 ```
 
-`serve`, `dev` and `online` start the database themselves (`npm run db:ensure`): the first time they create
+`start` (= `serve`), `dev` and `online` start the database themselves (`npm run db:ensure`): the first time they create
 `.pgdata/`, migrate and load the demo data; after that they start the database in the background if it is
 stopped and apply any new migrations. It keeps running after the app stops — `npm run db:local:stop` stops it.
 `npm run db:local` still runs it in the foreground in its own terminal if you prefer that.
@@ -105,17 +128,18 @@ want a public Cloudflare URL. Change the seeded demo passwords before sharing th
 
 ### Fast for daily use, dev server only for changing code
 
-| | `npm run serve` (use the app) | `npm run dev` (change the code) |
+| | `npm start` (use the app) | `npm run dev` (change the code) |
 | --- | --- | --- |
 | What it runs | a production build, compiled once | a development server that compiles each page on first visit |
 | Start | ~3 s (plus a 2–3 min build when the code changed) | ~9 s, then 6–25 s the first time each page opens |
 | Page loads | 0.15–0.9 s | 2–9 s even when compiled |
 | Memory | ~300 MB | grows to 3.5–4 GB |
 
-Measured on the plant's i5-6200U / 8 GB laptop ([Phase 9](docs/plans/phase-9.md)). `npm run serve` builds
-into `.next-prod`, rebuilds only when the code changed (`-- --rebuild` forces it, `-- --port 3001` picks
-another port) and skips tsc/ESLint in that build — `npm run typecheck` and `npm run lint` cover them.
-Only one server can use port 3000: stop `npm run dev` before `npm run serve`, or the other way round.
+Measured on the plant's i5-6200U / 8 GB laptop ([Phase 9](docs/plans/phase-9.md)). `npm start` (and its old
+name `npm run serve`) builds into `.next-prod`, rebuilds only when the code changed since the build started
+(`-- --rebuild` forces it, `-- --port 3001` picks another port) and skips tsc/ESLint in that build —
+`npm run typecheck` and `npm run lint` cover them. Only one server can use port 3000: stop `npm run dev` before `npm start`, or the other way round.
+`npm run start:next` is the bare `next start` (serves an existing `.next` build, nothing else).
 `npm run dev` uses Turbopack; `npm run dev:webpack` is the old compiler if something misbehaves.
 
 ### Demo logins
@@ -158,7 +182,8 @@ imports their Excel/CSV.
 
 | Command | What it does |
 | --- | --- |
-| `npm run serve [-- --port N] [-- --rebuild]` | The app for daily use: production build in `.next-prod` (rebuilt only when the code changed), then `next start` |
+| `npm start [-- --port N] [-- --rebuild]` | The app for daily use: starts the database if needed, production build in `.next-prod` (rebuilt only when the code changed), then `next start` on :3000 (`-- --port N`, or the `PORT` variable, for another). Never rebuilds under another running copy. `npm run serve` is the same |
+| `npm run start:next` | Bare `next start` on an existing `.next` build |
 | `npm run online` | Put the app on the internet from this PC: a free Cloudflare quick tunnel to `serve` on port 3001; prints the `https://….trycloudflare.com` address (new on every start). Needs `.tools/cloudflared.exe`; change the demo passwords first. `start-online.cmd` runs the PowerShell launcher in online mode |
 | `npm run dev` / `npm run dev:webpack` | Development server with Turbopack / with webpack |
 | `npm run db:ensure` | Start the local database if it is stopped (create + seed it the first time), then apply pending migrations |

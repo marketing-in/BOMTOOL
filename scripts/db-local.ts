@@ -31,7 +31,7 @@ async function start() {
     if (status.error) throw status.error;
     if (status.status === 0) {
       console.log(`Local PostgreSQL is already running in ${dataDir}. No need to start it again.`);
-      console.log("Run npm run serve to start the app, or npm run db:local:stop to stop the database.");
+      console.log("Run npm start to start the app, or npm run db:local:stop to stop the database.");
       return;
     }
   }
