@@ -56,7 +56,7 @@ function Src({ source }: { source: string }) {
  */
 export function LineStage({ machines, editable, running = false }: { machines: MachineCard[]; editable: boolean; running?: boolean }) {
   const [mode, setMode] = useState<ViewMode>("3d");
-  const scene = useMemo(() => machines.map((x) => ({ id: x.id, type: x.type, short: x.short, model: x.model, color: x.color, position: x.position })), [machines]);
+  const scene = useMemo(() => machines.map((x) => ({ id: x.id, type: x.type, vendor: x.vendor, short: x.short, model: x.model, color: x.color, position: x.position })), [machines]);
   const first = machines.find((m) => m.type === "PICK_AND_PLACE") ?? machines[0];
   const [sel, setSel] = useState<string | null>(first?.id ?? null);
   const m = machines.find((x) => x.id === sel) ?? first;
