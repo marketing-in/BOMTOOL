@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { MAX_UPLOAD_BYTES, sortBoardFiles } from "@/lib/board/upload";
+import { openArchives } from "@/lib/board/archive";
 import { saveBoardPreview } from "@/server/board";
 
 const optionsSchema = z.object({
@@ -32,12 +33,12 @@ export async function uploadQuickLook(form: FormData): Promise<{ error?: string 
   const opts = optionsSchema.safeParse({ name: form.get("name"), mask: form.get("mask"), finish: form.get("finish"), thickness: form.get("thickness") });
   if (!opts.success) return { error: opts.error.issues[0]?.message ?? "Check the board options." };
   const files = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
-  if (!files.length) return { error: "Choose the Gerber files or a zip." };
+  if (!files.length) return { error: "Choose the Gerber files, or a zip or rar of them." };
   if (files.reduce((s, f) => s + f.size, 0) > MAX_UPLOAD_BYTES) return { error: "Files exceed 20 MB in total." };
 
   let id: string;
   try {
-    const { gerbers, centroid, panel } = sortBoardFiles(await Promise.all(files.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) }))));
+    const { gerbers, centroid, panel } = sortBoardFiles(await openArchives(await Promise.all(files.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) })))));
     if (!gerbers.length) return { error: "No Gerber or drill files found (RS-274X .GTL/.GBL/.GKO…, KiCad *-F_Cu.gbr, Excellon .DRL)." };
     const b = await saveBoardPreview(db, {
       name: opts.data.name,

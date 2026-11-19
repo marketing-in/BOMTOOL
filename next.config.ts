@@ -8,7 +8,8 @@ const nextConfig: NextConfig = {
   // Builds can go to their own folder while `next dev` uses .next: e2e → .next-e2e, `npm run serve` → .next-prod.
   distDir: process.env.NEXT_DIST_DIR || ".next",
   // Loaded with Node's require at runtime instead of being bundled (they use Node built-ins).
-  serverExternalPackages: ["bullmq", "ioredis"],
+  // node-unrar-js reads its WebAssembly file from its own folder.
+  serverExternalPackages: ["bullmq", "ioredis", "node-unrar-js"],
   typescript: { ignoreBuildErrors: skipChecks },
   eslint: { ignoreDuringBuilds: skipChecks },
   experimental: {

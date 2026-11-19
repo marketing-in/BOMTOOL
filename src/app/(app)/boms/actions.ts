@@ -13,6 +13,7 @@ import { isBomField, mappingProblem, type ColumnMapping } from "@/lib/bom/fields
 import { certainMapping, decidingColumns, type Certainty } from "@/lib/bom/certain-mapping";
 import { ingestRevision, scoreRevision } from "@/server/bom-pipeline";
 import { MAX_UPLOAD_BYTES, sortBoardFiles, type BoardFiles } from "@/lib/board/upload";
+import { openArchives } from "@/lib/board/archive";
 import { hasRealDesignators, linkPlacements, saveGerbers, savePlacements, savePlacementsFromFile, savePlacementsFromFound } from "@/server/board";
 import { bomRowsFromFound, findParts, FOUND_BOM_MAPPING, type FoundParts } from "@/lib/board/find-parts";
 
@@ -77,7 +78,7 @@ export async function uploadBom(_prev: ActionState, form: FormData): Promise<Act
   let board: BoardFiles | null = null;
   if (boardUploads.length) {
     try {
-      board = sortBoardFiles(await Promise.all(boardUploads.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) }))));
+      board = sortBoardFiles(await openArchives(await Promise.all(boardUploads.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) })))));
     } catch (e) {
       return { error: `Board files: ${e instanceof Error ? e.message : "could not be read"}` };
     }

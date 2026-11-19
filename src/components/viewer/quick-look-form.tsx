@@ -45,10 +45,10 @@ export function QuickLookForm() {
             setFiles((prev) => [...prev, ...Array.from(e.dataTransfer.files)]);
           }}
         >
-          <input type="file" name="files" multiple className="sr-only" aria-label="Gerber files or zip" onChange={(e) => setFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])])} />
+          <input type="file" name="files" multiple className="sr-only" aria-label="Gerber files, or a zip or rar of them" onChange={(e) => setFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])])} />
           <Illustration kind="board" />
           <span className="text-base font-medium">Drop your Gerber files here</span>
-          <span className="text-sm text-muted-foreground">Zip or loose files</span>
+          <span className="text-sm text-muted-foreground">Zip, RAR or loose files</span>
         </label>
         <details className="text-xs text-muted-foreground">
           <summary className="cursor-pointer rounded-md outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">Accepted files</summary>

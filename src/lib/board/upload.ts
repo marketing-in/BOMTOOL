@@ -42,8 +42,8 @@ const starts = (b: Uint8Array, sig: number[]) => b.length >= sig.length && sig.e
 
 /**
  * An archive this tool cannot open, by its first bytes (the name can lie): "RAR", "7-Zip", "gzip / tar". null for
- * everything else. Only .zip is unpacked; the others would otherwise be taken for one unknown file and dropped
- * without a word, leaving "no Gerbers found".
+ * everything else. sortBoardFiles unpacks .zip itself; a RAR is unpacked before it by openArchives()
+ * (src/lib/board/archive.ts). Anything left would be taken for one unknown file and dropped without a word.
  */
 export function unreadableArchive(bytes: Uint8Array): string | null {
   if (starts(bytes, [0x52, 0x61, 0x72, 0x21, 0x1a, 0x07])) return "RAR";
@@ -55,6 +55,8 @@ const decoder = new TextDecoder("utf-8");
 const OFFICE_FILE = /[.](xlsx|xlsm|xlsb|docx|pptx|ods|odt)$/i;
 
 const LIMITS = { expanded: MAX_EXPANDED_BYTES, entry: MAX_ENTRY_BYTES };
+/** The caps on what an archive may unpack to (also for RAR: src/lib/board/archive.ts). */
+export const BOARD_LIMITS = LIMITS;
 
 /**
  * Opens zips (one level deep), then sorts every file into Gerber/drill layers and one centroid file. The layers
@@ -65,7 +67,7 @@ export function sortBoardFiles(files: UploadFile[], limits = LIMITS): BoardFiles
   let expanded = 0;
   for (const f of files) {
     const archive = unreadableArchive(f.bytes);
-    if (archive) throw new Error(`“${f.name}” is a ${archive} archive. This tool opens .zip archives only: unpack it and upload the files inside, or pack them again as a .zip.`);
+    if (archive) throw new Error(`“${f.name}” is a ${archive} archive. This tool opens .zip and .rar archives: unpack it and upload the files inside, or pack them again as a .zip.`);
     // A workbook is a zip inside, but it is one file: it may hold the placement table.
     if (!isZip(f.bytes) || OFFICE_FILE.test(f.name)) {
       flat.push(f);

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { MAX_UPLOAD_BYTES, sortBoardFiles } from "@/lib/board/upload";
+import { openArchives } from "@/lib/board/archive";
 import { saveGerbers, savePlacementsFromFile } from "@/server/board";
 
 /** Accepts any mix of Gerber/drill files and one centroid file, loose or in a zip. */
@@ -16,7 +17,7 @@ export async function uploadBoardFiles(revisionId: string, form: FormData): Prom
 
   const parts: string[] = [];
   try {
-    const { gerbers, centroid, panel } = sortBoardFiles(await Promise.all(files.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) }))));
+    const { gerbers, centroid, panel } = sortBoardFiles(await openArchives(await Promise.all(files.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) })))));
     if (gerbers.length) {
       const r = await saveGerbers(db, revisionId, gerbers, { panel });
       parts.push(`${r.layers} layers (${r.copper} copper) · ${r.width.toFixed(1)} × ${r.height.toFixed(1)} mm${panel ? ` · one board of a panel of ${panel.count}` : ""}`);

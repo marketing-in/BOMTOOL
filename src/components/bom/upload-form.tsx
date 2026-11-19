@@ -402,7 +402,7 @@ export function UploadForm({ customers, templates = {}, projects, defaults, prev
                 <CircuitBoard className="size-12 text-muted-foreground/70" strokeWidth={1.25} aria-hidden />
                 <div>
                   <div className="text-base font-semibold">Gerbers</div>
-                  <div className="text-sm text-muted-foreground">Zip, or layers + drill + pick-and-place</div>
+                  <div className="text-sm text-muted-foreground">Zip or RAR, or layers + drill + pick-and-place</div>
                 </div>
               </>
             )}

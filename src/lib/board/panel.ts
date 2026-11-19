@@ -140,8 +140,15 @@ export function findGrid(outline: CfShape[]): PanelGrid | null {
   if (!vertical.length && !horizontal.length) return null;
   const cells = (cuts: number[]) => {
     const edges = distinct(cuts);
-    const sizes = edges.slice(1).map((e, i) => ({ from: edges[i], size: e - edges[i] }));
-    // The board is the cell size seen most often; odd cells at the ends are rails.
+    const all = edges.slice(1).map((e, i) => ({ from: edges[i], size: e - edges[i] }));
+    if (!all.length) return { unit: 0, starts: [] as number[] };
+    // Narrow cells at the two ends are the frame's rails, not boards: leave them out first. (A single board in a
+    // frame with 5 mm rails all round has four 5 × 5 mm corners; they are not a 2 × 2 panel of 5 mm boards.)
+    const widest = Math.max(...all.map((c) => c.size));
+    let sizes = all;
+    while (sizes.length > 1 && sizes[0].size < widest * 0.4) sizes = sizes.slice(1);
+    while (sizes.length > 1 && sizes[sizes.length - 1].size < widest * 0.4) sizes = sizes.slice(0, -1);
+    // The board is the cell size seen most often; odd cells left at the ends are rails too.
     const tally = new Map<number, number>();
     for (const c of sizes) tally.set(snap(c.size), (tally.get(snap(c.size)) ?? 0) + 1);
     const unit = [...tally].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0][0];

@@ -185,6 +185,18 @@ describe("panels", () => {
     expect(findGrid([rect(0, 0, 80, 60)])).toBeNull();
   });
 
+  it("does not take the four corners of a railed frame for a 2 × 2 panel of tiny boards (the Ti-Circle upload)", () => {
+    // One 130 × 130 mm piece in a 140 mm frame: 5 mm rails all round, drawn as four lines right across.
+    const outline: CfShape[] = [
+      rect(0, 0, 140, 140),
+      { k: "stroke", w: 0.1, pts: [[5, 0], [5, 140]] },
+      { k: "stroke", w: 0.1, pts: [[135, 0], [135, 140]] },
+      { k: "stroke", w: 0.1, pts: [[0, 5], [140, 5]] },
+      { k: "stroke", w: 0.1, pts: [[0, 135], [140, 135]] },
+    ];
+    expect(findGrid(outline)).toBeNull();
+  });
+
   it("reads a V-scored panel: one frame cut by score lines, rails at the ends", () => {
     const outline: CfShape[] = [
       rect(0, 0, 100, 70),

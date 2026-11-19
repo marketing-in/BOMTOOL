@@ -40,9 +40,17 @@ describe("board file upload", () => {
     expect(sortBoardFiles([{ name: "big.zip", bytes: zip }], { expanded: 4 * 1024 * 1024, entry: 512 * 1024 }).gerbers).toEqual([]);
   });
 
-  it("says so when the board files come as a RAR, 7-Zip or gzip archive, whatever the file is called", () => {
+  it("opens RAR archives before sorting: other files pass through, a damaged RAR says so", async () => {
+    const { openArchives } = await import("@/lib/board/archive");
+    const gerber = { name: "top.gtl", bytes: new TextEncoder().encode("%FSLAX24Y24*%\n%MOMM*%\nM02*\n") };
+    expect(await openArchives([gerber])).toEqual([gerber]);
+    const damaged = new Uint8Array([0x52, 0x61, 0x72, 0x21, 0x1a, 0x07, 0x00, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    await expect(openArchives([{ name: "gerbers.rar", bytes: damaged }])).rejects.toThrow(/“gerbers\.rar” could not be opened/);
+  });
+
+  it("says so when the board files come as a RAR (not unpacked first), 7-Zip or gzip archive, whatever the file is called", () => {
     const rar = new Uint8Array([0x52, 0x61, 0x72, 0x21, 0x1a, 0x07, 0x00, 0xcf, 0x90, 0x73]);
-    expect(() => sortBoardFiles([{ name: "Ti-Circle_Gerberpnl.rar", bytes: rar }])).toThrow(/“Ti-Circle_Gerberpnl\.rar” is a RAR archive\. This tool opens \.zip archives only/);
+    expect(() => sortBoardFiles([{ name: "Ti-Circle_Gerberpnl.rar", bytes: rar }])).toThrow(/“Ti-Circle_Gerberpnl\.rar” is a RAR archive\. This tool opens \.zip and \.rar archives/);
     expect(() => sortBoardFiles([{ name: "gerbers.zip", bytes: rar }])).toThrow(/RAR archive/);
     expect(() => sortBoardFiles([{ name: "g.7z", bytes: new Uint8Array([0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c, 0, 4]) }])).toThrow(/7-Zip archive/);
     expect(() => sortBoardFiles([{ name: "g.tgz", bytes: new Uint8Array([0x1f, 0x8b, 8, 0]) }])).toThrow(/gzip \/ tar archive/);
