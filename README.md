@@ -259,3 +259,4 @@ Key rules from `CLAUDE.md`: every distributor sits behind an adapter with a mock
   board's placements; wall openings are drawn where edge connectors meet a wall — confirm the real
   panel drawing with the customer. The process route is derived from the BoM and our lines; times and
   costs per step are not estimated here (work orders estimate line hours).
+# BOMTOOL
