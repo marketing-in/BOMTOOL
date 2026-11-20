@@ -61,7 +61,7 @@ export function ProductPanel({ data, shell, onShell, explode, onExplode }: { dat
         <span className="num">{enc.mpn}</span>
       ),
     ],
-    ["Type", enc.label.replace(enc.mpn, "").replace("Hammond", "").trim() || enc.style],
+    ["Type", data.boxSuggested === "made" ? enc.label : enc.label.replace(enc.mpn, "").replace("Hammond", "").trim() || enc.style],
     ["Outer", `${+enc.length.toFixed(1)} × ${+enc.width.toFixed(1)} × ${+enc.height.toFixed(1)} mm`],
     ["Inner", `${+(enc.length - 2 * enc.wall).toFixed(1)} × ${+(enc.width - 2 * enc.wall).toFixed(1)} mm`],
     ["Board mount", mount],
@@ -84,6 +84,14 @@ export function ProductPanel({ data, shell, onShell, explode, onExplode }: { dat
           Complete product
         </h2>
       )}
+
+      {data.boxSuggested ? (
+        <p className="mt-2 rounded-md border border-dashed px-2.5 py-1.5 text-xs text-muted-foreground">
+          {data.boxSuggested === "stocked"
+            ? "No box in the spec: shown in the smallest stocked enclosure it fits."
+            : "No box in the spec and none we stock is big enough: shown in a box made to fit."}
+        </p>
+      ) : null}
 
       <div role="radiogroup" aria-label="Enclosure view" className="mt-3 grid grid-cols-3 rounded-md border bg-muted p-0.5">
         {SHELLS.map((s) => (

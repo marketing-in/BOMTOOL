@@ -83,6 +83,11 @@ export type ViewerData = {
   enclosure: (EnclosureSpec & { fits: boolean; partId: string | null; ipRating: string | null }) | null;
   /** How the board goes into the box: mount height, fit, wall openings, box-build kit. */
   box: BoxAnalysis | null;
+  /**
+   * Set by the viewer when the spec names no box and it shows one it chose (src/lib/board/suggest-box.ts): "stocked" =
+   * the smallest catalogue enclosure the board fits, "made" = a box made to fit. Never set on data from the server.
+   */
+  boxSuggested?: "stocked" | "made";
   /** Manufacturing route from bare board to packed product (src/lib/ops/route.ts). */
   route: ViewerRouteStep[];
 };

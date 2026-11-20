@@ -21,6 +21,7 @@ import { BomListPanel } from "./bom-list-panel";
 import { seg } from "./ui";
 import { maskColor, type Face } from "./textures";
 import type { ViewerData, ViewerPart } from "./types";
+import { withSuggestedBox } from "@/lib/board/suggest-box";
 import { BoardStudio, type StudioMode } from "@/vendor/circuitflow/studio/entry";
 import { useBoardTextures, useStudioBoard } from "./board-textures";
 
@@ -463,7 +464,7 @@ function Screw({ x, y, z }: { x: number; y: number; z: number }) {
 // ───────────────────────────── Shell ─────────────────────────────
 
 export default function BoardViewer({
-  data,
+  data: given,
   initialStep = null,
   initialMode = "pcba",
   initialLine = null,
@@ -478,7 +479,9 @@ export default function BoardViewer({
   /** Inside another page's flow: leave out the BoM list and the process route (the page shows its own). */
   compact?: boolean;
 }) {
-  const [mode, setMode] = useState<Mode>(initialMode === "box" && !data.enclosure ? "pcba" : initialMode);
+  // No box in the spec: Box-build shows the one we would put it in, so the product can still be seen in 3D.
+  const data = useMemo(() => withSuggestedBox(given), [given]);
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [overlay, setOverlay] = useState<Overlay>("real");
   const [explode, setExplode] = useState(0.4);
   const [step, setStep] = useState<string | null>(() => (data.route.some((s) => s.key === initialStep) ? initialStep : null));
@@ -658,7 +661,7 @@ export default function BoardViewer({
             <button role="radio" aria-checked={mode === "pcba"} className={seg(mode === "pcba")} onClick={() => setMode("pcba")}>
               <Cpu className="size-4" /> PCBA
             </button>
-            <button role="radio" aria-checked={mode === "box"} className={seg(mode === "box")} onClick={() => setMode("box")} disabled={!data.enclosure} title={data.enclosure ? undefined : "No enclosure in the project spec"}>
+            <button role="radio" aria-checked={mode === "box"} className={seg(mode === "box")} onClick={() => setMode("box")} title={data.boxSuggested ? "No box in the spec: shown in the box we would suggest" : undefined}>
               <Box className="size-4" /> Box-build
             </button>
           </div>

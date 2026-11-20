@@ -74,3 +74,54 @@ export function boardFits(enc: EnclosureSpec, boardW: number, boardH: number) {
   const [a, b] = [Math.max(boardW, boardH), Math.min(boardW, boardH)];
   return { fits: a <= innerL && b <= innerW, innerL, innerW };
 }
+
+/** How a box is chosen for a board that has none in its spec: a stocked one when it fits, else one made to fit. */
+export type SuggestedEnclosure = { spec: EnclosureSpec; stocked: boolean };
+
+/** Room left round a made-to-fit box's board (mm each side) and above its tallest part. */
+const MADE_SIDE = 6;
+const MADE_HEADROOM = 5;
+
+/**
+ * The box a board would go in when nobody has chosen one: the smallest stocked enclosure that takes the board the
+ * way it lies (long side along the box, 1 mm each side) with its tallest part under the lid, else a die-cast box made
+ * to fit with a little room all round. Standoffs clear the solder side the same way `analyseBox` works them out.
+ */
+export function suggestEnclosure(board: { w: number; h: number; thickness: number }, parts: { side: string; body: { height: number } }[]): SuggestedEnclosure {
+  const tallest = Math.max(0, ...parts.filter((p) => p.side !== "BOTTOM").map((p) => p.body.height));
+  const under = Math.max(0, ...parts.filter((p) => p.side === "BOTTOM").map((p) => p.body.height));
+  const standoff = Math.max(6, Math.ceil(under + 2));
+  const volume = (e: EnclosureSpec) => e.length * e.width * e.height;
+  const fits = (e: EnclosureSpec) => {
+    if (board.w > e.length - 2 * e.wall - 2 || board.h > e.width - 2 * e.wall - 2) return false;
+    const innerTop = e.style === "extruded" ? e.height - e.wall : e.height - e.lidHeight;
+    return innerTop - (e.wall + standoff + board.thickness) - tallest >= 1;
+  };
+  const stocked = Object.values(ENCLOSURES)
+    .filter(fits)
+    .sort((a, b) => volume(a) - volume(b))[0];
+  if (stocked) return { spec: stocked, stocked: true };
+
+  const wall = 2.5;
+  const lidHeight = 4;
+  const length = Math.ceil(board.w + 2 * (wall + MADE_SIDE));
+  const width = Math.ceil(board.h + 2 * (wall + MADE_SIDE));
+  const height = Math.ceil(wall + standoff + board.thickness + tallest + MADE_HEADROOM + lidHeight);
+  return {
+    stocked: false,
+    spec: {
+      mpn: `Made to fit ${length} × ${width} × ${height}`,
+      label: "Die-cast aluminium box made to fit",
+      length,
+      width,
+      height,
+      wall,
+      lidHeight,
+      material: "aluminium",
+      style: "diecast",
+      finish: "#b9bdc3",
+      cornerRadius: 6,
+      supplied: ["Lid screws ×4"],
+    },
+  };
+}
