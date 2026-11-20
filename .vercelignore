@@ -1,0 +1,19 @@
+# Not uploaded to Vercel: secrets, local data and build output, and material the app does not use at runtime.
+.env*
+!.env.example
+.pgdata/
+.next/
+.next-prod/
+.next-prod.lock
+.next-check/
+.next-e2e/
+.next-ui/
+.tools/
+.claude/
+.impeccable/
+node_modules/
+coverage/
+test-results/
+playwright-report/
+docs/presentation/
+*.pem
