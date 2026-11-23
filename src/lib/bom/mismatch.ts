@@ -67,7 +67,7 @@ export function findMismatches(match: FootprintMatch, lines: MismatchLineIn[]): 
         // A wrong value is red; a milli/mega slip to confirm sits in the same group, amber. A catalogue package that
         // disagrees on an unconfirmed match is a footprint to confirm, not a wrong footprint.
         const k: MismatchKey =
-          note.on === "board" ? "board" : note.on === "value" ? "value" : note.on === "part" ? "part" : (note.on === "footprint" || note.on === "catalogue") && note.level === "mismatch" ? "footprint" : "check";
+          note.on === "board" ? "board" : note.on === "value" ? "value" : note.on === "part" ? "part" : (note.on === "footprint" || note.on === "copper" || note.on === "catalogue") && note.level === "mismatch" ? "footprint" : "check";
         const level: Level = note.level === "mismatch" ? "red" : "amber";
         const got = into.get(k);
         into.set(k, { details: [...(got?.details ?? []), note.detail], level: got?.level === "red" ? "red" : level });

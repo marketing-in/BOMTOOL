@@ -28,6 +28,7 @@ const FAMILY: [RegExp, string][] = [
 ];
 
 const NAMED: [RegExp, string][] = [
+  [/SOT-?23-3\b/, "SOT-23"],
   [/SOT-?23-?5\b|SOT-?25\b/, "SOT-23-5"],
   [/SOT-?23-?6\b|SOT-?26\b/, "SOT-23-6"],
   [/SOT-?23(?!-?\d)/, "SOT-23"],
@@ -112,15 +113,16 @@ export type MatchLineIn = {
   catalogConfirmed?: boolean;
   customerPn?: string | null;
 };
-export type MatchPlacementIn = { refDes: string; footprint: string | null; x: number; y: number; side: string; value?: string | null };
+/** copper: the land pattern read off the pads under the part ("0402", "SOT-23", "QFN-24 + EP 0.5 mm"), when known. */
+export type MatchPlacementIn = { refDes: string; footprint: string | null; x: number; y: number; side: string; value?: string | null; copper?: string | null };
 
 /**
  * One thing found about a designator. level "mismatch" is a stop (red); "check" is for a person to confirm (amber).
- * on: footprint (BoM package vs board footprint), catalogue (catalogue package vs board footprint), value (the BoM's
+ * on: footprint (BoM package vs board footprint), copper (the part's package vs the pads it sits on), catalogue (catalogue package vs board footprint), value (the BoM's
  * value vs the board's), part (part names), kind (a footprint named for another kind of part), package (a package or
  * footprint we cannot read or compare). text goes into the designator's why; detail is the mismatch list's line.
  */
-export type RefNote = { on: "board" | "footprint" | "catalogue" | "value" | "part" | "kind" | "package"; level: "mismatch" | "check"; text: string; detail: string };
+export type RefNote = { on: "board" | "footprint" | "copper" | "catalogue" | "value" | "part" | "kind" | "package"; level: "mismatch" | "check"; text: string; detail: string };
 
 type ValueLineIn = Pick<MatchLineIn, "text" | "value" | "description" | "mpn" | "rawMpn" | "customerPn">;
 
@@ -242,6 +244,36 @@ export function catalogueCheck(line: Pick<MatchLineIn, "pkg" | "catalogPkg" | "m
   return { on: "catalogue", level: "mismatch", text: `footprint ${fp}, ${part} is ${cat}`, detail: `board ${fp} · ${part} is ${cat}` };
 }
 
+/**
+ * The part against the copper it sits on (Phase 44): the package the line calls for — the matched part's own when the
+ * catalogue knows it, else the BoM's package column — against the land pattern read off the pads. A chip of another
+ * size, another pin count or another named package is a stop when the part is sure (an exact part number, or the BoM's
+ * own package), to check when the part is our guess. Nothing to say when either side cannot be read.
+ */
+export function copperCheck(line: Pick<MatchLineIn, "pkg" | "catalogPkg" | "mpn" | "catalogConfirmed">, copper: string | null | undefined): RefNote | null {
+  const own = line.catalogPkg?.trim() || line.pkg?.trim();
+  if (!own || !copper?.trim()) return null;
+  const a = signature(own);
+  const b = signature(copper);
+  if (!a || !b) return null;
+  let differs: boolean;
+  if (a.kind !== b.kind) {
+    // A SOT-23 and a 3-lead leaded name are the same thing seen two ways; only a chip against a leaded part is clear.
+    differs = a.kind === "chip" || b.kind === "chip";
+  } else if (a.kind === "chip") differs = a.size !== (b as typeof a).size;
+  else if (a.kind === "leaded") differs = a.pins !== (b as typeof a).pins;
+  else differs = a.name !== (b as typeof a).name;
+  if (!differs) return null;
+  const who = line.catalogPkg?.trim() ? (line.mpn ? `part ${line.mpn} is ${own}` : `the part is ${own}`) : `BoM says ${own}`;
+  const sure = line.catalogPkg?.trim() ? line.catalogConfirmed !== false : true;
+  return {
+    on: "copper",
+    level: sure ? "mismatch" : "check",
+    text: `the pads are ${signatureLabel(b)}, ${who}${sure ? "" : ": confirm the match"}`,
+    detail: `pads ${signatureLabel(b)} · ${who}`,
+  };
+}
+
 export type RefResult = {
   ref: string;
   status: MatchStatus;
@@ -281,17 +313,19 @@ export type FitIn = { level: "green" | "amber" | "red"; note: string; foreign: b
 
 const n = (k: number, one: string, many = `${one}s`) => `${k.toLocaleString("en-IN")} ${k === 1 ? one : many}`;
 
-const NOTE_ORDER: RefNote["on"][] = ["footprint", "catalogue", "value", "package", "kind", "part"];
+const NOTE_ORDER: RefNote["on"][] = ["footprint", "copper", "catalogue", "value", "package", "kind", "part"];
 const byWeight = (a: RefNote, b: RefNote) => (a.level === b.level ? NOTE_ORDER.indexOf(a.on) - NOTE_ORDER.indexOf(b.on) : a.level === "mismatch" ? -1 : 1);
 
 /** Everything found for one placed designator of a BoM line: its status, why, and the notes behind them. */
-export function judgeRef(ref: string, l: MatchLineIn, p: Pick<MatchPlacementIn, "footprint" | "value">): { status: "match" | "mismatch" | "check"; why: string; notes: RefNote[]; valueCompared: boolean; values: ValuePair | null } {
+export function judgeRef(ref: string, l: MatchLineIn, p: Pick<MatchPlacementIn, "footprint" | "value"> & { copper?: string | null }): { status: "match" | "mismatch" | "check"; why: string; notes: RefNote[]; valueCompared: boolean; values: ValuePair | null } {
   const c = compare(l.pkg, p.footprint);
   const notes: RefNote[] = [];
   if (c.status === "mismatch") notes.push({ on: "footprint", level: "mismatch", text: c.why, detail: `BoM ${l.pkg ?? "—"} · board ${p.footprint ?? "—"}` });
   else if (c.status === "check") notes.push({ on: "package", level: "check", text: c.why, detail: `BoM ${l.pkg ?? "names no package"} · board ${p.footprint ?? "—"}` });
   const cat = catalogueCheck(l, p.footprint);
   if (cat) notes.push(cat);
+  const cu = copperCheck(l, p.copper);
+  if (cu) notes.push(cu);
   const v = compareValue(ref, l, p.value);
   if (v.note) notes.push(v.note);
   const k = kindCheck(ref, p.footprint);

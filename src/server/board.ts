@@ -9,6 +9,7 @@ import { readSheets } from "@/lib/bom/parse";
 import { findParts, type FoundPart, type FoundParts } from "@/lib/board/find-parts";
 import { measureFab } from "@/lib/board/fab-measure";
 import type { PanelFacts } from "@/lib/board/panel";
+import { alignPlacements } from "@/server/placement-align";
 
 /** What was measured off the files, with the panel's figures when the Gerbers were a panel. */
 function fabOf(files: { name: string; text: string }[], panel?: PanelFacts | null) {
@@ -85,6 +86,8 @@ export async function linkPlacements(db: Db, revisionId: string) {
     if (lineId) linked++;
     await db.placement.update({ where: { id: p.id }, data: { bomLineId: lineId } });
   }
+  // With the lines known, each part's body is known: put the parts on their pads (Phase 44).
+  await alignPlacements(db, revisionId).catch((e) => console.error(`Aligning placements of ${revisionId} failed:`, e));
   return { linked, total: placements.length };
 }
 
@@ -158,6 +161,8 @@ export async function saveGerbers(db: Db, revisionId: string, files: { name: str
     fab: (fabOf(files, opts.panel) ?? Prisma.JsonNull) as Prisma.InputJsonValue,
   };
   await db.boardModel.upsert({ where: { revisionId }, create: { revisionId, ...data }, update: data });
+  // New copper under placements already saved: put the parts on these pads.
+  if (await db.placement.count({ where: { revisionId } })) await alignPlacements(db, revisionId).catch((e) => console.error(`Aligning placements of ${revisionId} failed:`, e));
   return { layers: info.filter((f) => f.type !== "drawing").length, copper, width: data.widthMm, height: data.heightMm };
 }
 

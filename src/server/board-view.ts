@@ -1,7 +1,8 @@
 import "server-only";
 import { db } from "@/lib/db";
 import type { Currency } from "@/lib/currency";
-import { bodyFor, packageFromFootprint, type BodySpec } from "@/lib/board/bodies";
+import { bodyFor, bodyFromCopper, packageFromFootprint, type BodySpec, type CopperFacts } from "@/lib/board/bodies";
+import { alignPlacements } from "@/server/placement-align";
 import { bodyFromFootprint, kindForLine, kindLabel, mountFromFootprint, squareUp, type FoundPart, type FoundParts } from "@/lib/board/find-parts";
 import { ENCLOSURES, boardFits, type EnclosureSpec } from "@/lib/board/enclosures";
 import { analyseBox, type KitLine } from "@/lib/board/box";
@@ -43,6 +44,8 @@ export async function viewerDataWithAnalysis(
   const a = await analyseRevision(db, revisionId, currency);
   if (!a) return null;
   const rev = a.revision;
+  // Boards saved before Phase 44: put their parts on their pads once, the first time they are looked at.
+  if (await db.placement.count({ where: { revisionId, snap: null } })) await alignPlacements(db, revisionId).catch((e) => console.error(`Aligning placements of ${revisionId} failed:`, e));
   const [board, placements, packages, alternates, lines] = await Promise.all([
     db.boardModel.findUnique({ where: { revisionId } }),
     db.placement.findMany({ where: { revisionId } }),
@@ -107,9 +110,22 @@ export async function viewerDataWithAnalysis(
     return out;
   };
 
+  // The 3D body: the part's package; else what the copper under it reads as (a known package, or sized from its
+  // pads); else the footprint's name. A footprint name we cannot size is a 3 × 3 mm guess the copper beats.
+  const bodyOf = (ref: string, pkg: (typeof packages)[number] | null, p: NonNullable<(typeof a.lines)[number]["part"]> | null, footprint: string | null, copper: CopperFacts | null): BodySpec => {
+    if (pkg) return bodyFor(pkg, { category: p?.category.slug ?? null, mpn: p?.mpn });
+    const fromName = footprint ? bodyFromFootprint(footprint, footprintKind(ref, footprint)) : null;
+    if (fromName && !(fromName.kind === "generic" && fromName.length === 3 && fromName.width === 3)) return fromName;
+    const fromCopper = copper ? bodyFromCopper(copper, packages, { category: p?.category.slug ?? null }) : null;
+    if (fromCopper) return fromCopper;
+    // A catalogue part with no package: its category says what it looks like (a connector, a relay, a can).
+    if (p) return bodyFor(null, { category: p.category.slug, mpn: p.mpn });
+    return fromName ?? bodyFor(null);
+  };
+
   // What the process route needs to know about each designator.
   const routeInfo = new Map<string, Omit<RoutePart, "refDes" | "side" | "dnp">>();
-  const toPart = (ref: string, x: number, y: number, rotation: number, side: "TOP" | "BOTTOM", footprint: string | null, lineId: string | null): ViewerPart => {
+  const toPart = (ref: string, x: number, y: number, rotation: number, side: "TOP" | "BOTTOM", footprint: string | null, lineId: string | null, copper: CopperFacts | null = null): ViewerPart => {
     const line = (lineId && byLine.get(lineId)) || lineByRef.get(ref) || null;
     const p = line?.part ?? null;
     const extra = line && p ? enrich(line) : { kind: null, supply: null, risk: null };
@@ -123,7 +139,7 @@ export async function viewerDataWithAnalysis(
       y,
       rotation: squareUp(rotation),
       side,
-      body: !pkg && !p && footprint ? bodyFromFootprint(footprint, footprintKind(ref, footprint)) : bodyFor(pkg, { category: p?.category.slug ?? null, mpn: p?.mpn }),
+      body: bodyOf(ref, pkg, p, footprint, copper),
       lineId: line?.id ?? null,
       lineNo: line?.lineNo ?? null,
       partId: p?.id ?? null,
@@ -156,7 +172,7 @@ export async function viewerDataWithAnalysis(
   let routeSource: ViewerPart[];
   let approximateLayout = false;
   if (placements.length) {
-    parts = placements.map((pl) => toPart(pl.refDes, pl.x - box.x - box.w / 2, pl.y - box.y - box.h / 2, pl.rotation, pl.side === "BOTTOM" ? "BOTTOM" : "TOP", pl.footprint, pl.bomLineId));
+    parts = placements.map((pl) => toPart(pl.refDes, pl.x - box.x - box.w / 2, pl.y - box.y - box.h / 2, pl.rotation, pl.side === "BOTTOM" ? "BOTTOM" : "TOP", pl.footprint, pl.bomLineId, pl.copper ? { label: pl.copper, length: pl.padLength, width: pl.padWidth, pads: pl.padCount } : null));
     routeSource = parts;
   } else {
     // No centroid: shelf-pack every placed RefDes, biggest first, inside the board outline.

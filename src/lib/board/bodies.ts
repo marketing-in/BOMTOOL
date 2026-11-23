@@ -99,3 +99,28 @@ export function packageFromFootprint(footprint: string | null | undefined, known
     .find((k) => f.includes(k.toUpperCase()));
   return named ?? null;
 }
+
+/** What the copper under a part reads as (src/lib/board/placement-snap.ts), as stored with its placement. */
+export type CopperFacts = { label: string; length: number | null; width: number | null; pads: number | null };
+
+/**
+ * A body sized from the copper a part sits on, for a part no package describes: the named package when the copper
+ * reads as one we know ("0402", "SOT-23"), else a body of the land pattern's kind, the size of its pads' inner span.
+ */
+export function bodyFromCopper(c: CopperFacts, packages: PkgLike[], opts: { category?: string | null } = {}): BodySpec | null {
+  const label = c.label.trim();
+  const named = packages.find((p) => (p.name ?? "").toUpperCase() === label.toUpperCase());
+  if (named) return bodyFor(named, opts);
+  const L = c.length ?? 0, W = c.width ?? 0;
+  if (!(L > 0) || !(W > 0)) return null;
+  const pins = Number(label.match(/-(\d{1,4})/)?.[1] ?? c.pads ?? 2);
+  const pitch = Number(label.match(/(\d+(?:\.\d+)?) mm$/)?.[1] ?? 1.27);
+  const [long, short] = [Math.max(L, W), Math.min(L, W)];
+  if (/^(?:QFP)/.test(label)) return { kind: "quad", length: Math.max(1, L - 2.6), width: Math.max(1, W - 2.6), height: 1.4, color: BLACK, pins, pitch };
+  if (/^(?:QFN|DFN)/.test(label)) return { kind: "leadless", length: Math.max(1, L - 0.4), width: Math.max(1, W - 0.4), height: 0.85, color: BLACK, pins, pitch };
+  if (/^BGA/.test(label)) return { kind: "array", length: L + 0.6, width: W + 0.6, height: 1.2, color: BLACK, pins, pitch };
+  if (/^(?:SOIC|TSSOP)/.test(label)) return { kind: "gullwing", length: long - 0.2, width: Math.max(1, short - 2.4), height: 1.5, color: BLACK, pins, pitch };
+  if (/^4-pad/.test(label)) return { kind: "crystal", length: long, width: short, height: Math.max(0.45, short * 0.35), color: "#c9ccd2", pins: 4, pitch: Math.round(long * 60) / 100 };
+  if (/through-hole/.test(label)) return null;
+  return null;
+}

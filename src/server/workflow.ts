@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 import { GATES, readSignoffs } from "@/lib/feasibility/gates";
 import { sectionStates, type StepFacts } from "@/lib/bom/workflow";
 import { matchFootprints, matchHeldNote, matchNote, type FootprintMatch } from "@/lib/board/footprint-match";
-import { padsFromLayerSvg, placementFit, type BoardFit } from "@/lib/board/placement-fit";
+import { placementFit, type BoardFit } from "@/lib/board/placement-fit";
+import { copperPads, type CopperPads } from "@/lib/board/copper-pads";
 import { bodyFromFootprint, mountFromFootprint } from "@/lib/board/find-parts";
 import { findMismatches, mismatchNote, type Mismatches } from "@/lib/bom/mismatch";
 
@@ -19,22 +20,36 @@ export const boardFrameFor = cache(async (revisionId: string): Promise<{ box: { 
   return r?.box ? { box: r.box, hasTop: !!r.has_top } : null;
 });
 
+/** A board's pads, kept per board version: reading them walks every pad of both outer layers. */
+const PADS = new Map<string, CopperPads>();
+function padsOf(key: string, layers: { type: string; side: string; svg: string }[]): CopperPads {
+  const hit = PADS.get(key);
+  if (hit) return hit;
+  const pads = copperPads(layers);
+  if (PADS.size > 24) PADS.delete(PADS.keys().next().value!);
+  PADS.set(key, pads);
+  return pads;
+}
+
 /**
  * Do the placements sit on the Gerbers? The copper layers' pad flashes and the board outline, read from the drawings
  * kept with the board, against every placement. Null when the board was not made from Gerbers (nothing to compare).
  */
 export const boardFitFor = cache(async (revisionId: string): Promise<BoardFit | null> => {
   const [rows, placements] = await Promise.all([
-    db.$queryRaw<{ source: string; box: { x: number; y: number; w: number; h: number } | null; copper: { side: string; svg: string }[] | null }[]>`
-      SELECT source, artwork->'box' AS box,
-        (SELECT jsonb_agg(jsonb_build_object('side', l->>'side', 'svg', l->>'svg')) FROM jsonb_array_elements(artwork->'layers') l WHERE l->>'type' = 'copper' AND l->>'side' IN ('top', 'bottom')) AS copper
+    db.$queryRaw<{ source: string; updated: Date; box: { x: number; y: number; w: number; h: number } | null; copper: { type: string; side: string; svg: string }[] | null }[]>`
+      SELECT source, "updatedAt" AS updated, artwork->'box' AS box,
+        (SELECT jsonb_agg(jsonb_build_object('type', l->>'type', 'side', l->>'side', 'svg', l->>'svg')) FROM jsonb_array_elements(artwork->'layers') l
+          WHERE (l->>'type' IN ('copper', 'soldermask') AND l->>'side' IN ('top', 'bottom')) OR l->>'type' = 'drill') AS copper
       FROM "BoardModel" WHERE "revisionId" = ${revisionId} LIMIT 1`,
     db.placement.findMany({ where: { revisionId }, select: { refDes: true, footprint: true, x: true, y: true, side: true } }),
   ]);
   const b = rows[0];
   if (!b || b.source !== "gerber" || !placements.length) return null;
   const copper = b.copper ?? [];
-  const pads = { top: copper.filter((l) => l.side === "top").flatMap((l) => padsFromLayerSvg(l.svg)), bottom: copper.filter((l) => l.side === "bottom").flatMap((l) => padsFromLayerSvg(l.svg)) };
+  // Pads the mask opens over, vias left out: a part beside a via is not on copper.
+  const cu = padsOf(`${revisionId}:${new Date(b.updated).getTime()}`, copper);
+  const pads = { top: cu.top.map((p) => ({ x: p.x, y: p.y })), bottom: cu.bottom.map((p) => ({ x: p.x, y: p.y })) };
   return placementFit({
     box: b.box,
     pads,
@@ -53,7 +68,7 @@ export const boardFitFor = cache(async (revisionId: string): Promise<BoardFit | 
 export const footprintMatchFor = cache(async (revisionId: string): Promise<FootprintMatch> => {
   const [lines, placements] = await Promise.all([
     db.bomLine.findMany({ where: { revisionId }, orderBy: { lineNo: "asc" }, select: { id: true, lineNo: true, refDes: true, rawPackage: true, rawMpn: true, rawValue: true, rawDescription: true, customerPartNumber: true, dnp: true, needsReview: true, partId: true, part: { select: { mpn: true, package: { select: { name: true } } } } } }),
-    db.placement.findMany({ where: { revisionId }, select: { refDes: true, footprint: true, x: true, y: true, side: true, value: true } }),
+    db.placement.findMany({ where: { revisionId }, select: { refDes: true, footprint: true, x: true, y: true, side: true, value: true, copper: true } }),
   ]);
   const fit = await boardFitFor(revisionId).catch(() => null);
   return matchFootprints(

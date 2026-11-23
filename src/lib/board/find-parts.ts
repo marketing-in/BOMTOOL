@@ -219,11 +219,62 @@ export function mountFromFootprint(footprint: string | null | undefined): "THT" 
  * The kind (from the designator: K relay, J connector, D diode …) decides what a leaded footprint most likely is.
  */
 export function bodyFromFootprint(footprint: string, kind: CfType = "other"): BodySpec {
+  return refineFromName(footprint, bodyFromFootprintName(footprint, kind));
+}
+
+/**
+ * What an EasyEDA / LCSC footprint name states outright, over the guess: "SOIC-8_L4.9-W3.9-P1.27-LS6.0-BL" is a
+ * 4.9 × 3.9 mm body at 1.27 mm pitch; "CRYSTAL-SMD_4P-L3.2-W2.5" a 4-pin 3.2 × 2.5 mm crystal; "HDR-TH_4P-P2.54" a
+ * 4-pin header; "SOT-23-3" three pins, not 23.
+ */
+function refineFromName(footprint: string, b: BodySpec): BodySpec {
+  const f = footprint.toUpperCase();
+  const out = { ...b };
+  const sot = f.match(/^SOT-?23(?:-(\d))?(?![0-9])/);
+  if (sot) out.pins = Number(sot[1] ?? 3);
+  const family = f.match(/^(?:[A-Z]*QFP|[A-Z]*QFN|DFN|SON|[A-Z]*SOP|SOIC|SSOP|TSSOP|MSOP|BGA|LGA)-(\d{1,4})(?![0-9])/);
+  if (family) out.pins = Number(family[1]);
+  const pinsP = f.match(/(?:^|[_-])(\d{1,3})P(?:IN)?(?=[_-]|$)/);
+  if (pinsP && !family && !sot) out.pins = Number(pinsP[1]);
+  const lw = f.match(/[_-]L(\d+(?:\.\d+)?)-W(\d+(?:\.\d+)?)/);
+  if (lw) {
+    const [L, W] = [Number(lw[1]), Number(lw[2])];
+    if (L > 0 && W > 0 && L < 120 && W < 120) {
+      out.length = Math.max(L, W);
+      out.width = Math.min(L, W);
+    }
+  }
+  const pitch = f.match(/[_-]P(\d+(?:\.\d+)?)(?=[-_]|$)/);
+  if (pitch && Number(pitch[1]) > 0.2 && Number(pitch[1]) < 10) out.pitch = Number(pitch[1]);
+  if (/^(?:CRYSTAL|XTAL|OSC)/.test(f) && out.kind === "generic") {
+    out.kind = "crystal";
+    out.color = "#c9ccd2";
+    out.height = Math.max(0.45, out.width * 0.35);
+    if (!pinsP) out.pins = 4;
+  }
+  if (/^(?:HDR|HEADER|PINHEADER|PIN-?HDR)/.test(f) && (out.kind === "generic" || out.kind === "connector")) {
+    out.kind = "connector";
+    out.shape = "header";
+    out.color = "#1c1c1f";
+    out.length = Math.max(out.pins, 1) * out.pitch;
+    out.width = out.pitch;
+    out.height = out.pitch >= 2 ? 8.5 : 4.5;
+  }
+  return out;
+}
+
+function bodyFromFootprintName(footprint: string, kind: CfType = "other"): BodySpec {
   const pitch = Number(footprint.match(/(\d+(?:\.\d+)?)\s?mm/)?.[1] ?? 1.27);
   const header = footprint.match(/^Header (\d+)x(\d+)/i);
   if (header) {
     const [rows, cols] = [Number(header[1]), Number(header[2])];
     return { kind: "connector", shape: "header", length: cols * pitch, width: rows * pitch, height: 8.5, color: "#1c1c1f", pins: rows * cols, pitch };
+  }
+  const berg = footprint.match(/(?:BERG|HEADER|PINHD|CONN)[^0-9]*(\d{1,3})[ _-]?PIN(?:S)?(?:[_ -](\d+)[_.](\d+)\s?MM)?/i);
+  if (berg) {
+    const n = Number(berg[1]);
+    const p = berg[2] ? Number(`${berg[2]}.${berg[3]}`) : 2.54;
+    return { kind: "connector", shape: "header", length: n * p, width: p, height: p < 2 ? 4.5 : 8.5, color: "#1c1c1f", pins: n, pitch: p };
   }
   const dip = footprint.match(/^P?DIP-?(\d+)/i);
   if (dip) return { kind: "gullwing", shape: "dip", length: (Number(dip[1]) / 2) * 2.54, width: 6.4, height: 3.6, color: "#1f1f22", pins: Number(dip[1]), pitch: 2.54 };
@@ -263,7 +314,11 @@ export function bodyFromFootprint(footprint: string, kind: CfType = "other"): Bo
   const run = footprint.match(/^(LGA|QFN|DFN|QFP|LQFP|TQFP|TSSOP|SSOP|MSOP|SOIC|SOP)[_ ]?(\d{1,3})(?![0-9.])/i);
   if (run) footprint = `${run[1].toUpperCase() === "LGA" ? "QFN" : run[1].toUpperCase()}-${run[2]}`;
   const [w, d, h, leads, shape] = packageSize(footprint.replace(/×/g, "x"), kind);
-  const pins = Number(footprint.match(/-(\d{1,3})\b/)?.[1] ?? footprint.match(/(\d{1,3})-pad/)?.[1] ?? 2);
+  // "SR_1PIN", "BERG_4PIN_1_27MM": a CAD library's own way of saying the pin count.
+  const named = footprint.match(/(?:^|[^0-9])(\d{1,3})[ _-]?PINS?(?![A-Z])/i);
+  // "-1" after a library name is a variant, not a pin count (SOIC-8 is).
+  const dashed = footprint.match(/-(\d{1,3})\b/)?.[1];
+  const pins = Number(named?.[1] ?? (dashed && Number(dashed) >= 2 ? dashed : null) ?? footprint.match(/(\d{1,3})-pad/)?.[1] ?? 2);
   const length = Math.max(w, d);
   const width = Math.min(w, d);
   const kindOf: BodySpec["kind"] = shape === "cyl" ? "can" : leads === "dual" ? "gullwing" : leads === "quad" ? "quad" : leads === "ends" ? "chip" : kind === "connector" ? "connector" : /QFN|DFN|SON/i.test(footprint) ? "leadless" : "generic";

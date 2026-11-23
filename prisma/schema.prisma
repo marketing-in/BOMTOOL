@@ -929,6 +929,8 @@ model BoardModel {
   artwork     Json?
   /// Measured at upload: { paste: { top, bottom: { apertures, areaMm2, source } }, holes } (src/lib/board/fab-measure.ts)
   fab         Json?
+  /// How the pick-and-place file was lined up with the copper: { dx, dy, checked, before, after, prior, counts } (Phase 44)
+  alignment   Json?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 }
@@ -972,6 +974,17 @@ model Placement {
   value      String?
   bomLineId  String?
   bomLine    BomLine?    @relation(fields: [bomLineId], references: [id], onDelete: SetNull)
+  /// The pick-and-place file's own position and rotation; x / y / rotation above are then the part on its pads (Phase 44).
+  cadX        Float?
+  cadY        Float?
+  cadRotation Float?
+  /// How it was placed: "pads" (centred on its own land pattern), "kept" (the file's position), "off-copper" (no pad near it).
+  snap        String?
+  /// The land pattern read off the copper under it ("0402", "SOT-23", "QFN-24 + EP 0.5 mm") and its extent in mm.
+  copper      String?
+  padCount    Int?
+  padLength   Float?
+  padWidth    Float?
 
   @@unique([revisionId, refDes])
   @@index([bomLineId])
