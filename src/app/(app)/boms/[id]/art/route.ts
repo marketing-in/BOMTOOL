@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { boardDrawing } from "@/server/board-art";
 
 /**
  * One drawing of a board's Gerber artwork (the top or bottom face, or one layer) as SVG, for a board whose drawings
@@ -14,13 +14,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const q = new URL(req.url).searchParams;
   const part = q.get("part");
   const i = Number(q.get("i"));
-  let rows: { svg: string | null }[];
-  if (part === "top" || part === "bottom") {
-    rows = await db.$queryRaw<{ svg: string | null }[]>`SELECT artwork->>${part} AS svg FROM "BoardModel" WHERE "revisionId" = ${id} LIMIT 1`;
-  } else if (part === "layer" && Number.isInteger(i) && i >= 0 && i < 200) {
-    rows = await db.$queryRaw<{ svg: string | null }[]>`SELECT artwork->'layers'->(${i}::int)->>'svg' AS svg FROM "BoardModel" WHERE "revisionId" = ${id} LIMIT 1`;
-  } else return NextResponse.json({ error: "unknown drawing" }, { status: 400 });
-  const svg = rows[0]?.svg;
+  if (part !== "top" && part !== "bottom" && !(part === "layer" && Number.isInteger(i) && i >= 0 && i < 200)) return NextResponse.json({ error: "unknown drawing" }, { status: 400 });
+  // From its own cached entry (src/server/board-art.ts), not by unpacking the board's whole artwork again.
+  const svg = await boardDrawing(id, part === "layer" ? { layer: i } : { side: part });
   if (!svg) return NextResponse.json({ error: "not found" }, { status: 404 });
   return new NextResponse(svg, {
     headers: {

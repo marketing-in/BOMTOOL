@@ -10,16 +10,16 @@ import { bodyFromFootprint, mountFromFootprint } from "@/lib/board/find-parts";
 import { findMismatches, mismatchNote, type Mismatches } from "@/lib/bom/mismatch";
 import { silkRunOf } from "@/server/placement-silk";
 import { getCache } from "@/server/sourcing/cache";
+import { boardHead, fullArtwork, slimArtwork } from "@/server/board-art";
 
 /**
  * Where the board's Gerber drawing sits in the placements' own frame, without loading the drawing itself (it is
  * large): the frame, and whether the top side is on file.
  */
 export const boardFrameFor = cache(async (revisionId: string): Promise<{ box: { x: number; y: number; w: number; h: number }; hasTop: boolean } | null> => {
-  const rows = await db.$queryRaw<{ box: { x: number; y: number; w: number; h: number } | null; has_top: boolean | null }[]>`
-    SELECT artwork->'box' AS box, jsonb_typeof(artwork->'top') = 'string' AS has_top FROM "BoardModel" WHERE "revisionId" = ${revisionId} LIMIT 1`;
-  const r = rows[0];
-  return r?.box ? { box: r.box, hasTop: !!r.has_top } : null;
+  // From the slim artwork (src/server/board-art.ts): asking the database for the box alone unpacks the whole drawing.
+  const art = await slimArtwork(revisionId);
+  return art?.box ? { box: art.box, hasTop: !!art.top } : null;
 });
 
 /** A board's pads, kept per board version: reading them walks every pad of both outer layers. */
@@ -33,11 +33,11 @@ const PADS_TTL = 30 * 86_400;
  * fresh server on Vercel does not start over), then read off the copper, mask and drill layers.
  */
 async function boardPads(revisionId: string): Promise<{ box: { x: number; y: number; w: number; h: number } | null; pads: CopperPads } | null> {
-  const head = await db.$queryRaw<{ source: string; updated: Date; box: { x: number; y: number; w: number; h: number } | null }[]>`
-    SELECT source, "updatedAt" AS updated, artwork->'box' AS box FROM "BoardModel" WHERE "revisionId" = ${revisionId} LIMIT 1`;
-  const b = head[0];
-  if (!b || b.source !== "gerber") return null;
-  const key = `${revisionId}:${new Date(b.updated).getTime()}`;
+  const h = await boardHead(revisionId);
+  if (!h || h.source !== "gerber") return null;
+  const art = await slimArtwork(revisionId);
+  const b = { box: art?.box ?? null };
+  const key = `${revisionId}:${new Date(h.updatedAt).getTime()}`;
   const remember = (pads: CopperPads) => {
     if (PADS.size > 24) PADS.delete(PADS.keys().next().value!);
     PADS.set(key, pads);
@@ -49,11 +49,9 @@ async function boardPads(revisionId: string): Promise<{ box: { x: number; y: num
     .then((c) => c.get<CopperPads>(`pads:${key}`))
     .catch(() => null);
   if (shared?.top && shared.bottom) return remember(shared);
-  const rows = await db.$queryRaw<{ copper: { type: string; side: string; svg: string }[] | null }[]>`
-    SELECT (SELECT jsonb_agg(jsonb_build_object('type', l->>'type', 'side', l->>'side', 'svg', l->>'svg')) FROM jsonb_array_elements(artwork->'layers') l
-        WHERE (l->>'type' IN ('copper', 'soldermask') AND l->>'side' IN ('top', 'bottom')) OR l->>'type' = 'drill') AS copper
-      FROM "BoardModel" WHERE "revisionId" = ${revisionId} LIMIT 1`;
-  const pads = copperPads(rows[0]?.copper ?? []);
+  // The pads come off the outer copper, the mask openings and the drills: read through the one full read a request allows.
+  const full = await fullArtwork(revisionId);
+  const pads = copperPads((full?.layers ?? []).filter((l) => ((l.type === "copper" || l.type === "soldermask") && (l.side === "top" || l.side === "bottom")) || l.type === "drill"));
   await getCache(db)
     .then((c) => c.set(`pads:${key}`, pads, PADS_TTL))
     .catch(() => undefined);

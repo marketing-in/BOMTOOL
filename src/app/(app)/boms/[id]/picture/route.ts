@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { boardDrawing } from "@/server/board-art";
 
 const HEADERS = {
   "Content-Type": "image/svg+xml; charset=utf-8",
@@ -24,11 +24,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const layer = q.get("layer");
 
   if (layer) {
-    const rows = await db.$queryRaw<{ svg: string | null }[]>`
-      SELECT l->>'svg' AS svg
-      FROM "BoardModel" b, jsonb_array_elements(CASE WHEN jsonb_typeof(b.artwork->'layers') = 'array' THEN b.artwork->'layers' ELSE '[]'::jsonb END) AS l
-      WHERE b."revisionId" = ${id} AND l->>'key' = ${layer} LIMIT 1`;
-    const svg = rows[0]?.svg;
+    const svg = await boardDrawing(id, { layerKey: layer });
     if (!svg) return NextResponse.json({ error: "not found" }, { status: 404 });
     // gerber-to-svg draws with currentColor: set it on the root so the layer comes in the colour asked for.
     const color = /^[0-9a-f]{6}$/i.test(q.get("color") ?? "") ? q.get("color")! : "c27c3e";
@@ -36,8 +32,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   }
 
   const side = q.get("side") === "bottom" ? "bottom" : "top";
-  const rows = await db.$queryRaw<{ svg: string | null }[]>`SELECT artwork->>${side} AS svg FROM "BoardModel" WHERE "revisionId" = ${id} LIMIT 1`;
-  const svg = rows[0]?.svg;
+  const svg = await boardDrawing(id, { side });
   if (!svg) return NextResponse.json({ error: "not found" }, { status: 404 });
   return new NextResponse(svg, { headers: HEADERS });
 }

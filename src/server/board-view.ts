@@ -24,7 +24,7 @@ import { entryForPart } from "@/knowledge/dictionary";
 import { webUrl } from "@/server/sourcing/normalise";
 import type { BoardArtwork } from "@/server/board";
 import type { ViewerData, ViewerPart, ViewerRouteStep } from "@/components/viewer/types";
-import { getCache } from "@/server/sourcing/cache";
+import { slimArtwork } from "@/server/board-art";
 
 type Spec = { layers?: number; thicknessMm?: number; finish?: string; mask?: string; silk?: string; sizeMm?: [number, number]; enclosure?: string; coating?: string };
 
@@ -32,47 +32,6 @@ type Spec = { layers?: number; thicknessMm?: number; finish?: string; mask?: str
 const OFF_BOARD = new Set(["enclosure", "fastener", "hookup-wire", "ribbon-cable", "shielded-cable", "harness-component"]);
 
 /** Everything the 3D viewer needs for one BoM revision. */
-/** A drawing larger than this goes to the browser by address, not inside the page. */
-const INLINE_SVG = 256 * 1024;
-/** Slim artworks kept in this server, by board version. */
-const SLIM = new Map<string, BoardArtwork>();
-
-/**
- * A board's artwork for the viewer: small drawings as they are, large ones as `art:` + the address the browser loads
- * them from (src/app/(app)/boms/[id]/art), versioned by the board's last change. The full artwork is read once per
- * board version — one plain read: picking it apart in SQL unpacks the whole value again for every part, which runs
- * a small database out of memory on a 40 MB board — and the slim one is kept in the shared cache, so a page carries a
- * few hundred kilobytes however large the board's Gerber drawings are.
- */
-async function artworkFor(revisionId: string, updatedAt: Date): Promise<BoardArtwork | null> {
-  const v = new Date(updatedAt).getTime();
-  const key = `slim-art:${revisionId}:${v}`;
-  const mem = SLIM.get(key);
-  if (mem) return mem;
-  const cache = await getCache(db).catch(() => null);
-  const shared = await cache?.get<BoardArtwork>(key).catch(() => null);
-  if (shared) return remember(key, shared);
-  const row = await db.boardModel.findUnique({ where: { revisionId }, select: { artwork: true } });
-  const full = (row?.artwork ?? null) as BoardArtwork | null;
-  if (!full) return null;
-  const at = (q: string) => `art:/boms/${revisionId}/art?${q}&v=${v}`;
-  const big = (svg: string | null | undefined) => !!svg && svg.length > INLINE_SVG;
-  const slim: BoardArtwork = {
-    box: full.box ?? null,
-    top: big(full.top) ? at("part=top") : (full.top ?? null),
-    bottom: big(full.bottom) ? at("part=bottom") : (full.bottom ?? null),
-    layers: (full.layers ?? []).map((l, i) => ({ ...l, svg: big(l.svg) ? at(`part=layer&i=${i}`) : l.svg })),
-  };
-  await cache?.set(key, slim, 30 * 86_400).catch(() => undefined);
-  return remember(key, slim);
-}
-
-function remember(key: string, art: BoardArtwork): BoardArtwork {
-  if (SLIM.size > 24) SLIM.delete(SLIM.keys().next().value!);
-  SLIM.set(key, art);
-  return art;
-}
-
 export async function getViewerData(revisionId: string, currency: Currency): Promise<ViewerData | null> {
   return (await viewerDataWithAnalysis(revisionId, currency))?.data ?? null;
 }
@@ -97,7 +56,7 @@ export async function viewerDataWithAnalysis(
   // once — the board remembers it was read, so one with nothing to read is not read again on every view.
   else if (!made.length) await placeFromBoard(db, revisionId, { once: true });
   const [board, placements, packages, alternates, lines] = await Promise.all([
-    // The drawings separately (artworkFor): a large board's run to tens of megabytes.
+    // The drawings separately (src/server/board-art.ts): a large board's run to tens of megabytes.
     db.boardModel.findUnique({ where: { revisionId }, omit: { artwork: true } }),
     db.placement.findMany({ where: { revisionId } }),
     db.package.findMany(),
@@ -111,7 +70,8 @@ export async function viewerDataWithAnalysis(
   const spec = (rev.bom.project.boardSpec ?? {}) as Spec;
   const width = board?.widthMm ?? spec.sizeMm?.[0] ?? 100;
   const height = board?.heightMm ?? spec.sizeMm?.[1] ?? 80;
-  const artwork = board ? await artworkFor(revisionId, board.updatedAt) : null;
+  // Small drawings inline, large ones by address (src/server/board-art.ts).
+  const artwork = board ? await slimArtwork(revisionId) : null;
   const box = artwork?.box ?? { x: 0, y: 0, w: width, h: height };
   const pkgNames = packages.map((p) => p.name);
   const byLine = new Map(a.lines.map((l) => [l.id, l]));
