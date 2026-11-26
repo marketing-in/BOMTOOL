@@ -24,6 +24,7 @@ import { entryForPart } from "@/knowledge/dictionary";
 import { webUrl } from "@/server/sourcing/normalise";
 import type { BoardArtwork } from "@/server/board";
 import type { ViewerData, ViewerPart, ViewerRouteStep } from "@/components/viewer/types";
+import { getCache } from "@/server/sourcing/cache";
 
 type Spec = { layers?: number; thicknessMm?: number; finish?: string; mask?: string; silk?: string; sizeMm?: [number, number]; enclosure?: string; coating?: string };
 
@@ -33,32 +34,43 @@ const OFF_BOARD = new Set(["enclosure", "fastener", "hookup-wire", "ribbon-cable
 /** Everything the 3D viewer needs for one BoM revision. */
 /** A drawing larger than this goes to the browser by address, not inside the page. */
 const INLINE_SVG = 256 * 1024;
+/** Slim artworks kept in this server, by board version. */
+const SLIM = new Map<string, BoardArtwork>();
 
 /**
  * A board's artwork for the viewer: small drawings as they are, large ones as `art:` + the address the browser loads
- * them from (src/app/(app)/boms/[id]/art), versioned by the board's last change. Only the small drawings leave the
- * database, so a board of 40 MB of Gerber drawings costs a page a few hundred kilobytes.
+ * them from (src/app/(app)/boms/[id]/art), versioned by the board's last change. The full artwork is read once per
+ * board version — one plain read: picking it apart in SQL unpacks the whole value again for every part, which runs
+ * a small database out of memory on a 40 MB board — and the slim one is kept in the shared cache, so a page carries a
+ * few hundred kilobytes however large the board's Gerber drawings are.
  */
 async function artworkFor(revisionId: string, updatedAt: Date): Promise<BoardArtwork | null> {
-  const rows = await db.$queryRaw<{ box: BoardArtwork["box"]; top: string | null; top_big: boolean | null; bottom: string | null; bottom_big: boolean | null; layers: (Omit<BoardArtwork["layers"][number], "svg"> & { svg: string | null; big: boolean })[] | null }[]>`
-    SELECT artwork->'box' AS box,
-      CASE WHEN length(artwork->>'top') > ${INLINE_SVG} THEN NULL ELSE artwork->>'top' END AS top,
-      length(artwork->>'top') > ${INLINE_SVG} AS top_big,
-      CASE WHEN length(artwork->>'bottom') > ${INLINE_SVG} THEN NULL ELSE artwork->>'bottom' END AS bottom,
-      length(artwork->>'bottom') > ${INLINE_SVG} AS bottom_big,
-      (SELECT jsonb_agg((l - 'svg') || jsonb_build_object('svg', CASE WHEN length(l->>'svg') > ${INLINE_SVG} THEN NULL ELSE l->>'svg' END, 'big', length(l->>'svg') > ${INLINE_SVG}) ORDER BY n)
-        FROM jsonb_array_elements(artwork->'layers') WITH ORDINALITY AS x(l, n)) AS layers
-    FROM "BoardModel" WHERE "revisionId" = ${revisionId} LIMIT 1`;
-  const a = rows[0];
-  if (!a) return null;
   const v = new Date(updatedAt).getTime();
+  const key = `slim-art:${revisionId}:${v}`;
+  const mem = SLIM.get(key);
+  if (mem) return mem;
+  const cache = await getCache(db).catch(() => null);
+  const shared = await cache?.get<BoardArtwork>(key).catch(() => null);
+  if (shared) return remember(key, shared);
+  const row = await db.boardModel.findUnique({ where: { revisionId }, select: { artwork: true } });
+  const full = (row?.artwork ?? null) as BoardArtwork | null;
+  if (!full) return null;
   const at = (q: string) => `art:/boms/${revisionId}/art?${q}&v=${v}`;
-  return {
-    box: a.box,
-    top: a.top_big ? at("part=top") : a.top,
-    bottom: a.bottom_big ? at("part=bottom") : a.bottom,
-    layers: (a.layers ?? []).map(({ big, svg, ...l }, i) => ({ ...l, svg: big ? at(`part=layer&i=${i}`) : (svg ?? "") })),
+  const big = (svg: string | null | undefined) => !!svg && svg.length > INLINE_SVG;
+  const slim: BoardArtwork = {
+    box: full.box ?? null,
+    top: big(full.top) ? at("part=top") : (full.top ?? null),
+    bottom: big(full.bottom) ? at("part=bottom") : (full.bottom ?? null),
+    layers: (full.layers ?? []).map((l, i) => ({ ...l, svg: big(l.svg) ? at(`part=layer&i=${i}`) : l.svg })),
   };
+  await cache?.set(key, slim, 30 * 86_400).catch(() => undefined);
+  return remember(key, slim);
+}
+
+function remember(key: string, art: BoardArtwork): BoardArtwork {
+  if (SLIM.size > 24) SLIM.delete(SLIM.keys().next().value!);
+  SLIM.set(key, art);
+  return art;
 }
 
 export async function getViewerData(revisionId: string, currency: Currency): Promise<ViewerData | null> {
