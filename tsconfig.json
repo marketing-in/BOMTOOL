@@ -34,6 +34,7 @@
     ".next-check/types/**/*.ts",
     ".next-e2e/types/**/*.ts",
     ".next-prod/types/**/*.ts",
+    ".next-prod-b/types/**/*.ts",
     ".next/types/**/*.ts",
     "next-env.d.ts",
     ".next-ui/types/**/*.ts"

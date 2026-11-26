@@ -1,6 +1,6 @@
 /**
  * Runs a real PostgreSQL server without Docker (for machines without Docker Desktop).
- * Data lives in ./.pgdata. Credentials match .env.example (ems/ems, db "ems", port 5432).
+ * Data lives in ./.pgdata. Credentials match .env.example (ems/ems, db "ems", port 5433).
  *
  *   npm run db:local        start (Ctrl+C to stop)
  *   npm run db:local:stop   stop a server left running (e.g. terminal closed)
@@ -11,7 +11,14 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 
 const dataDir = path.resolve(process.cwd(), ".pgdata");
-const port = Number(process.env.PGPORT ?? 5432);
+// The port DATABASE_URL names (5433 by default: clear of other copies of the app on 5432), or PGPORT.
+const port = Number(process.env.PGPORT ?? (() => {
+  try {
+    return new URL(process.env.DATABASE_URL ?? "").port || 5433;
+  } catch {
+    return 5433;
+  }
+})());
 
 async function postgresControl() {
   const platform = process.platform === "win32" ? "windows" : process.platform;
