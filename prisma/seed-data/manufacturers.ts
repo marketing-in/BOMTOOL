@@ -52,6 +52,8 @@ export const MANUFACTURERS: SeedManufacturer[] = [
   { name: "Murata Manufacturing", shortName: "Murata", aliases: ["Murata", "Murata Electronics", "Murata Mfg"], country: "JP", tier: 5, coo: "JP", website: "murata.com" },
   { name: "Samsung Electro-Mechanics", shortName: "Samsung", aliases: ["Samsung", "SEMCO", "Samsung EM"], country: "KR", tier: 5, coo: "PH", website: "samsungsem.com" },
   { name: "Yageo", aliases: ["Yageo Corp", "Phycomp"], country: "TW", tier: 4, coo: "CN", website: "yageo.com" },
+  // Magnetics: current-sense and gate-drive transformers, common-mode chokes (part of the YAGEO group since 2018).
+  { name: "Pulse Electronics", shortName: "Pulse", aliases: ["Pulse", "Pulse Electronics Corporation", "Pulse Engineering", "Pulse Electronics Corp"], country: "US", tier: 4, coo: "CN", website: "pulseelectronics.com" },
   { name: "KEMET", aliases: ["Kemet Corporation", "KEMET Electronics"], country: "US", tier: 5, coo: "MX", website: "kemet.com" },
   { name: "Taiyo Yuden", aliases: ["Taiyo Yuden Co"], country: "JP", tier: 5, coo: "JP" },
   { name: "KYOCERA AVX", shortName: "AVX", aliases: ["AVX", "AVX Corporation", "Kyocera"], country: "US", tier: 5, coo: "CZ", website: "kyocera-avx.com" },

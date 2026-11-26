@@ -9,6 +9,7 @@ export const BOM_FIELDS = [
   "dnp",
   "customerPn",
   "alternates",
+  "supplierPn",
 ] as const;
 
 export type BomField = (typeof BOM_FIELDS)[number];
@@ -24,6 +25,7 @@ export const BOM_FIELD_LABEL: Record<BomField, string> = {
   dnp: "DNP / Populate",
   customerPn: "Customer part no.",
   alternates: "Alternate MPNs",
+  supplierPn: "Distributor part no.",
 };
 
 /** One entry per source column: the field it feeds, or null to ignore the column. */

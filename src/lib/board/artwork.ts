@@ -92,10 +92,13 @@ export function padsFor(b: BodySpec): (Pad & { out: [number, number] })[] {
       out.push({ x: 0, y: 0, w: L * 0.55, h: W * 0.55, rot: 0, out: [0, 0] });
       break;
     }
-    case "power":
-      out.push({ x: 0, y: W * 0.15, w: L * 0.9, h: W * 0.8, rot: 0, out: [0, 1] });
-      [-1, 1].forEach((s) => out.push({ x: s * L * 0.3, y: -(W / 2 + 1.6), w: 1.1, h: 2, rot: 0, out: [0, -1] }));
+    case "power": {
+      // The tab pad is where the 3D model has the tab: a DPAK's is at the body's -y, its leads out of the +y side.
+      const back = b.shape === "dpak" ? -1 : 1;
+      out.push({ x: 0, y: back * W * 0.15, w: L * 0.9, h: W * 0.8, rot: 0, out: [0, back] });
+      [-1, 1].forEach((s) => out.push({ x: s * L * 0.3, y: -back * (W / 2 + 1.6), w: 1.1, h: 2, rot: 0, out: [0, -back] }));
       break;
+    }
     case "connector":
     case "module": {
       const n = Math.max(2, Math.min(40, b.kind === "module" ? Math.ceil(b.pins / 2) : b.pins));

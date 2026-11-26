@@ -43,10 +43,10 @@ const NAMED: [RegExp, string][] = [
   [/TO-?252|\bDPAK/, "TO-252"],
   [/TO-?92/, "TO-92"],
   [/DO-?41/, "DO-41"],
-  [/\bSMA\b|DO-?214AC/, "SMA"],
-  [/\bSMB\b|DO-?214AA/, "SMB"],
-  [/\bSMC\b|DO-?214AB/, "SMC"],
-  [/HC-?49/, "HC-49"],
+  [/\bSMA\b|DO-?214-?AC/, "SMA"],
+  [/\bSMB\b|DO-?214-?AA/, "SMB"],
+  [/\bSMC\b|DO-?214-?AB/, "SMC"],
+  [/HC-?49|\b49[- ]?US\b/, "HC-49"],
 ];
 
 /** Reads a package or footprint name ("0603", "C_0603_1608Metric", "LQFP-48_7x7mm_P0.5mm", "SOT-23"). */
@@ -59,6 +59,16 @@ export function signature(name: string | null | undefined): Signature | null {
   for (const [re, family] of FAMILY) {
     const m = f.match(new RegExp(`${re.source}[-_ ]?(\\d{1,4})`));
     if (m) return { kind: "leaded", family, pins: Number(m[1]) };
+  }
+  // A small outline written SO-G8 (a gull-wing SO-8), and Digi-Key's order: the pin count first ("8-SOIC", "16-TSSOP",
+  // "144LQFP", "20-VQFN").
+  const gull = f.match(/\bSO-?G(\d{1,2})\b/);
+  if (gull) return { kind: "leaded", family: "SOIC", pins: Number(gull[1]) };
+  const counted = f.match(/(?:^|[^0-9A-Z.])(\d{1,4})-?((?:HT|V|T)?SSOP|MSOP|QSOP|SOIC|SOP|SO|[LTVHP]?QFP|[UVWT]?QFN|[UW]?DFN|W?SON|[FTUL]{0,2}BGA|P?DIP)\b/);
+  if (counted) {
+    const w = counted[2];
+    const family = /SSOP|MSOP|QSOP/.test(w) ? "TSSOP" : /^SO(?:IC|P)?$/.test(w) ? "SOIC" : /QFP/.test(w) ? "QFP" : /QFN|DFN|SON/.test(w) ? "QFN" : /BGA/.test(w) ? "BGA" : /DIP/.test(w) ? "DIP" : null;
+    if (family) return { kind: "leaded", family, pins: Number(counted[1]) };
   }
   const ipc = f.match(/\b(?:RESC|CAPC|INDC|LEDC|DIOC|FUSC|BEADC)(\d{4})/);
   if (ipc && METRIC[ipc[1]]) return { kind: "chip", size: METRIC[ipc[1]] };
@@ -113,8 +123,13 @@ export type MatchLineIn = {
   catalogConfirmed?: boolean;
   customerPn?: string | null;
 };
-/** copper: the land pattern read off the pads under the part ("0402", "SOT-23", "QFN-24 + EP 0.5 mm"), when known. */
-export type MatchPlacementIn = { refDes: string; footprint: string | null; x: number; y: number; side: string; value?: string | null; copper?: string | null };
+/**
+ * copper: the land pattern read off the pads under the part ("0402", "SOT-23", "QFN-24 + EP 0.5 mm"), when known.
+ * onPads: the part was placed from the silkscreen and the pads (Phase 45), not from a file: it has no footprint name
+ * of its own, and its copper is what the board says. fits: what that placing found when it laid the part the line
+ * describes on the land — true it fits, false it cannot be that part, null the line said nothing to check it by.
+ */
+export type MatchPlacementIn = { refDes: string; footprint: string | null; x: number; y: number; side: string; value?: string | null; copper?: string | null; onPads?: boolean; fits?: boolean | null };
 
 /**
  * One thing found about a designator. level "mismatch" is a stop (red); "check" is for a person to confirm (amber).
@@ -259,7 +274,9 @@ export function copperCheck(line: Pick<MatchLineIn, "pkg" | "catalogPkg" | "mpn"
   let differs: boolean;
   if (a.kind !== b.kind) {
     // A SOT-23 and a 3-lead leaded name are the same thing seen two ways; only a chip against a leaded part is clear.
-    differs = a.kind === "chip" || b.kind === "chip";
+    // A two-terminal package (SMB, SOD-323) on pads that read as a chip size is no contradiction: both are two pads.
+    const twoPads = (s: Signature) => s.kind === "chip" || (s.kind === "named" && /^(?:SMA|SMB|SMC|SOD-|DO-41|HC-49)/.test(s.name));
+    differs = (a.kind === "chip" || b.kind === "chip") && !(twoPads(a) && twoPads(b));
   } else if (a.kind === "chip") differs = a.size !== (b as typeof a).size;
   else if (a.kind === "leaded") differs = a.pins !== (b as typeof a).pins;
   else differs = a.name !== (b as typeof a).name;
@@ -272,6 +289,28 @@ export function copperCheck(line: Pick<MatchLineIn, "pkg" | "catalogPkg" | "mpn"
     text: `the pads are ${signatureLabel(b)}, ${who}${sure ? "" : ": confirm the match"}`,
     detail: `pads ${signatureLabel(b)} · ${who}`,
   };
+}
+
+/**
+ * The package a line's description names (Digi-Key's "IC REG LDO ADJ 1A SOT223", "… 8-SOIC") against the copper,
+ * when it differs from the package column: a line whose footprint column agrees with the board can still describe a
+ * part that does not fit it (a SOT-223 regulator on a TO-263 land).
+ */
+export function describedCheck(line: Pick<MatchLineIn, "pkg" | "catalogPkg" | "description" | "mpn">, copper: string | null | undefined): RefNote | null {
+  const said = described(line.description);
+  if (!said || !copper?.trim()) return null;
+  const own = line.catalogPkg?.trim() || line.pkg?.trim();
+  if (own && sameSignature(own, said)) return null;
+  const cu = copperCheck({ pkg: said, catalogPkg: null, mpn: line.mpn, catalogConfirmed: true }, copper);
+  if (!cu) return null;
+  const b = signature(copper)!;
+  return { on: "copper", level: "mismatch", text: `the pads are ${signatureLabel(b)}, the description says ${said}`, detail: `pads ${signatureLabel(b)} · description ${said}` };
+}
+
+/** The package a description names, as a package name ("SOT-223", "SOIC-8", "0805"); null when it names none. */
+export function described(text: string | null | undefined): string | null {
+  const s = signature(text);
+  return s ? signatureLabel(s) : null;
 }
 
 export type RefResult = {
@@ -316,15 +355,39 @@ const n = (k: number, one: string, many = `${one}s`) => `${k.toLocaleString("en-
 const NOTE_ORDER: RefNote["on"][] = ["footprint", "copper", "catalogue", "value", "package", "kind", "part"];
 const byWeight = (a: RefNote, b: RefNote) => (a.level === b.level ? NOTE_ORDER.indexOf(a.on) - NOTE_ORDER.indexOf(b.on) : a.level === "mismatch" ? -1 : 1);
 
+/**
+ * A part placed on its pads from the silkscreen: what its pads say against its line. Two names that can both be read
+ * (an 0805 line on pads that read 0805) are left to the copper check. Where a name cannot be read — an aluminium
+ * can's land is "2 pads 9.4 × 1.3 mm", a header's "2×10 through-hole" — the placing itself laid the part the line
+ * describes on the land, and its finding stands: it fits, it cannot be that part, or (the line said nothing to go
+ * by) a person should look.
+ */
+function onPadsVerdict(l: MatchLineIn, copper: string, fits: boolean | null | undefined): { status: "match" | "mismatch" | "check"; why: string } {
+  const own = l.catalogPkg?.trim() || l.pkg?.trim();
+  if (fits === false) return { status: "mismatch", why: `the pads (${copper}) cannot be the part this line describes` };
+  if (own && signature(own) && signature(copper)) return { status: "match", why: `on its pads (${copper})` };
+  if (fits) return { status: "match", why: `on its pads (${copper}), which fit the part the line describes` };
+  return { status: "check", why: own ? `the pads are ${copper}: they could not be compared with ${own}` : `the pads are ${copper}: the BoM line names no package to compare them with` };
+}
+
 /** Everything found for one placed designator of a BoM line: its status, why, and the notes behind them. */
-export function judgeRef(ref: string, l: MatchLineIn, p: Pick<MatchPlacementIn, "footprint" | "value"> & { copper?: string | null }): { status: "match" | "mismatch" | "check"; why: string; notes: RefNote[]; valueCompared: boolean; values: ValuePair | null } {
-  const c = compare(l.pkg, p.footprint);
+export function judgeRef(ref: string, l: MatchLineIn, p: Pick<MatchPlacementIn, "footprint" | "value" | "copper" | "onPads" | "fits">): { status: "match" | "mismatch" | "check"; why: string; notes: RefNote[]; valueCompared: boolean; values: ValuePair | null } {
+  // A part placed from the silkscreen and the pads has no CAD footprint name to compare: its pads speak for the
+  // board. A part a file placed keeps the name comparison, with or without a name — a file that names no footprint
+  // is still to check.
+  const copper = p.copper?.trim();
+  const fromPads = !!p.onPads && !p.footprint?.trim() && !!copper;
+  const c = fromPads ? onPadsVerdict(l, copper, p.fits) : compare(l.pkg, p.footprint);
   const notes: RefNote[] = [];
-  if (c.status === "mismatch") notes.push({ on: "footprint", level: "mismatch", text: c.why, detail: `BoM ${l.pkg ?? "—"} · board ${p.footprint ?? "—"}` });
+  const cu = copperCheck(l, p.copper) ?? describedCheck(l, p.copper);
+  if (fromPads) {
+    // Where both names can be read the copper check says the same thing more exactly.
+    if (c.status === "mismatch" && !cu) notes.push({ on: "copper", level: "mismatch", text: c.why, detail: `pads ${copper} · BoM ${l.pkg ?? l.mpn ?? "—"}` });
+    else if (c.status === "check") notes.push({ on: "package", level: "check", text: c.why, detail: `BoM ${l.pkg ?? "names no package"} · pads ${copper}` });
+  } else if (c.status === "mismatch") notes.push({ on: "footprint", level: "mismatch", text: c.why, detail: `BoM ${l.pkg ?? "—"} · board ${p.footprint ?? "—"}` });
   else if (c.status === "check") notes.push({ on: "package", level: "check", text: c.why, detail: `BoM ${l.pkg ?? "names no package"} · board ${p.footprint ?? "—"}` });
   const cat = catalogueCheck(l, p.footprint);
   if (cat) notes.push(cat);
-  const cu = copperCheck(l, p.copper);
   if (cu) notes.push(cu);
   const v = compareValue(ref, l, p.value);
   if (v.note) notes.push(v.note);

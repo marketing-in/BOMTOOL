@@ -2,13 +2,43 @@
  * Describes a component's 3D body from package data, independent of the renderer.
  * Units: mm. x = length (along pin rows), y = width, z = height above the board.
  */
+import { PART_BODIES, type BodyLine } from "@/knowledge/part-bodies";
+
 export type BodyKind = "chip" | "molded" | "gullwing" | "leadless" | "quad" | "array" | "power" | "can" | "module" | "crystal" | "connector" | "generic";
 
 /**
  * What the part looks like, where the kind alone would draw the wrong thing: a relay is not a black block, a screw
  * terminal is not a capacitor can. Only the 3D renderer reads it; pads, routes and box cut-outs go by `kind`.
  */
-export type BodyShape = "relay" | "terminal" | "header" | "dip" | "led" | "to220" | "to92" | "hc49" | "electrolytic" | "axial";
+export type BodyShape =
+  | "relay"
+  | "terminal"
+  | "header"
+  | "dip"
+  | "led"
+  | "to220"
+  | "to92"
+  | "hc49"
+  | "electrolytic"
+  | "axial"
+  // Read from a BoM line's own words (bodyForLine, src/knowledge/part-bodies.ts).
+  | "smdcan"
+  | "tantalum"
+  | "power-inductor"
+  | "heatsink"
+  | "transformer"
+  | "ct-transformer"
+  | "minifit"
+  | "kk-header"
+  | "box-header"
+  | "latch-header"
+  | "hc49-smd"
+  | "sot223"
+  | "dpak"
+  | "fuse";
+
+/** Shapes whose leads go through the board: their pads are drilled, and they are soldered after reflow. */
+export const THROUGH_HOLE_SHAPES: ReadonlySet<BodyShape> = new Set<BodyShape>(["dip", "to220", "to92", "header", "terminal", "axial", "hc49", "relay", "electrolytic", "heatsink", "transformer", "ct-transformer", "minifit", "kk-header", "box-header", "latch-header"]);
 
 export type BodySpec = {
   kind: BodyKind;
@@ -20,6 +50,30 @@ export type BodySpec = {
   color: string;
   pins: number;
   pitch: number;
+};
+
+/**
+ * The 3D model (src/vendor/circuitflow/partModels.js) that draws each shape. The board studio and the box-build
+ * view both read it, so a part looks the same in the two.
+ */
+export const SHAPE_MODEL: Partial<Record<BodyShape, string>> = {
+  smdcan: "smdcan",
+  tantalum: "tantalum",
+  "power-inductor": "powerind",
+  heatsink: "heatsink",
+  transformer: "transformer",
+  "ct-transformer": "ct",
+  minifit: "minifit",
+  "kk-header": "kk",
+  "box-header": "boxheader",
+  "latch-header": "latchheader",
+  "hc49-smd": "hc49smd",
+  sot223: "sot223",
+  dpak: "dpak",
+  fuse: "fuse",
+  header: "pinheader",
+  to220: "to220v",
+  electrolytic: "electrolytic",
 };
 
 type PkgLike = { family?: string | null; name?: string | null; lengthMm?: number | null; widthMm?: number | null; heightMm?: number | null; pinCount?: number | null; pitchMm?: number | null };
@@ -62,15 +116,18 @@ export function bodyFor(pkg: PkgLike | null, opts: { category?: string | null; m
   if (fam === "MOLDED") return { kind: "molded", length: L, width: W, height: H, color: "#c9a227", pins: 2, pitch };
   if (fam === "SOD" || fam === "SMx") return { kind: "molded", length: L, width: W, height: H, color: BLACK, pins: 2, pitch };
   if (fam === "DIP") return { kind: "gullwing", shape: "dip", length: L, width: W, height: H, color: BLACK, pins, pitch };
+  // Three leads and a tab, not two rows of leads: the same look the BoM line's own words give (part-bodies.ts).
+  if (fam === "SOT" && /SOT-?223/i.test(pkg?.name ?? "")) return { kind: "gullwing", shape: "sot223", length: L, width: W, height: H, color: BLACK, pins, pitch };
   if (["SOT", "SOIC", "SSOP", "TSSOP", "TSOP"].includes(fam)) return { kind: "gullwing", length: L, width: W, height: H, color: BLACK, pins, pitch };
   if (["QFN", "SON"].includes(fam)) return { kind: "leadless", length: L, width: W, height: H, color: BLACK, pins, pitch };
   if (fam === "QFP") return { kind: "quad", length: L, width: W, height: H, color: BLACK, pins, pitch };
   if (["BGA", "LGA", "CSP"].includes(fam)) return { kind: "array", length: L, width: W, height: H, color: fam === "LGA" ? "#d6d6d0" : BLACK, pins, pitch };
   if (fam === "TO" && /TO-?220/i.test(pkg?.name ?? "")) return { kind: "power", shape: "to220", length: L, width: W, height: H, color: BLACK, pins, pitch };
   if (fam === "TO" && /TO-?92/i.test(pkg?.name ?? "")) return { kind: "power", shape: "to92", length: L, width: W, height: H, color: BLACK, pins, pitch };
+  if (fam === "TO" && /TO-?26[38]|TO-?252|D2?-?PAK/i.test(pkg?.name ?? "")) return { kind: "power", shape: "dpak", length: L, width: W, height: H, color: BLACK, pins, pitch };
   if (fam === "TO") return { kind: "power", length: L, width: W, height: H, color: BLACK, pins, pitch };
   if (fam === "RADIAL") return { kind: "can", shape: "electrolytic", length: L, width: W, height: H, color: "#1f3a6e", pins: 2, pitch };
-  if (fam === "VCHIP") return { kind: "can", length: L, width: W, height: H, color: "#c9ccd2", pins: 2, pitch };
+  if (fam === "VCHIP") return { kind: "can", shape: "smdcan", length: L, width: W, height: H, color: "#c9ccd2", pins: 2, pitch };
   if (fam === "MODULE") return { kind: "module", length: L, width: W, height: H, color: "#c9ccd2", pins, pitch };
   if (fam === "XTAL") return { kind: "crystal", length: L, width: W, height: H, color: "#c9ccd2", pins, pitch };
   if (fam === "LED") return { kind: "chip", length: L, width: W, height: H, color: "#f2f2ea", pins, pitch };
@@ -122,5 +179,45 @@ export function bodyFromCopper(c: CopperFacts, packages: PkgLike[], opts: { cate
   if (/^(?:SOIC|TSSOP)/.test(label)) return { kind: "gullwing", length: long - 0.2, width: Math.max(1, short - 2.4), height: 1.5, color: BLACK, pins, pitch };
   if (/^4-pad/.test(label)) return { kind: "crystal", length: long, width: short, height: Math.max(0.45, short * 0.35), color: "#c9ccd2", pins: 4, pitch: Math.round(long * 60) / 100 };
   if (/through-hole/.test(label)) return null;
+  return null;
+}
+
+/**
+ * A pin header (or socket strip) laid out the way its drilled pads are. A BoM line seldom says whether its twelve
+ * positions are one row or two; the copper under the part always does. Only when the copper is a plain
+ * rows × columns grid of as many pads as the body has pins: any other body, and any other copper, comes back as is.
+ */
+export function headerOnCopper(body: BodySpec, copper: Pick<CopperFacts, "label"> | null | undefined): BodySpec {
+  const pitch = body.pitch || 2.54;
+  const strip = body.shape === "header" || (body.kind === "connector" && !body.shape && Math.abs(body.length * body.width - body.pins * pitch * pitch) < 0.1);
+  const grid = strip ? copper?.label.match(/^(\d+)×(\d+) through-hole/) : null;
+  if (!grid) return body;
+  const [rows, cols] = [Number(grid[1]), Number(grid[2])];
+  if (rows * cols !== body.pins || Math.round(body.width / pitch) === rows) return body;
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+  return { ...body, length: r2(cols * pitch), width: r2(rows * pitch) };
+}
+
+/**
+ * The body a BoM line's own words describe: an aluminium can, a finned heatsink, a Mini-Fit header, a 144-pin LQFP.
+ * Read with the recognisers of src/knowledge/part-bodies.ts — the part number first, then the description, then the
+ * footprint name, because that is how far each can be trusted. Null when nothing in the line says what the part
+ * looks like; the caller then falls back to the catalogue package or the copper.
+ */
+export function bodyForLine(line: { mpn?: string | null; description?: string | null; pkg?: string | null; refDes?: string | null }): BodySpec | null {
+  const clean = (v: string | null | undefined) => (v ?? "").toUpperCase().replace(/\s+/g, " ").trim();
+  const mpn = clean(line.mpn);
+  const description = clean(line.description);
+  const pkg = clean(line.pkg);
+  const l: BodyLine = { mpn, description, pkg, refDes: clean(line.refDes), text: [mpn, description, pkg].filter(Boolean).join(" ") };
+  for (const field of ["mpn", "description", "pkg"] as const) {
+    if (!l[field]) continue;
+    for (const r of PART_BODIES) {
+      const pattern = r[field];
+      const hit = pattern ? l[field].match(pattern) : null;
+      const body = hit ? r.body(l, hit) : null;
+      if (body) return body;
+    }
+  }
   return null;
 }

@@ -42,7 +42,7 @@ const GROUPS: Record<MismatchKey, { title: string; level: Level; ask: string; co
     count: (n) => `${plural(n, "footprint")} to confirm by eye`,
   },
   qty: { title: "Quantity does not match designators", level: "amber", ask: "The line's quantity and its designator count disagree. Ask which is right.", count: (n) => `${plural(n, "quantity", "quantities")} ${n === 1 ? "does" : "do"} not match the designators` },
-  mpn: { title: "Part number disagrees with its description", level: "red", ask: "What gets bought is not what the designer described. Settle it before the order goes out.", count: (n) => `${plural(n, "part number")} ${n === 1 ? "disagrees" : "disagree"} with the description` },
+  mpn: { title: "Part number disagrees with its description", level: "red", ask: "What gets bought is not what the designer described (another value, rating or package, or no maker part number at all). Settle it before the order goes out.", count: (n) => `${plural(n, "part number")} ${n === 1 ? "disagrees" : "disagree"} with the description` },
   refdes: { title: "Designator claimed twice", level: "red", ask: "One position has two parts. Ask which line it belongs to.", count: (n) => `${plural(n, "designator")} claimed twice` },
   duplicate: { title: "Same part number on several lines", level: "amber", ask: "Probably fine, but merging the lines avoids double kitting.", count: (n) => `${plural(n, "part number")} on several lines` },
 };
@@ -88,7 +88,7 @@ export function findMismatches(match: FootprintMatch, lines: MismatchLineIn[]): 
       if (code === "QTY_REFDES_MISMATCH" || code === "MISSING_QTY") {
         const refs = expandRefDes(l.refDes).length;
         add("qty", { ...base, detail: code === "MISSING_QTY" ? "no quantity and no designators" : `quantity ${l.qtyPerBoard} · ${plural(refs, "designator")}` }, code === "MISSING_QTY" ? "red" : "amber");
-      } else if (code.startsWith("MPN_")) add("mpn", { ...base, detail: detail ?? info?.help ?? code }, RED_MPN.has(code) ? "red" : "amber");
+      } else if (code.startsWith("MPN_") || code === "PACKAGE_CONFLICT" || code === "GENERIC_MPN") add("mpn", { ...base, detail: detail ?? info?.help ?? code }, RED_MPN.has(code) || code === "PACKAGE_CONFLICT" ? "red" : "amber");
       else if (code === "DUPLICATE_MPN") add("duplicate", { ...base, detail: `${l.mpn ?? "this part"} is on another line too` });
     }
     for (const ref of expandRefDes(l.refDes)) {

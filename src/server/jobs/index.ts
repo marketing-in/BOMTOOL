@@ -2,10 +2,12 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { refreshParts, type RefreshStats } from "@/server/sourcing/refresh";
 import { refreshFx } from "@/server/fx";
+import { lookUpRevision } from "@/server/sourcing/lookup";
 
-export type JobKind = "refresh.hot" | "refresh.full" | "refresh.parts" | "fx.refresh";
+/** bom.lookup: a BoM's part numbers not in the catalogue, looked up at the distributors (Phase 47). */
+export type JobKind = "refresh.hot" | "refresh.full" | "refresh.parts" | "fx.refresh" | "bom.lookup";
 export type JobTrigger = "schedule" | "manual" | "startup";
-export type JobData = { partIds?: string[]; userId?: string; label?: string };
+export type JobData = { partIds?: string[]; userId?: string; label?: string; revisionId?: string };
 
 /** TTL for cached adapter answers: scheduled runs accept 6 h old data, buyers clicking refresh get ≤ 15 min. */
 const TTL: Record<JobTrigger, number> = { schedule: 6 * 3600, startup: 6 * 3600, manual: 15 * 60 };
@@ -24,13 +26,17 @@ async function allPartIds() {
   return (await db.part.findMany({ select: { id: true }, orderBy: { mpn: "asc" } })).map((p) => p.id);
 }
 
-async function alreadyRunning(kind: JobKind) {
+async function alreadyRunning(kind: JobKind, data: JobData = {}) {
   if (kind === "refresh.parts") return null;
-  return db.jobRun.findFirst({ where: { kind, status: "RUNNING", startedAt: { gt: new Date(Date.now() - 2 * 3600_000) } } });
+  const since = new Date(Date.now() - 2 * 3600_000);
+  // One look-up per BoM at a time; two BoMs may be looked up side by side.
+  if (kind === "bom.lookup") return db.jobRun.findFirst({ where: { kind, status: "RUNNING", startedAt: { gt: since }, stats: { path: ["revisionId"], equals: data.revisionId ?? "" } } });
+  return db.jobRun.findFirst({ where: { kind, status: "RUNNING", startedAt: { gt: since } } });
 }
 
 function createRun(kind: JobKind, trigger: JobTrigger, data: JobData) {
-  return db.jobRun.create({ data: { kind, trigger, startedBy: data.userId, stats: data.label ? { label: data.label } : undefined } });
+  const stats = { ...(data.label ? { label: data.label } : {}), ...(data.revisionId ? { revisionId: data.revisionId } : {}) };
+  return db.jobRun.create({ data: { kind, trigger, startedBy: data.userId, stats: Object.keys(stats).length ? stats : undefined } });
 }
 
 /**
@@ -39,7 +45,7 @@ function createRun(kind: JobKind, trigger: JobTrigger, data: JobData) {
  */
 export async function runJob(kind: JobKind, trigger: JobTrigger, data: JobData = {}, runId?: string) {
   if (!runId) {
-    const running = await alreadyRunning(kind);
+    const running = await alreadyRunning(kind, data);
     if (running) return running;
   }
   const run = runId ? { id: runId } : await createRun(kind, trigger, data);
@@ -47,7 +53,11 @@ export async function runJob(kind: JobKind, trigger: JobTrigger, data: JobData =
   const save = (stats: RefreshStats) =>
     db.jobRun.update({ where: { id: run.id }, data: { stats: { ...(data.label ? { label: data.label } : {}), ...stats, at: new Date().toISOString() } as unknown as Prisma.InputJsonValue } }).then(() => undefined);
   try {
-    if (kind === "fx.refresh") {
+    if (kind === "bom.lookup") {
+      const progress = (s: object) => db.jobRun.update({ where: { id: run.id }, data: { stats: { ...(data.label ? { label: data.label } : {}), ...s, at: new Date().toISOString() } as unknown as Prisma.InputJsonValue } }).then(() => undefined);
+      const stats = await lookUpRevision(db, data.revisionId ?? "", { ttlSec: 24 * 3600, onProgress: progress });
+      await db.jobRun.update({ where: { id: run.id }, data: { status: "DONE", finishedAt: new Date(), stats: { ...(data.label ? { label: data.label } : {}), ...stats } as unknown as Prisma.InputJsonValue } });
+    } else if (kind === "fx.refresh") {
       const fx = await refreshFx();
       await db.jobRun.update({ where: { id: run.id }, data: { status: "DONE", finishedAt: new Date(), stats: { source: fx.source, asOf: fx.asOf, usd: fx.rates.USD, eur: fx.rates.EUR } } });
     } else {
@@ -75,9 +85,26 @@ export async function startJob(kind: JobKind, trigger: JobTrigger, data: JobData
     return null;
   }
   // Create the run record first so the UI can poll it, then execute in the background.
-  const running = await alreadyRunning(kind);
+  const running = await alreadyRunning(kind, data);
   if (running) return running.id;
   const run = await createRun(kind, trigger, data);
   void runJob(kind, trigger, data, run.id).catch((e) => console.error(`[jobs] ${kind} failed`, e));
   return run.id;
 }
+
+/**
+ * After a BoM is matched: its part numbers not in our catalogue are looked up at the distributors, in the background.
+ * Never in tests or the seed (no outside calls there), and only when a distributor is configured.
+ */
+export async function lookUpAfterMatch(revisionId: string, userId?: string | null): Promise<void> {
+  if (process.env.NODE_ENV === "test" || process.env.BOM_LOOKUP === "off") return;
+  // Without a distributor key only the simulated market could answer: nothing worth a run on its own.
+  const { REAL_ADAPTERS } = await import("@/server/sourcing");
+  if (!REAL_ADAPTERS.some((a) => a.configured() && a.dailyLimit > 0)) return;
+  try {
+    await startJob("bom.lookup", "manual", { revisionId, userId: userId ?? undefined, label: "BoM part numbers at the distributors" });
+  } catch (e) {
+    console.error(`[jobs] looking up BoM ${revisionId} at the distributors could not start`, e);
+  }
+}
+

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkValue, compare, footprintKind, matchFootprints, matchHeldNote, matchNote, signature, type MatchLineIn, type MatchPlacementIn } from "@/lib/board/footprint-match";
+import { checkValue, compare, described, describedCheck, footprintKind, judgeRef, matchFootprints, matchHeldNote, matchNote, signature, type MatchLineIn, type MatchPlacementIn } from "@/lib/board/footprint-match";
 import { findMismatches } from "@/lib/bom/mismatch";
 
 describe("reading a footprint name", () => {
@@ -337,3 +337,33 @@ describe("the catalogue's package against the board, on its own", () => {
     expect(w.refs[0].why).toBe("BoM 0805, board 0603");
   });
 });
+
+describe("packages as distributors and CAD libraries write them", () => {
+  it("reads Digi-Key's pin-count-first names and CAD spellings as the same packages", () => {
+    const label = (t: string) => described(t);
+    expect(label("IC MOSFET DRVR DUAL HS 4A 8-SOIC")).toBe("SOIC-8");
+    expect(label("SO8-P50-A157")).toBe("SOIC-8");
+    expect(label("SO-G8")).toBe("SOIC-8");
+    expect(label("IC LEVEL SHIFTER HEX 16-TSSOP")).toBe("TSSOP-16");
+    expect(label("TSSOP16")).toBe("TSSOP-16");
+    expect(label("IC MCU ARM 1.25MB FLASH 144LQFP")).toBe("QFP-144");
+    expect(label("LQFP144")).toBe("QFP-144");
+    expect(label("IC 8-BIT TRNSTR 15KV ESD 20TSSOP")).toBe("TSSOP-20");
+    expect(label("DO-214-AA")).toBe("SMB");
+    expect(label("CRYSTAL 49US SMT")).toBe("HC-49");
+    expect(label("IC REG LDO ADJ 1A SOT223")).toBe("SOT-223");
+    expect(label("CONN HEADER 20POS BRKWAY .100\"")).toBeNull();
+  });
+
+  it("flags a line whose description names a package the board's land is not, though its footprint column agrees", () => {
+    const line = { pkg: "TO263-10", catalogPkg: null, description: "IC REG LDO ADJ 1A SOT223", mpn: "LDO-EXAMPLE" };
+    expect(describedCheck(line, "TO-263")).toMatchObject({ level: "mismatch", text: "the pads are TO-263, the description says SOT-223" });
+    // Description and column agree, or the description names no package: nothing more to say.
+    expect(describedCheck({ ...line, pkg: "SOT-223" }, "TO-263")).toBeNull();
+    expect(describedCheck({ ...line, description: "IC REG LDO ADJ 1A" }, "TO-263")).toBeNull();
+    expect(describedCheck({ ...line, description: "CAP CER 0.1UF 50V X7R 0805", pkg: "CC0805N" }, "0805")).toBeNull();
+    const l: MatchLineIn = { id: "l", lineNo: 1, refDes: "U6", pkg: "TO263-10", mpn: "LDO-EXAMPLE", dnp: false, description: "IC REG LDO ADJ 1A SOT223" };
+    expect(judgeRef("U6", l, { footprint: null, value: null, copper: "TO-263", onPads: true, fits: null }).status).toBe("mismatch");
+  });
+});
+

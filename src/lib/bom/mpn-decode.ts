@@ -132,10 +132,12 @@ const RULES: Rule[] = [
     read: (m) => (IMPERIAL.includes(m[1]) && YAGEO_VOLT[m[4]] ? cap(capCode(m[5]), { size: m[1], dielectric: /NP|C0G/.test(m[3]) ? "C0G" : m[3], voltage: YAGEO_VOLT[m[4]], tolerancePct: CAP_TOL[m[2]] }) : null),
   },
   {
-    // C 1005 X7R 1H 104 K 050 BB — series, metric size, dielectric, voltage, value, tolerance, thickness, packing
+    // C 1005 X7R 1H 104 K 050 BB — series, metric size, dielectric, voltage, value, tolerance, thickness, packing.
+    // The base number without thickness and packing (C2012X7R1H105K), and the old taped form (…KT, …KT000N), are
+    // TDK's too: distributors sell them under the full number.
     maker: "TDK",
     series: "C",
-    re: /^C(\d{4})(C0G|NP0|X7R|X5R|X7S|X6S|X7T|X8R)(\d[A-Z])([0-9R]{3})([A-Z])\d{3}[A-Z]{2}$/,
+    re: /^C(\d{4})(C0G|NP0|X7R|X5R|X7S|X6S|X7T|X8R)(\d[A-Z])([0-9R]{3})([A-Z])(?:\d{3}[A-Z]{2}|T(?:\d{3}[A-Z])?)?$/,
     read: (m) => (METRIC_TO_IMPERIAL[m[1]] && EIA_VOLT[m[3]] ? cap(capCode(m[4]), { size: METRIC_TO_IMPERIAL[m[1]], dielectric: m[2] === "NP0" ? "C0G" : m[2], voltage: EIA_VOLT[m[3]], tolerancePct: CAP_TOL[m[5]] }) : null),
   },
   {

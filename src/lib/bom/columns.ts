@@ -36,6 +36,16 @@ const SYNONYMS: Record<BomField, { exact: string[]; weak?: string[] }> = {
       "materialcode", "materialnumber", "materialno", "stockcode", "sapcode", "sapnumber", "sapno", "erpcode", "housepartnumber", "housepn", "customercode",
     ],
   },
+  // A distributor's own number for the part: "Part Number (Digikey)", "Mouser #", "LCSC Part", "Farnell Order Code".
+  supplierPn: {
+    exact: [
+      "supplierpartnumber", "supplierpartnumber1", "supplierpn", "supplierpartno", "distributorpartnumber", "distributorpn", "distributorpartno",
+      "vendorpartnumber", "vendorpn", "digikeypn", "digikeypartnumber", "digikeypartno", "digikey", "digikeyno", "partnumberdigikey", "dkpn",
+      "dkpartnumber", "mouserpn", "mouserpartnumber", "mouserpartno", "mouserno", "mouser", "partnumbermouser", "lcscpn", "lcscpart",
+      "lcscpartnumber", "lcscpartno", "lcsc", "farnellpn", "farnellpartnumber", "farnellordercode", "farnellcode", "newarkpn",
+      "newarkpartnumber", "element14pn", "element14partnumber", "rsstockno", "rspartnumber", "orderingcode", "ordercode",
+    ],
+  },
   // Second sources the customer approves, in a column of their own ("A; B", "MPN (Maker)").
   alternates: {
     exact: [
@@ -48,8 +58,8 @@ const SYNONYMS: Record<BomField, { exact: string[]; weak?: string[] }> = {
 
 /** Headers we recognise but deliberately ignore (they still count toward header-row detection). */
 const KNOWN_IGNORED = new Set([
-  "item", "itemno", "no", "line", "lineno", "datasheet", "libref", "library", "supplier", "supplier1", "supplierpartnumber",
-  "supplierpartnumber1", "digikeypn", "mouserpn", "price", "unitprice", "extprice", "notes", "remarks", "category", "type",
+  "item", "itemno", "no", "line", "lineno", "datasheet", "libref", "library", "supplier", "supplier1",
+  "price", "unitprice", "extprice", "notes", "remarks", "category", "type", "re",
   // Serial-number columns, as Indian and UK BoMs write them: Sl. No., S.No., Sr. No., SI.NO.
   "sino", "slno", "srno", "sno", "serialno", "serialnumber", "sr", "sl", "uom", "unit", "units", "rev", "revision", "status", "rohs", "leadtime", "moq", "total", "amount",
   // The item a row belongs to, and columns customers add next to the part.
@@ -110,6 +120,11 @@ export function headerConfidence(header: string, field: BomField): number {
   // The maker's part number named as a word: "MPN / Model", "Mfr MPN".
   if (field === "mpn" && /\bmpns?\b/i.test(raw)) conf = Math.max(conf, 80);
   if (field === "alternates" && alternate && /\b(mpns?|parts?|p\/?ns?|numbers?|models?|sources?)\b/i.test(raw)) conf = Math.max(conf, 85);
+  // A part-number column named for a distributor ("Part Number (Digikey)", "Mouser P/N") is the distributor's number,
+  // never the maker's.
+  const distributor = /digi[\s-]?key|mouser|\blcsc\b|farnell|newark|element\s?14|\barrow\b|\btme\b/i.test(raw);
+  if (distributor && (field === "mpn" || field === "customerPn")) return 0;
+  if (field === "supplierPn" && distributor && /\b(p\/?n|pn|part|parts|no|number|#|sku|code|order)\b|#/i.test(raw)) conf = Math.max(conf, 90);
   // A house code column a customer names their own way: "ME-Code", "XYZ Code", "Store Code".
   if (!conf && field === "customerPn" && h.length >= 5 && h.length <= 16 && h.endsWith("code") && !NOT_A_PART_CODE.test(h)) return 65;
   return conf;

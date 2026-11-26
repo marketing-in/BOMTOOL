@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { FileUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { uploadBoardFiles } from "@/app/(app)/boms/board-actions";
 import { Button } from "@/components/ui/button";
 
 export function BoardUploadForm({ revisionId }: { revisionId: string }) {
+  const router = useRouter();
   const [files, setFiles] = useState<File[]>([]);
   const [pending, start] = useTransition();
   const [done, setDone] = useState<string | null>(null);
@@ -29,6 +31,7 @@ export function BoardUploadForm({ revisionId }: { revisionId: string }) {
           else {
             toast.success(res?.message ?? "Uploaded");
             setDone(res?.message ?? "Uploaded");
+            if (res?.nextHref) router.push(res.nextHref);
           }
         });
       }}

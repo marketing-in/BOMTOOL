@@ -99,7 +99,7 @@ export function BomCard({ b, compact }: { b: BomCardData; /** One slim row: the 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <h3 className="truncate leading-tight font-semibold">
-              <Link href={`/boms/${b.id}`} className="outline-none after:absolute after:inset-0 after:rounded-lg group-hover:underline focus-visible:after:ring-2 focus-visible:after:ring-ring">
+              <Link href={`/boms/${b.id}${b.board || b.placements ? "/match" : ""}`} className="outline-none after:absolute after:inset-0 after:rounded-lg group-hover:underline focus-visible:after:ring-2 focus-visible:after:ring-ring">
                 {b.name}
               </Link>
             </h3>
@@ -135,7 +135,7 @@ export function BomCard({ b, compact }: { b: BomCardData; /** One slim row: the 
             <span className="shrink-0">{STAGE[b.stage] ?? b.stage}</span>
           </div>
           <h3 className="mt-2 text-lg leading-snug font-semibold">
-            <Link href={`/boms/${b.id}`} className="outline-none after:absolute after:inset-0 after:rounded-lg group-hover:underline focus-visible:after:ring-2 focus-visible:after:ring-ring">
+            <Link href={`/boms/${b.id}${b.board || b.placements ? "/match" : ""}`} className="outline-none after:absolute after:inset-0 after:rounded-lg group-hover:underline focus-visible:after:ring-2 focus-visible:after:ring-ring">
               {b.name}
             </Link>
           </h3>

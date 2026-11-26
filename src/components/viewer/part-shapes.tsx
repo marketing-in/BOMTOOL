@@ -182,8 +182,10 @@ function Led({ H, pitch, look }: { H: number; pitch: number; look: Look }) {
 function To220({ L, W, H, look }: { L: number; W: number; H: number; look: Look }) {
   const leg = 3.6;
   const bodyH = Math.min(9.2, H - leg);
+  // Drawn with the tab at +y, then turned half round: the tab of a part at 0 degrees is at -y, as the board studio's
+  // model has it and as placements are turned (a TO-220 faces its heatsink with the tab).
   return (
-    <>
+    <group rotation={[0, 0, Math.PI]}>
       {/* the metal tab stands behind the moulded body and rises above it, with its mounting hole */}
       <mesh position={[0, W / 2 - 0.65, leg + (H - leg) / 2]} castShadow>
         <boxGeometry args={[L, 1.3, H - leg]} />
@@ -202,7 +204,7 @@ function To220({ L, W, H, look }: { L: number; W: number; H: number; look: Look 
           <Metal fade={look.fade} />
         </mesh>
       ))}
-    </>
+    </group>
   );
 }
 

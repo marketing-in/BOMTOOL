@@ -10,6 +10,8 @@ export type ParsedDescription = {
   voltage?: number;
   tolerance?: number;
   power?: number;
+  /** Rated current, A (an inductor's "22A"). */
+  current?: number;
   dielectric?: string;
   package?: string;
 };
@@ -59,12 +61,16 @@ export function parseDescription(...parts: (string | null | undefined)[]): Parse
   const tol = text.match(/±?\s*(\d+(?:\.\d+)?)\s*%/);
   if (tol) out.tolerance = Number(tol[1]);
 
-  const watt = text.match(/(?<![\w.])(\d+\/\d+|\d+(?:\.\d+)?)\s*(m?)W\b/);
+  // Not the 220 of "TO-220 W/PINS": a package number is no wattage.
+  const watt = text.match(/(?<![\w.-])(\d+\/\d+|\d+(?:\.\d+)?)\s*(m?)W\b/);
   if (watt) {
     const [a, b] = watt[1].split("/");
     const w = b ? Number(a) / Number(b) : Number(a);
     out.power = watt[2] === "m" ? w / 1000 : w;
   }
+
+  // A crystal's load capacitance ("CRYSTAL 10MHZ 18PF") does not make it a capacitor, nor an oscillator's.
+  if (/\b(?:CRYSTAL|XTAL|OSC(?:ILLATOR)?|RESONATOR)\b/i.test(text)) return out;
 
   const cap = text.match(/(?<![\w.])(\d+(?:\.\d+)?\s*[pnu]|\d+[pnu]\d+)\s*F\b/i) ?? (/\bCAP/i.test(text) ? text.match(/(?<![\w.])(\d+(?:\.\d+)?\s*[pnu]|\d+[pnu]\d+)(?![\w])/i) : null);
   const ind = text.match(/(?<![\w.])(\d+(?:\.\d+)?\s*[num]|\d+[nu]\d+)\s*H\b/i);
@@ -86,6 +92,8 @@ export function parseDescription(...parts: (string | null | undefined)[]): Parse
     if (v !== null) {
       out.kind = "inductor";
       out.inductance = v;
+      const amps = text.match(/(?<![\w.])(\d+(?:\.\d+)?)\s*(m?)A\b/);
+      if (amps) out.current = Number(amps[1]) / (amps[2] ? 1000 : 1);
     }
   } else if (res) {
     const raw = res[1].replace(/\s+/g, "");

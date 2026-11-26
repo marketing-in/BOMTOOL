@@ -12,10 +12,12 @@ import { BOM_AMONG_BOARD_FILES, boardSpecFromDetails, bomAmong, pickDetail, read
 import { isBomField, mappingProblem, type ColumnMapping } from "@/lib/bom/fields";
 import { certainMapping, decidingColumns, type Certainty } from "@/lib/bom/certain-mapping";
 import { ingestRevision, scoreRevision } from "@/server/bom-pipeline";
+import { matchWithReadColumns } from "@/server/auto-match";
 import { MAX_UPLOAD_BYTES, sortBoardFiles, type BoardFiles } from "@/lib/board/upload";
 import { openArchives } from "@/lib/board/archive";
-import { hasRealDesignators, linkPlacements, saveGerbers, savePlacements, savePlacementsFromFile, savePlacementsFromFound } from "@/server/board";
+import { fromDrawings, hasRealDesignators, linkPlacements, placeFromBoard, renderGerbers, saveGerbers, savePlacements, savePlacementsFromFile, savePlacementsFromFound, wasGuessed } from "@/server/board";
 import { bomRowsFromFound, findParts, FOUND_BOM_MAPPING, type FoundParts } from "@/lib/board/find-parts";
+import { lookUpAfterMatch } from "@/server/jobs";
 
 export type ActionState = { error?: string } | undefined;
 
@@ -96,11 +98,21 @@ export async function uploadBom(_prev: ActionState, form: FormData): Promise<Act
     rows = bomRowsFromFound(found);
     fileName = `${preview.name} — components from the Gerbers`;
   } else if (!bomFile && board?.gerbers.length) {
-    // Gerbers only: read the parts off the board (designators from a pick-and-place file or the Gerbers, else guessed from the pads).
+    // Gerbers only: read the parts off the board (designators from a pick-and-place file or the Gerbers, else from the silkscreen and the pads).
     try {
       found = findParts(board.gerbers, board.centroid ? { name: board.centroid.name, text: new TextDecoder().decode(board.centroid.bytes) } : null);
     } catch {
       found = null;
+    }
+    // The files name no parts of their own: read the silkscreen's designators and the pads, as a quick look does,
+    // so the same Gerbers give the same parts whichever way they come in.
+    if (!found || wasGuessed(found)) {
+      try {
+        const { artwork } = await renderGerbers(board.gerbers, { maskColor: "green", finish: "ENIG" });
+        found = fromDrawings(found ?? { source: "none", parts: [], notes: [] }, artwork.layers);
+      } catch {
+        // The old reading, if any, stands.
+      }
     }
     if (!found?.parts.length) return { error: "No components could be read off these Gerbers. Add the BoM file as well, or a pick-and-place file." };
     fromBoard = true;
@@ -138,8 +150,23 @@ export async function uploadBom(_prev: ActionState, form: FormData): Promise<Act
   const bom =
     (await db.bom.findFirst({ where: { projectId: project.id, name: { equals: input.bomName, mode: "insensitive" } } })) ??
     (await db.bom.create({ data: { projectId: project.id, name: input.bomName } }));
-  if (await db.bomRevision.findUnique({ where: { bomId_revision: { bomId: bom.id, revision: input.revision } } })) {
-    return { error: `${bom.name} already has revision ${input.revision}. Use a new revision label.` };
+  const already = await db.bomRevision.findUnique({ where: { bomId_revision: { bomId: bom.id, revision: input.revision } }, select: { id: true, sourceFileName: true, board: { select: { id: true } } } });
+  if (already) {
+    // The same file uploaded again under the same BoM and revision: open what is there instead of refusing. Board files
+    // sent with it are kept when the revision has none yet; then, as for any BoM with its board, the footprint match.
+    if (already.sourceFileName !== fileName) return { error: `${bom.name} rev ${input.revision} came from another file (${already.sourceFileName}). Use a new revision label for this one.` };
+    if (board && !already.board) {
+      try {
+        if (board.gerbers.length) await saveGerbers(db, already.id, board.gerbers, { panel: board.panel });
+        if (board.centroid) await savePlacementsFromFile(db, already.id, board.centroid.name, board.centroid.bytes);
+      } catch (e) {
+        return { error: `Board files: ${e instanceof Error ? e.message : "could not be read"}` };
+      }
+    }
+    const matched = await matchWithReadColumns(db, already.id, { userId: user.id, via: "uploaded-again", needBoard: true });
+    await db.auditLog.create({ data: { userId: user.id, action: "bom.reopen", entity: "BomRevision", entityId: already.id, data: { file: fileName, boardFiles: boardUploads.map((f) => f.name) } } });
+    revalidatePath("/boms");
+    redirect(matched ? `/boms/${already.id}/match` : `/boms/${already.id}/map`);
   }
 
   // Header + mapping: a saved customer template wins when the customer's own header row is identical (the columns the
@@ -224,11 +251,13 @@ export async function uploadBom(_prev: ActionState, form: FormData): Promise<Act
     if (board?.centroid) await savePlacementsFromFile(db, revision.id, board.centroid.name, board.centroid.bytes);
     // No pick-and-place file among the board files: the workbook's own placement sheet says where the parts sit.
     else if (pack?.placements.length) await savePlacements(db, revision.id, pack.placements);
-    else if (fromBoard && found) await savePlacementsFromFound(db, revision.id, found.parts);
+    else if (fromBoard && found) await savePlacementsFromFound(db, revision.id, found.parts, { onPads: found.reader === "silk" });
     else {
       // No pick-and-place file: Gerbers that name their pads (X2) or carry a component layer still say where each part sits.
+      // Parts a quick look read off the silkscreen are not saved here: with the BoM's lines known they are read again
+      // against its designators and packages (placeFromBoard, below).
       const read = board?.gerbers.length ? findParts(board.gerbers) : found;
-      if (hasRealDesignators(read)) await savePlacementsFromFound(db, revision.id, read.parts);
+      if (hasRealDesignators(read) && read.source !== "silkscreen") await savePlacementsFromFound(db, revision.id, read.parts);
     }
   } catch {
     boardNote = "boardError=1";
@@ -246,6 +275,7 @@ export async function uploadBom(_prev: ActionState, form: FormData): Promise<Act
     // Nothing to map: match the generated rows and open the footprint match (step 3).
     await ingestRevision(db, revision.id);
     await linkPlacements(db, revision.id);
+    await lookUpAfterMatch(revision.id, user.id);
     revalidatePath("/boms");
     redirect(`/boms/${revision.id}/match`);
   }
@@ -254,12 +284,19 @@ export async function uploadBom(_prev: ActionState, form: FormData): Promise<Act
   // is saved: a template means a person confirmed the columns. A board that could not be read goes to the mapping page,
   // which says so.
   let matchNote = "";
-  if (columns?.certain && !boardNote) {
+  // A BoM with its board (Gerbers, a quick look's board, or a pick-and-place file) goes straight to the footprint match
+  // with the columns the reader took; they stay one click away there ("Check columns"). Only columns that cannot be
+  // used at all (nothing to match a line by, no quantity or designators) still stop at the mapping page.
+  const pairedBoardUpload = (!!board?.gerbers.length || !!preview || !!board?.centroid) && !mappingProblem(mapping);
+  if ((columns?.certain || pairedBoardUpload) && !boardNote) {
     let matched = false;
     try {
       await db.bomRevision.update({ where: { id: revision.id }, data: { status: "MAPPED" } });
       await ingestRevision(db, revision.id);
       await linkPlacements(db, revision.id);
+      // No file placed the parts: the silkscreen's designators and the pads do, now that the lines are known.
+      await placeFromBoard(db, revision.id);
+      await lookUpAfterMatch(revision.id, user.id);
       matched = true;
     } catch (e) {
       // Back to the mapping page, which says the columns were recognised but matching failed. Confirming the columns
@@ -270,7 +307,7 @@ export async function uploadBom(_prev: ActionState, form: FormData): Promise<Act
     }
     if (matched) {
       await db.auditLog.create({
-        data: { userId: user.id, action: "bom.map", entity: "BomRevision", entityId: revision.id, data: { saveTemplate: false, auto: true, via: columns.via, columns: decidingColumns(rows[headerRow], mapping) } },
+        data: { userId: user.id, action: "bom.map", entity: "BomRevision", entityId: revision.id, data: { saveTemplate: false, auto: true, via: columns?.certain ? columns.via : "paired-board-upload", reviewColumns: !columns?.certain, columns: decidingColumns(rows[headerRow], mapping) } },
       });
       revalidatePath("/boms");
       redirect(`/boms/${revision.id}/match`);
@@ -316,8 +353,11 @@ export async function confirmMapping(input: z.infer<typeof mappingSchema>): Prom
   }
 
   await ingestRevision(db, revisionId);
-  // Lines were re-created: point an uploaded centroid's placements at them again.
+  // Lines were re-created: point an uploaded centroid's placements at them again. A board with no placement file
+  // has its parts placed from the silkscreen and the pads, against the lines as they are now.
   await linkPlacements(db, revisionId);
+  await placeFromBoard(db, revisionId);
+  await lookUpAfterMatch(revisionId, user.id);
   await db.auditLog.create({ data: { userId: user.id, action: "bom.map", entity: "BomRevision", entityId: revisionId, data: { saveTemplate } } });
   revalidatePath("/boms");
   // First the question that decides everything else: can our machines build it? Then board, parts, box, price.

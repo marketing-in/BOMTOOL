@@ -199,6 +199,31 @@ describe("matching", () => {
     expect(r.candidates.map((c) => c.partId).sort()).toEqual(["c10u-x5r", "c10u-x7r"]);
     expect(r.selected?.partId).toBe("c10u-x5r");
   });
+  it("never swaps a part the customer named for another one a few characters off", () => {
+    const shifters = new Catalog([part("txs", "TXS0108EPWR", { manufacturer: "Texas Instruments", categorySlug: "level-shifter", packageName: "TSSOP-20" })]);
+    const r = matchLine(line({ mpn: "TXB0108PWR", manufacturer: "Texas Instruments" }), shifters);
+    expect(r.selected).toBeNull();
+    expect(r.candidates[0]).toMatchObject({ partId: "txs", method: "FUZZY" });
+    expect(r.candidates[0].confidence).toBeLessThan(60);
+    expect(r.needsReview).toBe(true);
+  });
+  it("offers an equivalent for a named part not in the catalogue, but leaves the choice to the customer", () => {
+    const r = matchLine(line({ mpn: "GRM21BR61E106KA73L", manufacturer: "Murata", description: "CAP CER 10UF 25V 10% X5R 0805" }), catalog);
+    expect(r.selected).toBeNull();
+    expect(r.candidates.map((c) => c.partId).sort()).toEqual(["c10u-x5r", "c10u-x7r"]);
+    expect(Math.max(...r.candidates.map((c) => c.confidence))).toBeLessThan(60);
+  });
+  it("asks an inductor for the current its line names", () => {
+    const coils = new Catalog([
+      part("small", "XAL4020-222MEB", { categorySlug: "inductor", num: { inductance: 2.2e-6, current: 5.6 } }),
+      part("big", "SRP1270-2R2M", { manufacturer: "Bourns", categorySlug: "inductor", num: { inductance: 2.2e-6, current: 22 } }),
+      part("unknown", "IND-2R2-X", { categorySlug: "inductor", num: { inductance: 2.2e-6 } }),
+    ]);
+    const r = matchLine(line({ description: "INDUCTOR 2.2UH 22A SMD" }), coils);
+    expect(r.selected?.partId).toBe("big");
+    expect(r.candidates.map((c) => c.partId)).not.toContain("small");
+    expect(r.candidates.find((c) => c.partId === "unknown")?.reason).toMatch(/current rating unknown/);
+  });
   it("returns no selection when nothing fits", () => {
     const r = matchLine(line({ mpn: "ZZZ999" }), catalog);
     expect(r.selected).toBeNull();
@@ -284,3 +309,37 @@ describe("scores", () => {
     expect(scoreBom([])).toBeNull();
   });
 });
+
+describe("descriptions as distributors write them", () => {
+  it("reads an inductor's current, and no crystal as a capacitor or a TO-220 as watts", () => {
+    expect(parseDescription("INDUCTOR 2.2UH 22A SMD")).toMatchObject({ kind: "inductor", inductance: 2.2e-6, current: 22 });
+    expect(parseDescription("IND 10uH 500mA 0805")).toMatchObject({ kind: "inductor", current: 0.5 });
+    expect(parseDescription("CRYSTAL 10MHZ 18PF SMD").kind).toBeNull();
+    expect(parseDescription("OSC XO 25.000MHZ 3.3V").kind).toBeNull();
+    expect(parseDescription('HEATSINK TO-220 W/PINS 1.5"TALL').power).toBeUndefined();
+    expect(parseDescription("RES 150 OHM 1W 1% 2512 SMD")).toMatchObject({ kind: "resistor", power: 1, resistance: 150 });
+  });
+});
+
+describe("part numbers in their short forms", () => {
+  it("reads a TDK base part number without thickness and packing as a complete part number", async () => {
+    const { checkLine } = await import("@/lib/bom/line-checks");
+    expect(checkLine({ mpns: ["C2012X7R1H105K"], description: "CAP CER 1UF 50V X7R 10% 0805", value: null, package: "CC0805N" })).toEqual([]);
+    expect(checkLine({ mpns: ["C2012X7R1H105KT"], description: "CAP CER 1UF 50V X7R 10% 0805", value: null, package: null })).toEqual([]);
+    // The wrong value is still found in the short form.
+    expect(checkLine({ mpns: ["C2012X7R1H104K"], description: "CAP CER 1UF 50V X7R 10% 0805", value: null, package: null })[0]?.code).toBe("MPN_VALUE_MISMATCH");
+  });
+});
+
+describe("a line's own words against each other", () => {
+  it("flags a description and a package column naming different packages, and a name in place of a part number", async () => {
+    const { checkLine } = await import("@/lib/bom/line-checks");
+    const ldo = checkLine({ mpns: ["LDO1117X"], description: "IC REG LDO ADJ 1A SOT223", value: null, package: "TO263-10" });
+    expect(ldo).toEqual([{ code: "PACKAGE_CONFLICT", detail: "the description says SOT-223, the package column TO263-10 (TO-263)" }]);
+    // The same package written two ways is no conflict.
+    expect(checkLine({ mpns: ["DRV4427X"], description: "IC MOSFET DRVR DUAL HS 4A 8-SOIC", value: null, package: "SO8-P50-A157" })).toEqual([]);
+    expect(checkLine({ mpns: ["SK33X"], description: "DIODE SCHOTTKY 30V 3A SMB", value: null, package: "DO-214-AA" })).toEqual([]);
+    expect(checkLine({ mpns: ["TRANSFORMER"], description: "3 Tap Transformer", value: null, package: "E41/17/12" })[0]?.code).toBe("GENERIC_MPN");
+  });
+});
+

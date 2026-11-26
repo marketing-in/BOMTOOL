@@ -1,8 +1,16 @@
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PackageOpen } from "lucide-react";
+import { Info } from "@/components/viz/info";
 
-/** `level={2}`: the header of one section of a page that holds several (a BoM step's sections). */
+/** A description short enough to read at a glance stays under the title; anything longer waits behind the ⓘ. */
+const SHORT = 80;
+
+/**
+ * `level={2}`: the header of one section of a page that holds several (a BoM step's sections). The title carries the
+ * page; a long `description` (or one that is not plain text) opens from the ⓘ beside it, so pages lead with their
+ * content and not with paragraphs.
+ */
 export function PageHeader({
   title,
   description,
@@ -19,12 +27,20 @@ export function PageHeader({
   level?: 1 | 2;
 }) {
   const Heading = level === 1 ? "h1" : "h2";
+  const inline = typeof description === "string" && description.length <= SHORT;
   return (
     <div className={cn("flex flex-wrap items-end justify-between gap-x-8 gap-y-5", level === 1 ? "mb-8" : "mb-6", className)}>
       <div className="min-w-0">
-        <Heading className={cn("page-heading leading-tight font-semibold tracking-tight", level === 1 ? "" : "text-2xl")}>{title}</Heading>
+        <div className="flex items-center gap-1.5">
+          <Heading className={cn("page-heading leading-tight font-semibold tracking-tight", level === 1 ? "" : "text-2xl")}>{title}</Heading>
+          {description && !inline ? (
+            <Info label={typeof title === "string" ? `About ${title}` : "About this page"} className="mt-1">
+              <div className="text-muted-foreground">{description}</div>
+            </Info>
+          ) : null}
+        </div>
         {eyebrow ? <div className="mt-2 text-xs text-muted-foreground">{eyebrow}</div> : null}
-        {description ? <p className="mt-2 max-w-[72ch] text-sm leading-relaxed text-muted-foreground">{description}</p> : null}
+        {inline ? <p className="mt-2 max-w-[72ch] text-sm leading-relaxed text-muted-foreground">{description}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
@@ -53,6 +69,28 @@ export function Stat({ label, value, hint, icon: Icon, tone = "plain" }: { label
       </div>
       <div className={cn("num text-[1.75rem] leading-tight font-semibold tracking-tight", t.value)}>{value}</div>
       {hint ? <div className="mt-2 text-xs leading-relaxed text-muted-foreground">{hint}</div> : null}
+    </div>
+  );
+}
+
+/**
+ * A section's heading on a page: the title, the ⓘ that holds what a reader may want explained, and whatever sits on
+ * the right (a count, a filter, an action). Explanations live behind the ⓘ, not in paragraphs under the heading.
+ */
+export function SectionHeading({ id, title, info, children, className }: { id?: string; title: React.ReactNode; info?: React.ReactNode; children?: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn("flex flex-wrap items-center justify-between gap-x-4 gap-y-2", className)}>
+      <div className="flex min-w-0 items-center gap-1.5">
+        <h2 id={id} className="text-lg font-semibold">
+          {title}
+        </h2>
+        {info ? (
+          <Info label={typeof title === "string" ? `About ${title}` : "About this section"}>
+            <div className="text-muted-foreground">{info}</div>
+          </Info>
+        ) : null}
+      </div>
+      {children}
     </div>
   );
 }

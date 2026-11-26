@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { VIEW_LABEL, fitDistance, viewDirection, type CameraView } from "@/lib/board/camera";
 import { EnclosureModel, boardPlacement, boxFloorZ, boxFrame, type Shell } from "./enclosure";
 import { PartBody } from "./part-mesh";
+import { heatsinkLooks } from "./to-circuitflow";
 import { ProductPanel, fitVerdict } from "./product-panel";
 import { RoutePanel } from "./route-panel";
 import { BomListPanel } from "./bom-list-panel";
@@ -22,6 +23,7 @@ import { seg } from "./ui";
 import { maskColor, type Face } from "./textures";
 import type { ViewerData, ViewerPart } from "./types";
 import { withSuggestedBox } from "@/lib/board/suggest-box";
+import { partFacts } from "@/lib/board/part-facts";
 import { BoardStudio, type StudioMode } from "@/vendor/circuitflow/studio/entry";
 import { useBoardTextures, useStudioBoard } from "./board-textures";
 
@@ -221,6 +223,7 @@ function ExplodedStack({ layers, visible, explode, w, h, parts }: { layers: Stac
   const gap = stackGap(explode);
   const total = (layers.length - 1) * gap;
   const lift = gap * 1.1 + 1;
+  const sinks = useMemo(() => heatsinkLooks(parts), [parts]);
   const tops = parts.filter((p) => p.side === "TOP" && !p.dnp);
   const bottoms = parts.filter((p) => p.side === "BOTTOM" && !p.dnp);
   const tag = "block -translate-y-1/2 rounded border bg-card/95 px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-foreground";
@@ -231,7 +234,7 @@ function ExplodedStack({ layers, visible, explode, w, h, parts }: { layers: Stac
         <group position={[0, 0, total / 2 + lift]}>
           {tops.map((p) => (
             <group key={p.refDes} position={[p.x, p.y, 0]} rotation={[0, 0, (p.rotation * Math.PI) / 180]}>
-              <PartBody body={p.body} marking={p.marking ?? p.mpn} />
+              <PartBody body={p.body} marking={p.marking ?? p.mpn} sink={sinks.get(p.refDes)} />
             </group>
           ))}
           {explode > 0.15 ? (
@@ -245,7 +248,7 @@ function ExplodedStack({ layers, visible, explode, w, h, parts }: { layers: Stac
         <group position={[0, 0, -total / 2 - lift]}>
           {bottoms.map((p) => (
             <group key={p.refDes} position={[p.x, p.y, 0]} rotation={[Math.PI, 0, (p.rotation * Math.PI) / 180]}>
-              <PartBody body={p.body} marking={p.marking ?? p.mpn} />
+              <PartBody body={p.body} marking={p.marking ?? p.mpn} sink={sinks.get(p.refDes)} />
             </group>
           ))}
           {explode > 0.15 ? (
@@ -336,6 +339,7 @@ function AssembledBoard({
   const hov = hovered ? data.parts.find((p) => p.refDes === hovered) : undefined;
   // A soft dark patch under every part, so it sits on the board instead of floating over it. Unlike a cast shadow
   // it is drawn the same on every graphics card.
+  const sinks = useMemo(() => heatsinkLooks(data.parts), [data.parts]);
   const contact = useMemo(() => {
     const map = contactTexture();
     return map ? new THREE.MeshBasicMaterial({ map, transparent: true, opacity: 0.9, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }) : null;
@@ -372,6 +376,7 @@ function AssembledBoard({
               <PartBody
                 body={p.body}
                 marking={p.marking ?? p.mpn}
+                sink={sinks.get(p.refDes)}
                 color={overlayColor(p, overlay)}
                 emissive={p.refDes === selected ? "#5a2f96" : selectedLine && p.lineId === selectedLine ? "#7b3fb5" : undefined}
                 onClick={(e) => {
@@ -547,6 +552,8 @@ export default function BoardViewer({
   );
   const stack = useMemo(() => (tex ? buildStack(data, tex) : []), [data, tex]);
   const sel = data.parts.find((p) => p.refDes === selected) ?? null;
+  // The clicked part's own data sheet, read from its BoM line: kind, value, voltage, current …
+  const facts = useMemo(() => (sel ? partFacts({ refDes: sel.refDes, mpn: sel.mpn, description: sel.description, pkg: sel.pkg, value: sel.value }) : null), [sel]);
   const size = Math.max(data.board.width, data.board.height, data.enclosure && mode === "box" ? data.enclosure.length : 0);
   const reduced = useRef(false);
   useEffect(() => {
@@ -845,6 +852,21 @@ export default function BoardViewer({
                 </div>
               </div>
               <p className="line-clamp-2 text-xs text-muted-foreground">{sel.description}</p>
+              {facts ? (
+                <div className="rounded-lg border bg-muted/40 p-3">
+                  <div className="text-sm font-medium">{facts.kind}</div>
+                  {facts.facts.length ? (
+                    <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2">
+                      {facts.facts.map((f) => (
+                        <div key={f.label} className="min-w-0">
+                          <dt className="text-[11px] text-muted-foreground">{f.label}</dt>
+                          <dd className="text-sm break-words tabular-nums">{f.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
                 {sel.lifecycle ? <LifecycleBadge lifecycle={sel.lifecycle} /> : null}
                 {sel.dnp ? <span className="rounded-md bg-muted px-1.5 py-0.5">DNP</span> : null}

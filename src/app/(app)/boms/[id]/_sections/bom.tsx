@@ -151,8 +151,13 @@ export default async function BomSection({ id }: { id: string }) {
         eyebrow={
           <span className="flex flex-wrap items-center gap-x-2">
             <span>{rev.bom.project.customer.name}</span>
-            <span aria-hidden>/</span>
-            <span>{rev.bom.project.name}</span>
+            {/* The project only when it says something the BoM's name does not. */}
+            {rev.bom.project.name.trim().toLowerCase() !== rev.bom.name.trim().toLowerCase() ? (
+              <>
+                <span aria-hidden>/</span>
+                <span>{rev.bom.project.name}</span>
+              </>
+            ) : null}
           </span>
         }
         title={

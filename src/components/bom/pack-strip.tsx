@@ -64,7 +64,7 @@ export function PackStrip({ pack, className, compact, choose, title = "Read from
     <>
       {pack.singlePage ? (
         <p className="mt-3 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
-          A CSV holds one sheet. To read every page — placements, not-fitted lists, alternates — upload the Excel file.
+          A CSV has one sheet. Upload the Excel file to read every page.
         </p>
       ) : null}
 

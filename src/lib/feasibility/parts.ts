@@ -2,7 +2,7 @@
  * The fitted parts of a board as the feasibility maths needs them, from the 3D viewer's parts and the process route
  * (which already knows what is surface-mount, through-hole or press-fit). Pure.
  */
-import type { BodySpec } from "@/lib/board/bodies";
+import { THROUGH_HOLE_SHAPES, type BodySpec } from "@/lib/board/bodies";
 import { classifyPart, type AsmPart, type Mount } from "./joints";
 
 type PartIn = { refDes: string; side: "TOP" | "BOTTOM"; body: BodySpec; pkg: string | null; dnp: boolean; description?: string | null; kind?: { slug: string; name: string } | null };
@@ -11,7 +11,7 @@ const textOf = (p: PartIn) => `${p.kind?.name ?? ""} ${p.description ?? ""}`;
 
 /** A part the route never saw (do-not-populate): leaded shapes and packages are through-hole, the rest surface-mount. */
 const mountOf = (p: PartIn): Mount =>
-  ["relay", "terminal", "header", "dip", "to220", "to92", "hc49", "electrolytic", "axial"].includes(p.body.shape ?? "") || /^(P?DIP|TO-?(92|220|247)|Header|Radial|Axial)/i.test(p.pkg ?? "") ? "THT" : "SMT";
+  (p.body.shape && THROUGH_HOLE_SHAPES.has(p.body.shape)) || /^(P?DIP|TO-?(92|220|247)|Header|Radial|Axial)/i.test(p.pkg ?? "") ? "THT" : "SMT";
 type StepIn = { key: string; side: "TOP" | "BOTTOM" | null; refs: string[] };
 
 export function asmParts(parts: PartIn[], route: StepIn[]): { parts: AsmPart[]; dnp: AsmPart[]; assumed: number } {

@@ -224,7 +224,7 @@ export default async function DictionaryEntryPage({ params }: { params: Promise<
                     </tbody>
                   </table>
                 </div>
-                <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">A starting point, not an approval: confirm pinout, ratings and package against both datasheets before adding an alternate.</p>
+                <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">Not an approval: check pinout, ratings and package in both datasheets first.</p>
               </div>
             ) : null}
             {e.alternatives.crossFamily?.length ? (

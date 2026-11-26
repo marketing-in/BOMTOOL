@@ -7,7 +7,7 @@ import { buildGerberBoard, classifyPads, inferType, packageSize, TYPE_LABELS, ty
 import { familyPitch, type BodySpec } from "./bodies";
 import type { ColumnMapping } from "@/lib/bom/fields";
 
-export type FoundSource = "component-layer" | "placement" | "pad-designators" | "guessed" | "none";
+export type FoundSource = "component-layer" | "placement" | "pad-designators" | "silkscreen" | "guessed" | "none";
 
 export type FoundPart = {
   ref: string;
@@ -31,12 +31,17 @@ export type FoundPart = {
   d: number;
 };
 
-export type FoundParts = { source: FoundSource; parts: FoundPart[]; notes: string[] };
+/**
+ * `reader`: "silk" when the board's silkscreen and pads were read for the parts (src/lib/board/place-from-silk.ts) —
+ * also when that reading found nothing better than the guess, so a stored board is not read again.
+ */
+export type FoundParts = { source: FoundSource; parts: FoundPart[]; notes: string[]; reader?: "silk" };
 
 export const SOURCE_LABEL: Record<FoundSource, string> = {
   "component-layer": "the component layer in the Gerbers",
   placement: "the pick-and-place file",
   "pad-designators": "the designators on the Gerber pads",
+  silkscreen: "the silkscreen designators and the pads",
   guessed: "the pads, drills and silkscreen (guessed)",
   none: "nothing in these files",
 };
@@ -194,9 +199,11 @@ export function bomRowsFromFound(found: FoundParts): string[][] {
     const label = kindLabel(g);
     // No MPN column but a value that is one: the matcher gets it as the MPN.
     const mpn = g.mpn ?? (looksLikeMpn(g.value) ? g.value : null);
+    // A two-pad part with no designator printed at it is a guess on a lettered board too.
+    const guessed = found.source === "guessed" || g.passive;
     const description = g.value
       ? `${label} ${g.value}`
-      : found.source === "guessed"
+      : guessed
         ? `${g.passive ? "Two-pad" : g.tht ? "Through-hole" : "SMD"} part, ${GUESSED_MARK} — value and part number are not in the files`
         : "Value and part number are not in the Gerbers";
     return [g.refs.join(", "), String(g.refs.length), g.value ?? "", mpn ?? "", g.manufacturer ?? "", g.package, description, label];

@@ -7,8 +7,13 @@ import type { CircuitflowPart } from "../entry";
 // @ts-ignore -- vendored JSX without types; typed below
 import BoardImpl from "./Board.jsx";
 
-/** A circuitflow part on the studio board; `dnp` = not fitted, drawn as a dashed footprint only. */
-export type StudioPart = CircuitflowPart & { dnp?: boolean };
+/**
+ * A circuitflow part on the studio board; `dnp` = not fitted, drawn as a dashed footprint only. `model` names the
+ * body model outright (partModels.js) when the BoM line says what the part is, with its pin count, pitch (mm) and
+ * body colour; `device` on a heatsink draws a TO-220 bolted to it; `channel` draws the heatsink as a web between
+ * fins, for power parts that stand inside its depth.
+ */
+export type StudioPart = CircuitflowPart & { dnp?: boolean; model?: string; pins?: number; pitch?: number; color?: string; device?: boolean; channel?: boolean };
 
 /** A picture the studio lays on the board: a URL, or a canvas the app already drew. */
 export type StudioImage = string | HTMLCanvasElement;

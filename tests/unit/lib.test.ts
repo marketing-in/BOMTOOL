@@ -128,3 +128,26 @@ describe("rbac", () => {
     expect(can(undefined, "bom.write")).toBe(false);
   });
 });
+
+describe("maker names as customers' BoMs write them", () => {
+  const idx = buildAliasIndex([
+    { name: "Murata Manufacturing", aliases: ["Murata", "Murata Electronics"] },
+    { name: "Littelfuse", aliases: ["Littelfuse Inc"] },
+    { name: "onsemi", aliases: ["ON Semiconductor", "Fairchild"] },
+    { name: "Vishay", aliases: ["Vishay Dale"] },
+    { name: "Molex", aliases: [] },
+    { name: "Mouser Electronics", aliases: [] },
+  ]);
+  it("reads past region, division and short-form words", () => {
+    expect(resolveManufacturer("Murata Electronics North America", idx)).toBe("Murata Manufacturing");
+    expect(resolveManufacturer("Fairchild Semi", idx)).toBe("onsemi");
+    expect(resolveManufacturer("Vishay/Dale", idx)).toBe("Vishay");
+  });
+  it("forgives one typing slip in a long name, never in a short one or between two makers", () => {
+    expect(resolveManufacturer("Littlefuse", idx)).toBe("Littelfuse");
+    expect(resolveManufacturer("Littelfuze", idx)).toBe("Littelfuse");
+    expect(resolveManufacturer("Molax", idx)).toBeNull();
+    expect(resolveManufacturer("Constantine Technologies", idx)).toBeNull();
+  });
+});
+

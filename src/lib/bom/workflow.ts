@@ -10,7 +10,7 @@
 /** The parts of the process the data can judge, each a section of one step's page ("box" and "line" are not steps). */
 export type SectionKey = "bom" | "gerbers" | "match" | "mismatch" | "lines" | "board" | "feasibility" | "parts" | "box" | "quote" | "route" | "line";
 export type StepKey = "bom" | "gerbers" | "footprint" | "parts" | "lines" | "board" | "quote";
-export type ViewKey = "analysis" | "supply" | "viewer";
+export type ViewKey = "analysis" | "supply" | "viewer" | "validation";
 
 /** `path`: the section's own address (it redirects to the step's page at `#anchor`); `also`: other pages that belong to it. */
 export type Section = { key: SectionKey; label: string; path: string; anchor: string; also?: string[] };
@@ -59,6 +59,7 @@ export const MORE: View[] = [
   { key: "analysis", label: "Analysis", path: "/analysis" },
   { key: "supply", label: "Supply chain", path: "/supply" },
   { key: "viewer", label: "3D view", path: "/viewer" },
+  { key: "validation", label: "Validation", path: "/validation" },
 ];
 
 /** Sections that live on a view instead of a step: the SMT line runs in the 3D view. */

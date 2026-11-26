@@ -27,6 +27,7 @@ const SOURCE_SHORT: Record<FoundParts["source"], string> = {
   "component-layer": "From the component layer",
   placement: "From the pick-and-place file",
   "pad-designators": "From pad designators",
+  silkscreen: "From the silkscreen designators",
   guessed: "Guessed from the pads",
   none: "None read",
 };
@@ -35,6 +36,7 @@ const SOURCE: Record<FoundParts["source"], string> = {
   "component-layer": "Read from the component layer in the Gerbers — designators, values and part numbers as the designer set them.",
   placement: "Read from the pick-and-place file and placed on the Gerber pads.",
   "pad-designators": "Read from the designators on the Gerber pads (X2). Values and part numbers aren't in Gerbers — you choose the parts when you quote.",
+  silkscreen: "Read from the designators printed on the silkscreen, each tied to the pads it stands at. A part with no designator printed is numbered here. Gerbers carry no values or part numbers — you choose the parts when you quote.",
   guessed: "Guessed from the pads, drills and silkscreen: designators are numbered here, and Gerbers carry no values or part numbers — you choose the parts when you quote.",
   none: "No components could be read from these files.",
 };

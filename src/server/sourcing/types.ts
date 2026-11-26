@@ -1,7 +1,7 @@
 import type { Lifecycle, Msl, ReachStatus, RohsStatus } from "@prisma/client";
 import type { PriceBreak } from "@/lib/currency";
 
-export type AdapterKey = "nexar" | "digikey" | "mouser" | "mock";
+export type AdapterKey = "nexar" | "digikey" | "mouser" | "newark" | "element14" | "lcsc" | "mock";
 
 /** One seller's offer as reported by an adapter (prices in the offer's own currency). */
 export type AdapterOffer = {

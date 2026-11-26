@@ -151,7 +151,7 @@ export function LineDialog({ line, trigger }: { line?: LineDraft; trigger: React
           {capFields.length ? (
             <fieldset className="rounded-lg border bg-muted/40 p-4 sm:col-span-2">
               <legend className="px-1 text-sm font-semibold">What the line can do</legend>
-              <p className="mb-3 text-xs text-muted-foreground">Used wherever one of its machines has no limit of its own on file. Leave a field empty when the machines say it.</p>
+              <p className="mb-3 text-xs text-muted-foreground">Used where a machine has no limit of its own. Leave empty to use the machines&apos;.</p>
               <div className="grid gap-4 sm:grid-cols-2">
                 {capFields.map((f) => {
                   const id = `cap-${f.key}`;

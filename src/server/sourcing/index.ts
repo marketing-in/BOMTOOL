@@ -6,9 +6,11 @@ import { nexarAdapter } from "./adapters/nexar";
 import { digikeyAdapter } from "./adapters/digikey";
 import { mouserAdapter } from "./adapters/mouser";
 import { mockAdapter } from "./adapters/mock";
+import { element14Adapter, newarkAdapter } from "./adapters/element14";
+import { lcscAdapter } from "./adapters/lcsc";
 import type { AdapterKey, AdapterPart, SupplierAdapter } from "./types";
 
-export const REAL_ADAPTERS: SupplierAdapter[] = [nexarAdapter, digikeyAdapter, mouserAdapter];
+export const REAL_ADAPTERS: SupplierAdapter[] = [nexarAdapter, digikeyAdapter, mouserAdapter, newarkAdapter, element14Adapter, lcscAdapter];
 export const ALL_ADAPTERS: SupplierAdapter[] = [...REAL_ADAPTERS, mockAdapter];
 
 /**

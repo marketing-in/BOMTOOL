@@ -34,7 +34,10 @@ export type CopperRead = {
   /** A pad in the middle bigger than the rest (exposed / thermal pad). */
   ep: boolean;
   tht: boolean;
-  /** "0402", "SOT-23", "SOIC-8 1.27 mm", "QFN-24 + EP 0.5 mm", "QFP-176 0.5 mm", "BGA-64 0.8 mm", "6 pads" … */
+  /**
+   * "0402", "SOT-23", "SOIC-8 1.27 mm", "QFN-24 + EP 0.5 mm", "QFP-176 0.5 mm", "BGA-64 0.8 mm", "TO-263",
+   * "2 pads 9.4 × 1.3 mm", "2×10 through-hole, 2.54 mm", "DIP-8 2.54 mm", "mounting hole", "6 pads" …
+   */
   label: string;
   /** "chip" | "sot" | "dual" | "quad" | "grid" | "tht" | "other" */
   kind: "chip" | "sot" | "dual" | "quad" | "grid" | "tht" | "other";
@@ -378,10 +381,22 @@ const CHIP_PITCH: [string, number, number][] = [
   ["2512", 5.2, 7.5],
 ];
 
+/** Body width of each chip size, mm: a chip's pads are about as wide as the chip. */
+const CHIP_WIDTH: Record<string, number> = { "01005": 0.2, "0201": 0.3, "0402": 0.5, "0603": 0.8, "0805": 1.25, "1206": 1.6, "1210": 2.5, "1812": 3.2, "2010": 2.5, "2512": 3.2 };
+
+/** Body length of each chip size, mm. */
+const CHIP_LENGTH: Record<string, number> = { "01005": 0.4, "0201": 0.6, "0402": 1, "0603": 1.6, "0805": 2, "1206": 3.2, "1210": 3.2, "1812": 4.5, "2010": 5, "2512": 6.3 };
+
+/** The usual distance between the centres of each chip size's two pads, mm. */
+const CHIP_SPACING: [string, number][] = [["01005", 0.4], ["0201", 0.65], ["0402", 1], ["0603", 1.55], ["0805", 1.9], ["1206", 3], ["1210", 3], ["1812", 4.4], ["2010", 4.8], ["2512", 6.2]];
+
+/** Row spacings of DIP packages, mm. */
+const DIP_ROWS = [7.62, 10.16, 15.24, 22.86];
+
 const PITCHES = [0.4, 0.5, 0.635, 0.65, 0.8, 0.95, 1, 1.27, 1.5, 2, 2.54];
 const snapPitch = (v: number) => {
   const hit = [...PITCHES].sort((a, b) => Math.abs(a - v) - Math.abs(b - v))[0];
-  return Math.abs(hit - v) <= hit * 0.08 ? hit : Math.round(v * 100) / 100;
+  return Math.abs(hit - v) <= hit * 0.05 ? hit : Math.round(v * 100) / 100;
 };
 
 /** What a set of pads reads as, seen in the part's frame (`ang` radians, x along its length). */
@@ -400,17 +415,34 @@ export function readCopper(pads: CopperPad[], ang = 0): CopperRead | null {
   const area = (q: CopperPad) => q.w * q.h;
   const big = [...pads].sort((a, b) => area(b) - area(a));
   // An exposed pad: one pad in the middle, well over twice the area of the others.
-  const ep = pads.length >= 5 && area(big[0]) > 2.5 * area(big[1]) && Math.hypot(big[0].x - c.x, big[0].y - c.y) < 0.4;
-  const leads = ep ? pads.filter((q) => q !== big[0]) : pads;
+  let ep = pads.length >= 5 && area(big[0]) > 2.5 * area(big[1]) && Math.hypot(big[0].x - c.x, big[0].y - c.y) < 0.4;
+  let leads = ep ? pads.filter((q) => q !== big[0]) : pads;
+  // An exposed pad drawn in pieces (windows in the paste, a region each, strips laid over it): the pads well inside
+  // the ring of leads, about the middle, are all of it.
+  if (pads.length >= 10) {
+    const [hu, hv] = [ext("u") / 2, ext("v") / 2];
+    const inner = pts.filter((p) => Math.abs(p.u) < hu - 0.5 && Math.abs(p.v) < hv - 0.5).map((p) => p.q);
+    const inside = new Set(inner);
+    const ring = pads.filter((q) => !inside.has(q));
+    if (inner.length && ring.length >= 8 && inner.length * 2 <= ring.length) {
+      const m = bboxCentre(inner);
+      const pieces = inner.length >= 2 && inner.every((q) => !samePad(q, ring[0])) && Math.hypot(m.x - c.x, m.y - c.y) < 0.4;
+      if (ep ? inner.includes(big[0]) : pieces) [ep, leads] = [true, ring];
+    }
+  }
   const n = leads.length;
   // Rows: pads sharing a line across the part (v for a dual row, both for a quad).
-  const lp = pts.filter((p) => leads.includes(p.q));
+  // (Looked up, not searched: a ball grid has thousands of leads.)
+  const isLead = new Set(leads);
+  const lp = pts.filter((p) => isLead.has(p.q));
   const groups = (k: "u" | "v") => {
     const m = new Map<number, number[]>();
     for (const p of lp) {
       const key = Math.round(p[k] / 0.2);
       const other = k === "u" ? p.v : p.u;
-      m.set(key, [...(m.get(key) ?? []), other]);
+      const list = m.get(key);
+      if (list) list.push(other);
+      else m.set(key, [other]);
     }
     return [...m.values()];
   };
@@ -422,11 +454,26 @@ export function readCopper(pads: CopperPad[], ang = 0): CopperRead | null {
   const kindLabel = (kind: CopperRead["kind"], label: string, pitch: number | null): CopperRead => ({ pads: pads.length, length, width, pitch, ep, tht, label, kind });
 
   if (tht) {
+    // A lone ring round a hole too big for a lead is for a screw.
+    if (pads.length === 1) return kindLabel("tht", pads[0].hole >= 2.5 ? "mounting hole" : "1 through-hole pad", null);
+    // Pins on a full lattice — a row, a header, a DIP — are named by it: rows × pins a row, and the pitch along a row.
+    const steps = (k: "u" | "v") => {
+      const s = [...new Set(pts.map((p) => Math.round(p[k] / 0.1)))].sort((a, b) => a - b).filter((x, i, a) => !i || x - a[i - 1] > 1).map((x) => x * 0.1);
+      return { n: s.length, pitch: s.length > 1 ? (s[s.length - 1] - s[0]) / (s.length - 1) : null };
+    };
+    const [cols, rws] = [steps("u"), steps("v")];
+    if (cols.n * rws.n === pads.length) {
+      const [many, few] = cols.n >= rws.n ? [cols, rws] : [rws, cols];
+      const p = many.pitch ? snapPitch(many.pitch) : null;
+      if (few.n === 2 && many.n >= 2 && p === 2.54 && DIP_ROWS.some((v) => Math.abs(v - few.pitch!) <= 0.2)) return kindLabel("tht", `DIP-${pads.length} 2.54 mm`, p);
+      return kindLabel("tht", `${few.n}×${many.n} through-hole${p ? `, ${p} mm` : ""}`, p);
+    }
     const rows = groups("v").filter((g) => g.length >= 2);
     const pitch = rows.length ? spacing(rows.flat()) : null;
     const p = pitch ? snapPitch(pitch) : null;
-    return kindLabel("tht", `${pads.length} through-hole pad${pads.length === 1 ? "" : "s"}${p ? `, ${p} mm` : ""}`, p);
+    return kindLabel("tht", `${pads.length} through-hole pads${p ? `, ${p} mm` : ""}`, p);
   }
+  if (pads.length === 1) return kindLabel("other", "1 pad", null);
   if (n === 2 && pads.length === 2) {
     const d = Math.hypot(pads[0].x - pads[1].x, pads[0].y - pads[1].y);
     // A wide pad (across the part) is the 1210 / 1812 / 2010 family rather than 1206 / 0805.
@@ -435,7 +482,40 @@ export function readCopper(pads: CopperPad[], ang = 0): CopperRead | null {
     let size = CHIP_PITCH.find(([, lo, hi]) => d >= lo && d < hi)?.[0] ?? null;
     if (size === "1206" && across >= 2.2) size = "1210";
     if (size === "1812" && across < 2.6) size = "2010";
-    return kindLabel("chip", size ?? `2 pads, ${r3(d)} mm apart`, null);
+    // A chip cannot be longer than its land: pads drawn long and thin for an 0805 stand as far apart as a 1206's.
+    const along = d + Math.min(...pads.map((q) => (alongX ? q.w : q.h)));
+    if (size && along < 0.98 * CHIP_LENGTH[size]) {
+      size = [...CHIP_SPACING].reverse().find(([nm]) => CHIP_LENGTH[nm] * 1.1 <= along && across >= 0.55 * CHIP_WIDTH[nm] && across <= 1.5 * CHIP_WIDTH[nm])?.[0] ?? null;
+    }
+    // Pads much narrower or wider than that chip are another kind of part (an aluminium can's long thin pads, a
+    // power inductor's, a crystal's): named by the size of its land, which is what a body can be drawn from.
+    const fits = (name: string) => across >= 0.55 * CHIP_WIDTH[name] && across <= 1.5 * CHIP_WIDTH[name];
+    // Pads drawn close together (a dense 0805 land has its centres 1.6 mm apart) are told by their width as well.
+    if (size && !fits(size)) {
+      const off = (name: string, at: number) => Math.abs(Math.log(across / CHIP_WIDTH[name])) + Math.abs(Math.log(d / at));
+      const [name, cost] = CHIP_SPACING.map(([nm, at]) => [nm, off(nm, at)] as const).sort((a, b) => a[1] - b[1])[0];
+      size = cost <= 0.4 ? name : null;
+    }
+    if (size && fits(size)) return kindLabel("chip", size, null);
+    const one = (v: number) => (Math.round(v * 10) / 10).toFixed(1);
+    return kindLabel("other", `2 pads ${one(Math.max(length, width))} × ${one(Math.min(length, width))} mm`, null);
+  }
+  // A row of alike leads and one big pad off to the side: SOT-223, DPAK, TO-263 — named by the tab's width.
+  if (!ep && pads.length >= 3 && area(big[0]) > 2.5 * area(big[1])) {
+    const tab = pts.find((p) => p.q === big[0])!;
+    const leadPts = pts.filter((p) => p !== tab);
+    const k: "u" | "v" | null = leadPts.every((p) => Math.abs(p.v - leadPts[0].v) <= 0.1) ? "u" : leadPts.every((p) => Math.abs(p.u - leadPts[0].u) <= 0.1) ? "v" : null;
+    const o = k === "u" ? "v" : "u";
+    if (k && leadPts.every((p) => samePad(p.q, leadPts[0].q)) && Math.abs(tab[o] - leadPts[0][o]) > 0.5) {
+      const alongX = (k === "u") === Math.abs(Math.cos(ang)) > 0.7;
+      const tabAlong = alongX ? tab.q.w : tab.q.h;
+      const pitch = leadPts.length > 1 ? spacing(leadPts.map((p) => p[k])) : null;
+      const p = pitch ? snapPitch(pitch) : null;
+      const m = leadPts.length;
+      const name =
+        tabAlong >= 7.5 ? (m <= 3 ? "TO-263" : `TO-263-${m}`) : m === 2 && tabAlong >= 4.5 ? "DPAK" : m === 3 && p !== null && Math.abs(p - 2.3) <= 0.15 && tabAlong <= 4.6 ? "SOT-223" : m === 3 && p === 1.5 ? "SOT-89" : `${m} leads and a tab`;
+      return kindLabel("sot", name, p);
+    }
   }
   const rowsV = groups("v").filter((g) => g.length >= 2);
   const rowsU = groups("u").filter((g) => g.length >= 2);
@@ -461,7 +541,8 @@ export function readCopper(pads: CopperPad[], ang = 0): CopperRead | null {
     return kindLabel("dual", fmt(fam, p), p);
   }
   // Quad: leads round all four sides, the middle empty or holding the exposed pad.
-  const onEdge = lp.filter((x) => Math.abs(Math.abs(x.u) - ext("u") / 2) < 0.3 || Math.abs(Math.abs(x.v) - ext("v") / 2) < 0.3).length;
+  const [halfU, halfV] = [ext("u") / 2, ext("v") / 2];
+  const onEdge = lp.filter((x) => Math.abs(Math.abs(x.u) - halfU) < 0.3 || Math.abs(Math.abs(x.v) - halfV) < 0.3).length;
   if (n >= 8 && onEdge >= n * 0.9 && rowsU.length && rowsV.length) {
     const pitch = spacing(rowsV.flat().length > rowsU.flat().length ? lp.map((p) => p.u) : lp.map((p) => p.v));
     const p = pitch ? snapPitch(pitch) : null;

@@ -523,6 +523,8 @@ model Customer {
   bomTemplates  Json?
   projects      Project[]
   consignedLots InventoryLot[]
+  /// Makers whose parts this customer forbids on its boards (Phase 46).
+  competitors   CompetitorMaker[]
 }
 
 model Project {
@@ -579,6 +581,8 @@ model BomRevision {
   placements     Placement[]
   quotes         CustomerQuote[]
   feasibility    FeasibilityReview[]
+  validationCalls ValidationCall[]
+  consumables    Consumable[]
 
   @@unique([bomId, revision])
 }
@@ -599,6 +603,9 @@ model BomLine {
   qtyPerBoard         Int
   dnp                 Boolean        @default(false)
   customerPartNumber  String?
+  /// A distributor's part number the BoM gives for the line ("490-5523-1-ND"), and whose it is ("Digi-Key") (Phase 47)
+  supplierPn          String?
+  supplierName        String?
   /// Scrub warnings, e.g. ["QTY_REFDES_MISMATCH", "MISSING_MPN"]
   issues              String[]       @default([])
   /// Chosen part after matching (null until matched).
@@ -1092,4 +1099,69 @@ model Message {
   createdAt  DateTime @default(now())
 
   @@index([thread, createdAt])
+}
+
+// ───────────────────────────── BoM validation (Phase 46) ─────────────────────────────
+
+/// A maker the customer forbids on its boards (its competitors), with the other spellings of its name.
+model CompetitorMaker {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  name       String
+  aliases    String[] @default([])
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@unique([customerId, name])
+}
+
+enum CallStatus {
+  ACCEPTED
+  PROHIBITED
+}
+
+/// A reviewer's call on one flag of a BoM's validation: accepted (a false call, waived with a reason) or prohibited.
+model ValidationCall {
+  id          String      @id @default(cuid())
+  revisionId  String
+  revision    BomRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  /// The flag: its check and subject, e.g. "pins:U3", "competitor:12" (src/lib/validation/checks.ts).
+  key         String
+  status      CallStatus
+  reason      String?
+  decidedById String?
+  decidedAt   DateTime    @default(now())
+
+  @@unique([revisionId, key])
+}
+
+enum ConsumableKind {
+  SOLDER_PASTE
+  FLUX
+  STENCIL
+  OTHER
+}
+
+/// Process consumables in our stores: solder paste, flux, stencils (a stencil may belong to one board).
+model Consumable {
+  id         String         @id @default(cuid())
+  kind       ConsumableKind
+  name       String
+  /// { alloy, powderType, fluxType, thicknessMm, side, frame }
+  spec       Json?
+  quantity   Float          @default(0)
+  /// g, ml, pcs
+  unit       String
+  minQty     Float?
+  location   String?
+  lot        String?
+  expiresAt  DateTime?
+  revisionId String?
+  revision   BomRevision?   @relation(fields: [revisionId], references: [id], onDelete: SetNull)
+  note       String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([kind])
 }

@@ -1,8 +1,11 @@
 import "server-only";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import type { Currency } from "@/lib/currency";
-import { bodyFor, bodyFromCopper, packageFromFootprint, type BodySpec, type CopperFacts } from "@/lib/board/bodies";
+import { bodyFor, bodyForLine, bodyFromCopper, headerOnCopper, packageFromFootprint, type BodySpec, type CopperFacts } from "@/lib/board/bodies";
 import { alignPlacements } from "@/server/placement-align";
+import { fromDrawings, placeFromBoard, wasGuessed } from "@/server/board";
+import { bodyOnLand, landWords } from "@/lib/board/place-from-silk";
 import { bodyFromFootprint, kindForLine, kindLabel, mountFromFootprint, squareUp, type FoundPart, type FoundParts } from "@/lib/board/find-parts";
 import { ENCLOSURES, boardFits, type EnclosureSpec } from "@/lib/board/enclosures";
 import { analyseBox, type KitLine } from "@/lib/board/box";
@@ -44,8 +47,13 @@ export async function viewerDataWithAnalysis(
   const a = await analyseRevision(db, revisionId, currency);
   if (!a) return null;
   const rev = a.revision;
+  // One count, by how each placement was made, decides both.
+  const made = await db.placement.groupBy({ by: ["snap"], where: { revisionId }, _count: { _all: true } });
   // Boards saved before Phase 44: put their parts on their pads once, the first time they are looked at.
-  if (await db.placement.count({ where: { revisionId, snap: null } })) await alignPlacements(db, revisionId).catch((e) => console.error(`Aligning placements of ${revisionId} failed:`, e));
+  if (made.some((m) => m.snap === null)) await alignPlacements(db, revisionId).catch((e) => console.error(`Aligning placements of ${revisionId} failed:`, e));
+  // Boards with Gerbers and no file that places their parts (Phase 45): read them off the silkscreen and the pads,
+  // once — the board remembers it was read, so one with nothing to read is not read again on every view.
+  else if (!made.length) await placeFromBoard(db, revisionId, { once: true });
   const [board, placements, packages, alternates, lines] = await Promise.all([
     db.boardModel.findUnique({ where: { revisionId } }),
     db.placement.findMany({ where: { revisionId } }),
@@ -110,10 +118,24 @@ export async function viewerDataWithAnalysis(
     return out;
   };
 
-  // The 3D body: the part's package; else what the copper under it reads as (a known package, or sized from its
-  // pads); else the footprint's name. A footprint name we cannot size is a 3 × 3 mm guess the copper beats.
-  const bodyOf = (ref: string, pkg: (typeof packages)[number] | null, p: NonNullable<(typeof a.lines)[number]["part"]> | null, footprint: string | null, copper: CopperFacts | null): BodySpec => {
+  // The 3D body: the part's package; else what the BoM line's own words describe (an aluminium can, a finned
+  // heatsink, a Mini-Fit header — src/knowledge/part-bodies.ts); else what the copper under it reads as (a known
+  // package, or sized from its pads); else the footprint's name. A footprint name we cannot size is a 3 × 3 mm guess
+  // the copper beats.
+  const bodyOf = (ref: string, pkg: (typeof packages)[number] | null, line: (typeof a.lines)[number] | null, footprint: string | null, copper: CopperFacts | null): BodySpec => {
+    const p = line?.part ?? null;
+    // The customer's own words first: what their line names is what goes on the board. A catalogue part we matched
+    // to the line may be our guess (matched by value, say), so its package and part number come after.
+    const own = line?.rawMpn || line?.rawDescription || line?.rawPackage ? bodyForLine({ mpn: line?.rawMpn, description: line?.rawDescription, pkg: line?.rawPackage ?? footprint, refDes: ref }) : null;
+    if (own) return headerOnCopper(own, copper);
     if (pkg) return bodyFor(pkg, { category: p?.category.slug ?? null, mpn: p?.mpn });
+    const said = bodyForLine({ mpn: p?.mpn ?? line?.rawMpn, description: p?.description ?? line?.rawDescription, pkg: line?.rawPackage ?? footprint, refDes: ref });
+    // A header's line seldom says one row or two; its drilled pads do.
+    if (said) return headerOnCopper(said, copper);
+    // No words that describe the part (a BoM made from a quick look): its designator and its land say between them
+    // what it is, as the quick look drew it.
+    const onLand = copper ? bodyOnLand(ref, copper) : null;
+    if (onLand) return onLand;
     const fromName = footprint ? bodyFromFootprint(footprint, footprintKind(ref, footprint)) : null;
     if (fromName && !(fromName.kind === "generic" && fromName.length === 3 && fromName.width === 3)) return fromName;
     const fromCopper = copper ? bodyFromCopper(copper, packages, { category: p?.category.slug ?? null }) : null;
@@ -131,7 +153,9 @@ export async function viewerDataWithAnalysis(
     const extra = line && p ? enrich(line) : { kind: null, supply: null, risk: null };
     const pkg = p?.package ?? packages.find((k) => k.name === packageFromFootprint(footprint, pkgNames)) ?? null;
     // No part yet (a footprint read off the Gerbers, say): the footprint still says through-hole or not.
-    routeInfo.set(ref, { mount: p?.mountType ?? mountFromFootprint(footprint), pkg: pkg?.name ?? null, family: pkg?.family ?? null, pitchMm: pkg?.pitchMm ?? null, category: p?.category.slug ?? null, msl: p?.msl ?? null });
+    // Neither says: a part placed on its pads is through-hole when its pads are drilled.
+    const onPads = copper?.label ? (/through-hole|^DIP-/.test(copper.label) ? "THT" : "SMD") : null;
+    routeInfo.set(ref, { mount: p?.mountType ?? mountFromFootprint(footprint) ?? onPads, pkg: pkg?.name ?? null, family: pkg?.family ?? null, pitchMm: pkg?.pitchMm ?? null, category: p?.category.slug ?? null, msl: p?.msl ?? null });
     const scores = line?.scores ?? null;
     return {
       refDes: ref,
@@ -139,14 +163,15 @@ export async function viewerDataWithAnalysis(
       y,
       rotation: squareUp(rotation),
       side,
-      body: bodyOf(ref, pkg, p, footprint, copper),
+      body: bodyOf(ref, pkg, line, footprint, copper),
       lineId: line?.id ?? null,
       lineNo: line?.lineNo ?? null,
       partId: p?.id ?? null,
       mpn: p?.mpn ?? line?.rawMpn ?? null,
       pkg: pkg?.name ?? null,
       value: line?.rawValue ?? null,
-      marking: /resistor/.test(p?.category.slug ?? "") ? resistorCode(line?.rawValue ?? p?.description) : (p?.mpn ?? line?.rawMpn ?? null),
+      // What is printed on the part is the customer's part number when their line gives one: a catalogue match may be ours.
+      marking: /resistor/.test(p?.category.slug ?? "") ? resistorCode(line?.rawValue ?? p?.description) : (line?.rawMpn?.split(/\s*\/\s*/)[0] || p?.mpn || null),
       manufacturer: p?.manufacturer.name ?? line?.rawManufacturer ?? null,
       description: p?.description ?? line?.rawDescription ?? null,
       lifecycle: p?.lifecycle ?? null,
@@ -269,11 +294,19 @@ function footprintKind(ref: string, footprint: string) {
   return k && k !== "passive" ? k : undefined;
 }
 
-/** A body for a part read off the Gerbers: our package when the footprint names one, else sized from the footprint. */
+/**
+ * A body for a part read off the Gerbers: our package when the footprint names one; else what its designator and its
+ * land say between them (a C on two long pads is an aluminium can), read through the body table; else sized from the
+ * footprint's name, or from the pads when the name gives no size.
+ */
 function foundBody(f: FoundPart, packages: { name: string; family: string; lengthMm: number | null; widthMm: number | null; heightMm: number | null; pinCount: number | null; pitchMm: number | null }[]): BodySpec {
   const pkg = packages.find((k) => k.name === packageFromFootprint(f.package, packages.map((x) => x.name)));
   if (pkg) return bodyFor(pkg, { category: f.kind === "capacitor" ? "mlcc" : f.kind === "led" ? "led" : null });
-  if (f.package && !/^\d+-pad part$/.test(f.package)) return bodyFromFootprint(f.package, f.kind);
+  const land = landWords(f);
+  const said = bodyForLine({ refDes: f.ref, description: land?.description, pkg: land ? land.pkg : f.package });
+  if (said) return said;
+  const fromName = f.package && !/^\d+-pad part$/.test(f.package) ? bodyFromFootprint(f.package, f.kind) : null;
+  if (fromName && !(fromName.kind === "generic" && fromName.length === 3 && fromName.width === 3)) return fromName;
   return { ...bodyFor(null), length: Math.max(0.6, f.w), width: Math.max(0.6, f.d) };
 }
 
@@ -284,7 +317,13 @@ export async function getPreviewViewerData(
   const b = await db.boardPreview.findUnique({ where: { id } });
   if (!b) return null;
   const artwork = (b.artwork ?? null) as BoardArtwork | null;
-  const found = (b.components ?? null) as FoundParts | null;
+  let found = (b.components ?? null) as FoundParts | null;
+  // A quick look saved when parts were still guessed from the pads: read its silkscreen and pads now, once, and keep
+  // the result (marked as read, also when it found nothing better).
+  if (found && wasGuessed(found) && found.reader !== "silk") {
+    found = fromDrawings(found, artwork?.layers);
+    await db.boardPreview.update({ where: { id }, data: { components: found as unknown as Prisma.InputJsonValue } }).catch((e) => console.error(`Keeping the parts read for quick look ${id} failed:`, e));
+  }
   const packages = found?.parts.length ? await db.package.findMany({ select: { name: true, family: true, lengthMm: true, widthMm: true, heightMm: true, pinCount: true, pitchMm: true } }) : [];
   const box = artwork?.box ?? { x: 0, y: 0, w: b.widthMm, h: b.heightMm };
   const parts: ViewerPart[] = (found?.parts ?? []).map((f) => ({

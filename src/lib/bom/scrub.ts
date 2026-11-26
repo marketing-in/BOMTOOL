@@ -3,6 +3,7 @@ import { countRefDes } from "@/lib/refdes";
 import type { BomField, ColumnMapping } from "./fields";
 import { isBareBoardLine } from "./bare-board";
 import { checkLine, checkToIssue } from "./line-checks";
+import { distributorFromHeader, distributorFromPn } from "@/knowledge/distributor-pns";
 
 export type ScrubIssue =
   | "MISSING_MPN"
@@ -30,6 +31,9 @@ export type ScrubbedLine = {
   package: string | null;
   dnp: boolean;
   customerPn: string | null;
+  /** A distributor's part number for the line, and whose it is (from the column's header, else the number's shape). */
+  supplierPn?: string | null;
+  supplierName?: string | null;
   /** Scrub codes, and line checks as "CODE: what is wrong". */
   issues: string[];
 };
@@ -148,6 +152,12 @@ export function findBareBoard(rows: string[][], headerRow: number, mapping: Colu
   return null;
 }
 
+/** Whose number a distributor part number is: the column's header says, else the number's shape. */
+function supplierOf(pn: string | null, header: string | undefined): string | null {
+  if (!pn) return null;
+  return distributorFromHeader(header) ?? distributorFromPn(pn);
+}
+
 export function scrubRows(rows: string[][], headerRow: number, mapping: ColumnMapping, aliases: AliasIndex): ScrubbedLine[] {
   const lines: ScrubbedLine[] = [];
   for (const row of rows.slice(headerRow + 1)) {
@@ -223,6 +233,8 @@ export function scrubRows(rows: string[][], headerRow: number, mapping: ColumnMa
       package: pick(row, mapping, "package"),
       dnp,
       customerPn: pick(row, mapping, "customerPn"),
+      supplierPn: pick(row, mapping, "supplierPn"),
+      supplierName: supplierOf(pick(row, mapping, "supplierPn"), rows[headerRow]?.[mapping.indexOf("supplierPn")]),
       issues,
     });
   }

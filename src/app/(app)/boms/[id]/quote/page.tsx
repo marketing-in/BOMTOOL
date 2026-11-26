@@ -32,9 +32,11 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
       <div className="rounded-xl border bg-card p-8 print:border-0 print:p-0">
         <header className="flex flex-wrap justify-between gap-6 border-b pb-6">
           <div>
-            <div className="text-xs text-muted-foreground">Material quote</div>
             <h1 className="text-2xl font-semibold tracking-tight">{rev.bom.name} <span className="num text-base font-normal">rev {rev.revision}</span></h1>
-            <div className="text-sm text-muted-foreground">{rev.bom.project.customer.name} · {rev.bom.project.name}</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              Material quote · {rev.bom.project.customer.name}
+              {rev.bom.project.name.trim().toLowerCase() !== rev.bom.name.trim().toLowerCase() ? ` · ${rev.bom.project.name}` : ""}
+            </div>
           </div>
           <dl className="num grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
             <dt className="font-sans text-muted-foreground">Build qty</dt>

@@ -37,6 +37,9 @@ const kindOf = (ref: string, footprint: string) => {
  * placements. Safe to run again at any time.
  */
 export async function alignPlacements(db: Db, revisionId: string): Promise<Alignment | null> {
+  // Nothing a file placed (no placements, or only parts placed on their pads from the silkscreen): the drawings,
+  // megabytes of them, are not fetched at all.
+  if (!(await db.placement.count({ where: { revisionId, OR: [{ snap: null }, { snap: { not: "silk" } }] } }))) return null;
   const rows = await db.$queryRaw<{ source: string; layers: Layer[] | null }[]>`
     SELECT source,
       (SELECT jsonb_agg(jsonb_build_object('type', l->>'type', 'side', l->>'side', 'svg', l->>'svg')) FROM jsonb_array_elements(artwork->'layers') l
@@ -45,7 +48,8 @@ export async function alignPlacements(db: Db, revisionId: string): Promise<Align
   const board = rows[0];
   if (!board || board.source !== "gerber" || !board.layers?.length) return null;
   const [placements, lines, packages] = await Promise.all([
-    db.placement.findMany({ where: { revisionId } }),
+    // Parts placed from the silkscreen and the pads (Phase 45) already sit on their footprint's centre: not touched.
+    db.placement.findMany({ where: { revisionId, OR: [{ snap: null }, { snap: { not: "silk" } }] } }),
     db.bomLine.findMany({
       where: { revisionId },
       select: { id: true, refDes: true, rawPackage: true, dnp: true, part: { select: { mpn: true, category: { select: { slug: true } }, package: true } } },

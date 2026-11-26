@@ -8,7 +8,7 @@ describe("the BoM process, in seven steps", () => {
     expect(WORKFLOW.map((s) => s.sections.map((x) => x.key))).toEqual([["bom"], ["gerbers"], ["match", "mismatch"], ["lines", "route"], ["board"], ["parts"], ["feasibility", "quote"]]);
     expect(WORKFLOW.some((s) => s.sections.some((x) => x.key === "box" || x.key === "line"))).toBe(false);
     expect(WORKFLOW.filter((s) => s.optional)).toEqual([]);
-    expect(MORE.map((v) => v.key)).toEqual(["analysis", "supply", "viewer"]);
+    expect(MORE.map((v) => v.key)).toEqual(["analysis", "supply", "viewer", "validation"]);
   });
 
   it("places every page of a BoM in its step and section, or its view", () => {

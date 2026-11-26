@@ -1,5 +1,7 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { ARTICLES } from "@/knowledge";
+import { normaliseManufacturerKey } from "@/lib/normalise";
+import { MANUFACTURERS } from "../../prisma/seed-data/manufacturers";
 
 /**
  * Upserts knowledge articles from the versioned seed files. Only rows whose stored version is older
@@ -29,3 +31,31 @@ export async function syncKnowledge(db: PrismaClient) {
   }
   return { created, updated, total: ARTICLES.length };
 }
+
+/**
+ * Adds the makers and maker aliases of the seed list a database does not have yet (a maker added to the list, a
+ * spelling learnt from a customer's BoM), without touching anything else: existing makers keep their data, an alias
+ * already pointing at another maker stays where it is.
+ */
+export async function syncManufacturers(db: PrismaClient) {
+  const makers = new Map((await db.manufacturer.findMany({ select: { id: true, name: true } })).map((m) => [m.name, m.id]));
+  const taken = new Set((await db.manufacturerAlias.findMany({ select: { alias: true } })).map((a) => a.alias));
+  let created = 0;
+  let aliases = 0;
+  for (const m of MANUFACTURERS) {
+    let id = makers.get(m.name);
+    if (!id) {
+      id = (await db.manufacturer.create({ data: { name: m.name, shortName: m.shortName, website: m.website, country: m.country, brandTier: m.tier } })).id;
+      makers.set(m.name, id);
+      created++;
+    }
+    for (const key of new Set([m.name, ...(m.shortName ? [m.shortName] : []), ...m.aliases].map(normaliseManufacturerKey).filter(Boolean))) {
+      if (taken.has(key)) continue;
+      await db.manufacturerAlias.create({ data: { alias: key, manufacturerId: id } });
+      taken.add(key);
+      aliases++;
+    }
+  }
+  return { created, aliases, total: MANUFACTURERS.length };
+}
+

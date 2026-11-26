@@ -84,6 +84,8 @@ export async function ingestRevision(db: Db, revisionId: string, ctx?: { catalog
         qtyPerBoard: Math.ceil(l.qty),
         dnp: l.dnp,
         customerPartNumber: l.customerPn,
+        supplierPn: l.supplierPn ?? null,
+        supplierName: l.supplierName ?? null,
         issues: l.issues,
         partId: m.selected?.partId ?? null,
         needsReview: m.needsReview && !l.dnp,

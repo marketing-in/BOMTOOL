@@ -19,15 +19,12 @@ export function StepPage({ step: key, sections, note }: { step: StepKey; section
         {shown.length > 1 ? (
           <nav aria-label="On this page" className="mt-4">
             <ol className="flex flex-wrap gap-2">
-              {shown.map((s, i) => (
+              {shown.map((s) => (
                 <li key={s.key}>
                   <a
                     href={`#${s.anchor}`}
-                    className="inline-flex h-10 items-center gap-2 rounded-md border bg-card px-3 text-sm outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+                    className="inline-flex h-10 items-center rounded-md border bg-card px-3 text-sm outline-none transition-colors duration-150 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <span className="num text-xs text-muted-foreground">
-                      {step.n}.{i + 1}
-                    </span>
                     {s.label}
                   </a>
                 </li>

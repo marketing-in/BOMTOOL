@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { Check, ExternalLink, Eye, EyeOff, Footprints, Pencil, Play, X } from "lucide-react";
+import { Check, ChevronDown, ExternalLink, Eye, EyeOff, Footprints, Pencil, Play, X } from "lucide-react";
 import type { MachineCard } from "@/lib/ops/machine-card";
 import type { PackageReach } from "@/lib/ops/package-reach";
 import { MachineDialog, MachineOrderButtons } from "@/components/ops/line-editor";
@@ -224,31 +224,40 @@ export function LineStage({ machines, editable, running = false }: { machines: M
         {m.oneLiner ? <p className="mt-4 text-sm leading-snug text-muted-foreground">{m.oneLiner}</p> : null}
 
         <section className="mt-4">
-          <h4 className="text-sm font-semibold">What it does</h4>
-          <p className="mt-1.5 text-sm leading-snug text-muted-foreground">{process.what}</p>
-          <ol className="mt-3 space-y-1.5 text-sm">
-            {process.steps.map((x, i) => (
-              <li key={x.title} className="flex gap-2.5">
-                <span className="grid size-5 shrink-0 place-items-center rounded-full border text-[11px] font-semibold tabular-nums">{i + 1}</span>
-                <span className="min-w-0">
-                  <span className="font-medium">{x.title}.</span> <span className="text-muted-foreground">{x.text}</span>
-                </span>
-              </li>
-            ))}
-          </ol>
+          {!m.oneLiner ? <p className="text-sm leading-snug text-muted-foreground">{process.what}</p> : null}
           <button
             type="button"
             onClick={() => go("machine")}
             aria-pressed={mode === "machine"}
-            className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-foreground px-4 text-sm font-semibold text-background outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-foreground px-4 text-sm font-semibold text-background outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <Play className="size-4" aria-hidden /> Show this machine&apos;s process in 3D
           </button>
-          {look ? (
-            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-              <span className="font-medium text-foreground">How to recognise it:</span> {look.features.slice(0, 4).join(" · ")}.
-            </p>
-          ) : null}
+          {/* The walkthrough is there for whoever wants it; the panel leads with the machine, its action and its figures. */}
+          <details className="group mt-3 rounded-lg border">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm font-medium outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+              How it works
+              <ChevronDown className="size-4 text-muted-foreground transition-transform duration-200 group-open:rotate-180" aria-hidden />
+            </summary>
+            <div className="space-y-3 border-t px-3 py-3">
+              {m.oneLiner ? <p className="text-sm leading-snug text-muted-foreground">{process.what}</p> : null}
+              <ol className="space-y-1.5 text-sm">
+                {process.steps.map((x, i) => (
+                  <li key={x.title} className="flex gap-2.5">
+                    <span className="grid size-5 shrink-0 place-items-center rounded-full border text-[11px] font-semibold tabular-nums">{i + 1}</span>
+                    <span className="min-w-0">
+                      <span className="font-medium">{x.title}.</span> <span className="text-muted-foreground">{x.text}</span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              {look ? (
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  <span className="font-medium text-foreground">How to recognise it:</span> {look.features.slice(0, 4).join(" · ")}.
+                </p>
+              ) : null}
+            </div>
+          </details>
         </section>
 
         {m.big.length ? (

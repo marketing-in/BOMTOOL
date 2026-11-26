@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
-import type { BodySpec } from "@/lib/board/bodies";
+import { SHAPE_MODEL, type BodySpec } from "@/lib/board/bodies";
+import { buildBody as buildBodyImpl } from "@/vendor/circuitflow/partModels.js";
 import { splitMarking } from "@/lib/board/marking";
 import { RoundedBox } from "@react-three/drei";
 import { ShapedBody } from "./part-shapes";
@@ -63,16 +64,46 @@ function markingTexture(text: string): THREE.CanvasTexture | null {
   return t;
 }
 
+type StudioMaterial = (color: number, metalness?: number, roughness?: number) => THREE.MeshStandardMaterial;
+const buildBody = buildBodyImpl as (three: typeof THREE, part: Record<string, unknown>, scale: number, tools: { mat: StudioMaterial; partPads: () => unknown[] }) => { mesh: THREE.Mesh; h: number };
+
+/** The studio's models are built at its own scale (their decal offsets are sized for it), then brought up to millimetres. */
+const STUDIO_SCALE = 0.1;
+
+/**
+ * A body drawn by the board studio's own model (a finned heatsink, a wound transformer, a Mini-Fit header …), so
+ * the box-build view shows a part exactly as the board view does. Turned from the studio's y-up frame to this
+ * view's z-up one and seated on the board. Null for a shape the studio has no model for.
+ */
+function studioBody(body: BodySpec, tint: string | null, marking: string | null, sink?: { device?: boolean; channel?: boolean }): THREE.Mesh | null {
+  const model = body.shape ? SHAPE_MODEL[body.shape] : undefined;
+  if (!model) return null;
+  const mat: StudioMaterial = (color, metalness = 0.1, roughness = 0.6) => new THREE.MeshStandardMaterial({ color, metalness, roughness });
+  const part = { ref: "", value: "", mpn: marking ?? "", package: "", type: "other", w: body.length, d: body.width, h: body.height, model, pins: body.pins, pitch: body.pitch, color: body.color, ...sink };
+  const { mesh, h } = buildBody(THREE, part, STUDIO_SCALE, { mat, partPads: () => [] });
+  // A risk colour goes on the body itself; leads, pins and tape keep their own.
+  if (tint) for (const m of [mesh.material].flat()) (m as THREE.MeshStandardMaterial).color.set(tint);
+  mesh.scale.setScalar(1 / STUDIO_SCALE);
+  mesh.rotation.x = Math.PI / 2;
+  mesh.position.z = h / STUDIO_SCALE / 2;
+  return mesh;
+}
+
+const materialsOf = (o: THREE.Object3D) => [(o as THREE.Mesh).material].flat().filter((m): m is THREE.MeshStandardMaterial => !!m && "emissive" in m);
+
 /** Renders one component body from its BodySpec. Origin = centre of the footprint on the board surface. */
 export function PartBody({
   body,
   color,
   emissive,
   marking,
+  sink,
   onClick,
   onHover,
 }: {
   body: BodySpec;
+  /** For a heatsink: how the power parts round it say it is drawn (`heatsinkLooks`), as the board studio draws it. */
+  sink?: { device?: boolean; channel?: boolean };
   color?: string;
   emissive?: string;
   /** Text printed on the top of ICs (usually the MPN); hidden under a risk overlay. */
@@ -152,8 +183,30 @@ export function PartBody({
     [body.kind],
   );
 
+  // Shapes with a hand-drawn body here keep it; the rest of the named shapes use the studio's model.
+  const shaped = body.shape ? ShapedBody({ body, look: { c, em, fade: null, tinted: !!color } }) : null;
+  const drawnHere = !!shaped;
+  const built = useMemo(() => (drawnHere ? null : studioBody(body, color ?? null, color ? null : (marking ?? null), sink)), [drawnHere, body, color, marking, sink]);
+  useEffect(() => {
+    built?.traverse((o) => materialsOf(o).forEach((m) => m.emissive.set(em)));
+  }, [built, em]);
+  // A primitive is not disposed with its component: free what the model made (shared marking textures stay).
+  useEffect(
+    () => () =>
+      built?.traverse((o) => {
+        (o as THREE.Mesh).geometry?.dispose();
+        materialsOf(o).forEach((m) => m.dispose());
+      }),
+    [built],
+  );
+  if (built)
+    return (
+      <group {...handlers}>
+        <primitive object={built} />
+      </group>
+    );
+
   if (body.shape) {
-    const shaped = ShapedBody({ body, look: { c, em, fade: null, tinted: !!color } });
     // DIP chips still get their marking, like any other IC.
     const dipMark = body.shape === "dip" && marking && !color ? markingTexture(marking) : null;
     if (shaped)

@@ -539,7 +539,7 @@ export function UploadForm({ customers, templates = {}, projects, defaults, prev
         {gerbersOnly ? (
           <p className="text-xs text-muted-foreground">No BoM file: the parts on the Gerbers become the BoM.</p>
         ) : null}
-        {certain ? <p className="text-xs text-muted-foreground">Columns recognised: no mapping step. Check them any time from step 3.</p> : null}
+        {certain ? <p className="text-xs text-muted-foreground">Columns recognised: BOM + Gerbers goes straight to footprint match.</p> : hasBoard && hasBom ? <p className="text-xs text-muted-foreground">BoM + board files go straight to the footprint match. The columns can be checked there.</p> : null}
         <Button type="submit" className="h-10 w-full" disabled={(!file && !fromBoard && !boardCount) || pending}>
           {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
           {pending && gerbersOnly
@@ -554,7 +554,9 @@ export function UploadForm({ customers, templates = {}, projects, defaults, prev
                     ? hasBoard
                       ? "Check footprints"
                       : "Match & score BoM"
-                    : "Continue to column mapping"}
+                    : hasBoard
+                      ? "Upload BOM and check footprints"
+                      : "Continue to column mapping"}
         </Button>
       </div>
     </form>

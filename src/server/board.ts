@@ -10,6 +10,8 @@ import { findParts, type FoundPart, type FoundParts } from "@/lib/board/find-par
 import { measureFab } from "@/lib/board/fab-measure";
 import type { PanelFacts } from "@/lib/board/panel";
 import { alignPlacements } from "@/server/placement-align";
+import { markSilkFailure, placeFromSilkscreen, type SilkRun } from "@/server/placement-silk";
+import { foundFromSilk, placeFromLayers } from "@/lib/board/place-from-silk";
 
 /** What was measured off the files, with the panel's figures when the Gerbers were a panel. */
 function fabOf(files: { name: string; text: string }[], panel?: PanelFacts | null) {
@@ -123,21 +125,61 @@ export async function savePlacementsFromFile(db: Db, revisionId: string, name: s
   return { count: placements.length, unit, skipped, ...link };
 }
 
-/** Placements from parts read off the Gerbers (Gerber millimetres, like a pick-and-place file), linked to BoM lines. */
-export async function savePlacementsFromFound(db: Db, revisionId: string, parts: FoundPart[]) {
+/**
+ * Placements from parts read off the Gerbers (Gerber millimetres, like a pick-and-place file), linked to BoM lines.
+ * `onPads`: the parts were read off the silkscreen and the pads (Phase 45) and sit on their footprints' centres —
+ * stored as "silk" with what the pads are, so the pad alignment does not move them.
+ */
+export async function savePlacementsFromFound(db: Db, revisionId: string, parts: FoundPart[], opts: { onPads?: boolean } = {}) {
+  const onPads = (p: FoundPart) => (opts.onPads ? { snap: "silk", copper: p.tht ? null : p.package || null, padCount: p.pads, padLength: p.w, padWidth: p.d } : {});
   await db.$transaction([
     db.placement.deleteMany({ where: { revisionId } }),
     db.placement.createMany({
-      data: parts.map((p) => ({ revisionId, refDes: p.ref, x: p.x, y: p.y, rotation: p.rotation, side: p.side, footprint: p.package || null, value: p.value })),
+      data: parts.map((p) => ({ revisionId, refDes: p.ref, x: p.x, y: p.y, rotation: p.rotation, side: p.side, footprint: p.package || null, value: p.value, ...onPads(p) })),
       skipDuplicates: true,
     }),
   ]);
   return linkPlacements(db, revisionId);
 }
 
-/** Found parts whose designators came from the files (not numbered by the guesser), so they can meet a BoM's RefDes. */
+/**
+ * Found parts whose designators came from the files or the board's own lettering (not numbered by the guesser), so
+ * they can meet a BoM's RefDes.
+ */
 export const hasRealDesignators = (found: FoundParts | null | undefined): found is FoundParts =>
   !!found && found.parts.length > 0 && found.source !== "guessed" && found.source !== "none";
+
+/**
+ * A BoM with Gerbers and no file that says where its parts sit: they are placed from the silkscreen designators and
+ * the pads (Phase 45). Call it once the BoM's lines exist, and again when the lines or the Gerbers change. Never
+ * throws: a board that cannot be read stays without placements, as before, and is marked as tried.
+ */
+export async function placeFromBoard(db: Db, revisionId: string, opts: { once?: boolean } = {}): Promise<SilkRun | null> {
+  try {
+    return await placeFromSilkscreen(db, revisionId, opts);
+  } catch (e) {
+    console.error(`Placing the parts of ${revisionId} from the silkscreen failed:`, e);
+    // Remembered on the board: one that cannot be read is not read again on every view.
+    await markSilkFailure(db, revisionId, e instanceof Error ? e.message : "unknown error").catch(() => undefined);
+    return null;
+  }
+}
+
+type Layer = { type: string; side: string; svg: string };
+
+/**
+ * The parts of a board read on its own from its layer drawings: every footprint, with the designator the silkscreen
+ * prints at it. Null when nothing could be read, so the caller keeps what it had.
+ */
+function partsFromDrawings(layers: Layer[] | null | undefined): FoundParts | null {
+  try {
+    const found = foundFromSilk(placeFromLayers(layers));
+    return found.parts.length ? found : null;
+  } catch (e) {
+    console.error("Reading the parts off the layer drawings failed:", e);
+    return null;
+  }
+}
 
 export async function saveGerbers(db: Db, revisionId: string, files: { name: string; text: string }[], opts: { panel?: PanelFacts | null } = {}) {
   const rev = await db.bomRevision.findUniqueOrThrow({ where: { id: revisionId }, include: { bom: { include: { project: true } } } });
@@ -166,6 +208,19 @@ export async function saveGerbers(db: Db, revisionId: string, files: { name: str
   return { layers: info.filter((f) => f.type !== "drawing").length, copper, width: data.widthMm, height: data.heightMm };
 }
 
+/** The files gave no parts of their own: they were guessed from the pads, or none were found at all. */
+export const wasGuessed = (found: FoundParts) => found.source === "guessed" || (found.source === "none" && !found.parts.length);
+
+/**
+ * What the old guesser made of a board, replaced by the reading of its silkscreen and pads. The files' own warnings
+ * are kept; what the guesser said about its guess is not. Marked as read, so a stored quick look is read only once.
+ */
+export function fromDrawings(guess: FoundParts, layers: Layer[] | null | undefined): FoundParts {
+  const read = partsFromDrawings(layers);
+  if (!read) return { ...guess, reader: "silk" };
+  return { ...read, notes: [...guess.notes.filter((n) => !/inferred|could not be read from these files/i.test(n)), ...read.notes] };
+}
+
 /** Renders a Gerber set that has no BoM yet into a shareable quick-look board. */
 export async function saveBoardPreview(
   db: Db,
@@ -183,7 +238,8 @@ export async function saveBoardPreview(
   const { artwork, files: info } = await renderGerbers(input.files, { maskColor: input.maskColor, finish: input.finish });
   if (!artwork.layers.length) throw new Error("None of the files could be drawn — are they RS-274X Gerbers?");
   const copper = info.filter((f) => f.type === "copper").length;
-  // Raw files aren't kept, so the components are read now: designators from the files, or guessed from the pads.
+  // Raw files aren't kept, so the components are read now: designators from the files when they carry any (a
+  // component layer, a pick-and-place file, X2 pad designators), else from the silkscreen and the pads.
   // Finding parts must never block the upload: a board that draws is still worth showing.
   let components: ReturnType<typeof findParts>;
   try {
@@ -191,6 +247,7 @@ export async function saveBoardPreview(
   } catch (e) {
     components = { source: "none", parts: [], notes: [`The components could not be read from these files (${e instanceof Error ? e.message : "unknown error"}).`] };
   }
+  if (wasGuessed(components)) components = fromDrawings(components, artwork.layers);
   return db.boardPreview.create({
     data: {
       name: input.name,

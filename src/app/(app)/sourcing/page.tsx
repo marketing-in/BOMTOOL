@@ -103,14 +103,22 @@ export default async function SourcingPage() {
           const failing = on && !!s.lastError && (!s.lastOkAt || (!!s.lastErrorAt && s.lastErrorAt > s.lastOkAt));
           const Icon = !on ? CircleDashed : failing ? CircleX : CircleCheck;
           const state = a.kind === "mock" ? (mock ? "Active" : "Off") : live ? "Live" : "Not configured";
-          const help = a.kind === "mock" ? (mock ? "No live keys set" : "Live adapters configured") : live ? undefined : `Set ${a.envVars.join(" + ")}`;
+          const help =
+            a.kind === "mock"
+              ? mock
+                ? "No live keys set"
+                : "Live adapters configured"
+              : live
+                ? `${s.callsToday}/${a.dailyLimit} calls today · last OK ${ago(s.lastOkAt)}`
+                : `Not configured: set ${a.envVars.join(" + ")}`;
           return (
             <li key={a.key} title={help} className={`max-w-full rounded-md border bg-card px-3 py-2 ${failing ? "border-risk-red/40" : ""}`}>
               <div className="flex items-center gap-2 text-sm">
                 <Icon className={`size-4 shrink-0 ${!on ? "text-muted-foreground" : Icon === CircleX ? "text-risk-red" : "text-risk-green"}`} aria-hidden />
                 <span className="font-medium">{a.label}</span>
-                <span className="text-xs text-muted-foreground">{state}</span>
-                {a.kind !== "mock" ? <span className="num text-xs text-muted-foreground">· {s.callsToday}/{a.dailyLimit} calls · OK {ago(s.lastOkAt)}</span> : null}
+                {/* Only what differs is said: an adapter without keys is just its name with an empty ring; the rest is in the tooltip. */}
+                {on ? <span className="text-xs text-muted-foreground">{state}</span> : <span className="sr-only">{state}</span>}
+                {a.kind !== "mock" && live ? <span className="num text-xs text-muted-foreground">· {s.callsToday}/{a.dailyLimit}</span> : null}
               </div>
               {failing && s.lastError ? <div className="mt-1 line-clamp-2 max-w-md text-xs text-risk-red" title={s.lastError}>{s.lastError}</div> : null}
             </li>

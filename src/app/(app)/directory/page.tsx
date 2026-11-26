@@ -35,7 +35,7 @@ export default async function DirectoryPage() {
           </Link>
         ))}
       </div>
-      <p className="mt-6 text-xs text-muted-foreground">Board types and reference parts are reference data, not verified. Vendors marked “— sample” are placeholders.</p>
+      <p className="mt-6 text-xs text-muted-foreground">Reference data, not verified. Vendors marked “— sample” are placeholders.</p>
     </>
   );
 }

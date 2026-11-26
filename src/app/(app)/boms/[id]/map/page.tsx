@@ -9,6 +9,7 @@ import { DeleteRevisionButton } from "@/components/bom/delete-controls";
 import { revisionImpact } from "@/server/bom-delete";
 import { readPackSummary } from "@/lib/bom/workbook";
 import { PackStrip } from "@/components/bom/pack-strip";
+import { BoardUploadForm } from "@/components/viewer/board-upload-form";
 
 export const metadata = { title: "Map columns" };
 
@@ -45,8 +46,16 @@ export default async function MapPage({ params, searchParams }: { params: Promis
         </p>
       ) : boardError ? (
         <p role="alert" className="mb-4 rounded-md border border-risk-amber/40 bg-risk-amber-soft px-4 py-2.5 text-sm">
-          The board files couldn&apos;t be drawn. Upload them again from <em>Gerbers &amp; centroid</em>.
+          The board files couldn&apos;t be drawn. Add them again below.
         </p>
+      ) : null}
+      {!rev.board && rev.status === "DRAFT" ? (
+        // A BoM uploaded on its own: its board files can come here, and then it goes straight to the footprint match.
+        <section aria-label="Board files" className="mb-6 rounded-xl border bg-card p-5">
+          <h2 className="text-sm font-medium">Add the board files</h2>
+          <p className="mt-1 mb-3 text-sm text-muted-foreground">Gerbers or a pick-and-place file: the lines are matched and the footprint check opens.</p>
+          <BoardUploadForm revisionId={rev.id} />
+        </section>
       ) : null}
       {matchError && rev.status === "DRAFT" ? (
         <p role="alert" className="mb-4 rounded-md border border-risk-amber/40 bg-risk-amber-soft px-4 py-2.5 text-sm">

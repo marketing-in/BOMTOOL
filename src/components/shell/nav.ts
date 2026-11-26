@@ -3,6 +3,7 @@ import {
   Boxes,
   CalendarRange,
   ClipboardList,
+  ClipboardCheck,
   Compass,
   Cpu,
   Factory,
@@ -44,6 +45,7 @@ export const PARTS: Part[] = [
     href: "/viewer",
     pages: [
       { href: "/viewer", label: "PCB / PCBA viewer", icon: Boxes },
+      { href: "/validation", label: "BOM validation", icon: ClipboardCheck },
       { href: "/reverse", label: "Reverse engineering", icon: Microscope },
       { href: "/directory", label: "Directory", icon: FolderTree },
       { href: "/knowledge/dictionary", label: "Component dictionary", icon: LibraryBig, also: ["/knowledge/circuits"] },

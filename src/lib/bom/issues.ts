@@ -13,6 +13,8 @@ export const ISSUE_INFO: Record<string, { label: string; level: RiskLevel; help:
   MPN_VOLTAGE_LOW: { label: "MPN voltage low", level: "red", help: "The part number is rated below the voltage the description asks for." },
   MPN_SIZE_MISMATCH: { label: "MPN ≠ size", level: "red", help: "The part number is a different case size from the line's package." },
   MPN_SPEC_DIFF: { label: "MPN spec differs", level: "amber", help: "The part number has a wider tolerance or a lesser dielectric than the description asks for." },
+  PACKAGE_CONFLICT: { label: "Package conflict", level: "red", help: "The description names one package and the package column another: one of them is not the part that fits the board. Ask which is right." },
+  GENERIC_MPN: { label: "No maker part number", level: "amber", help: "The part number is a name (\"TRANSFORMER\"), not a maker's part number: a custom part needs its drawing or specification, and no distributor sells it." },
 };
 
 /** An issue as stored: a code, or "CODE: what is wrong" (src/lib/bom/line-checks.ts). */

@@ -117,7 +117,7 @@ export const NOT_FITTED_VALUE = /^(dnp|dnf|dni|dnl|dnm|nc|n\/c|nf|n\.?f\.?|no\s*
 const SIDE_TOKEN: Record<string, Side> = { NO: "TOP", N: "TOP", TOP: "TOP", T: "TOP", "TOP SIDE": "TOP", YES: "BOTTOM", Y: "BOTTOM", BOTTOM: "BOTTOM", BOT: "BOTTOM", B: "BOTTOM", "BOTTOM SIDE": "BOTTOM", MIRROR: "BOTTOM" };
 
 /** How much a field says that a sheet is a BoM. */
-const FIELD_WEIGHT: Record<BomField, number> = { mpn: 4, refDes: 3, qty: 3, description: 2, value: 2, manufacturer: 2, package: 1, customerPn: 1, alternates: 1, dnp: 0 };
+const FIELD_WEIGHT: Record<BomField, number> = { mpn: 4, refDes: 3, qty: 3, description: 2, value: 2, manufacturer: 2, package: 1, customerPn: 1, alternates: 1, supplierPn: 0, dnp: 0 };
 const fieldScore = (mapping: ColumnMapping) => [...new Set(mapping.filter((f): f is BomField => !!f))].reduce((s, f) => s + FIELD_WEIGHT[f], 0);
 const BOM_NAME = /\b(bom|bill|parts?\s*list|components?|pcba|assembly)\b/i;
 

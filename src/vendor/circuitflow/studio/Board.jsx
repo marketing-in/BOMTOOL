@@ -216,7 +216,7 @@ export default function Board({board,parts,mode='3D',selected=null,related=null,
  const flyOn=!!intro,markKey=useMemo(()=>marks?JSON.stringify(marks):'',[marks]);
  const clock=useRef({key:null,t0:null,done:false});
  // The 3D scene is rebuilt only when geometry changes; selection, tint and focus restyle the meshes in place.
- const geomKey=useMemo(()=>board.id+'|'+parts.map(p=>[p.ref,p.x,p.y,p.rot,p.w,p.d,p.h,p.side,p.type,p.package,p.mpn,p.value,p.leads,p.dnp?1:0,(p.pads||[]).length].join(',')).join(';'),[board.id,parts]);
+ const geomKey=useMemo(()=>board.id+'|'+parts.map(p=>[p.ref,p.x,p.y,p.rot,p.w,p.d,p.h,p.side,p.type,p.package,p.mpn,p.value,p.leads,p.dnp?1:0,(p.pads||[]).length,p.model,p.pins,p.pitch,p.color,p.device?1:0,p.channel?1:0].join(',')).join(';'),[board.id,parts]);
  const [ownFull,setOwnFull]=useState(false);const full=fullProp??ownFull;
  useEffect(()=>{const fn=()=>setOwnFull(document.fullscreenElement===wrap.current);document.addEventListener('fullscreenchange',fn);return()=>document.removeEventListener('fullscreenchange',fn)},[]);
  const toggleFull=()=>{if(onToggleFull)return onToggleFull();if(document.fullscreenElement)document.exitFullscreen?.();else wrap.current?.requestFullscreen?.().catch(()=>{})};

@@ -32,6 +32,12 @@ const CATEGORIES: Record<"capacitor" | "resistor" | "inductor", string[]> = {
 
 /** Matching thresholds: auto-select at ≥ AUTO_SELECT; anything not exact still asks for a human look. */
 export const AUTO_SELECT = 60;
+/**
+ * The most a guess scores on a line that names its own part: shown as a suggestion, never chosen for the customer.
+ * A part number a few characters off (TXS0108EPWR for TXB0108PWR) is another part as often as it is a typo, and an
+ * equivalent from the description is a substitution only the customer can approve.
+ */
+export const SUGGESTION_MAX = AUTO_SELECT - 1;
 
 export function levenshtein(a: string, b: string, max = 3): number {
   if (Math.abs(a.length - b.length) > max) return max + 1;
@@ -105,14 +111,15 @@ function mpnCandidatesFor(mpn: string | null, line: ScrubbedLine, catalog: Catal
     } else if (key.length >= 6) {
       const d = levenshtein(key, k, 2);
       if (d <= 2) {
-        conf = 80 - d * 10;
-        reason = `Close to ${p.mpn} (${d} character${d > 1 ? "s" : ""} different)`;
+        conf = Math.min(SUGGESTION_MAX, 80 - d * 10);
+        reason = `Close to ${p.mpn} (${d} character${d > 1 ? "s" : ""} different): another part, or a typo — check`;
       }
     }
     if (!conf) continue;
+    const typo = !(k.startsWith(key) || key.startsWith(k));
     if (line.manufacturer && line.manufacturer !== p.manufacturer) conf -= 25;
-    else if (line.manufacturer) conf += 5;
-    out.push({ partId: p.id, method: "FUZZY", confidence: Math.max(1, Math.min(95, conf)), reason });
+    else if (line.manufacturer && !typo) conf += 5;
+    out.push({ partId: p.id, method: "FUZZY", confidence: Math.max(1, Math.min(typo ? SUGGESTION_MAX : 95, conf)), reason });
   }
   return out;
 }
@@ -156,6 +163,16 @@ function parametricCandidates(line: ScrubbedLine, catalog: Catalog): MatchCandid
       const w = p.num.power;
       if (w !== null && w !== undefined && w < want.power) continue;
     }
+    // An inductor must carry the current the line asks for (a 22 A coil is no 4 mm chip inductor).
+    if (want.current !== undefined) {
+      const i = p.num.current ?? p.num.isat;
+      if (i !== null && i !== undefined) {
+        if (i < want.current) continue;
+      } else {
+        conf -= 10;
+        notes.push(`current rating unknown, ${want.current} A asked`);
+      }
+    }
     if (p.lifecycle === "ACTIVE") conf += 3;
     else conf -= 10;
     conf -= notes.length * 3;
@@ -172,7 +189,14 @@ function parametricCandidates(line: ScrubbedLine, catalog: Catalog): MatchCandid
 export function matchLine(line: ScrubbedLine, catalog: Catalog): MatchResult {
   let candidates = mpnCandidates(line, catalog);
   const best = Math.max(0, ...candidates.map((c) => c.confidence));
-  if (best < 90) candidates = [...candidates, ...parametricCandidates(line, catalog)];
+  // A line that names its part gets equivalents as suggestions; a line with a value and a package only (no part
+  // number) takes the best of them.
+  const named = !!line.mpn || !!line.altMpns?.length;
+  if (best < 90)
+    candidates = [
+      ...candidates,
+      ...parametricCandidates(line, catalog).map((c) => (named ? { ...c, confidence: Math.min(SUGGESTION_MAX, c.confidence), reason: `${c.reason} — an equivalent of the BoM's part, for the customer to approve` } : c)),
+    ];
 
   const seen = new Set<string>();
   candidates = candidates

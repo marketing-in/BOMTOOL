@@ -36,6 +36,7 @@ const UNIVERSE_SELLERS = [
   { code: "MOUSER", name: "Mouser Electronics", currency: "USD", factor: 1.02, depth: 0.9 },
   { code: "LCSC", name: "LCSC Electronics", currency: "USD", factor: 0.8, depth: 1.5 },
   { code: "E14-IN", name: "element14 India (Farnell)", currency: "INR", factor: 1.08, depth: 0.5 },
+  { code: "NEWARK", name: "Newark", currency: "USD", factor: 1.04, depth: 0.7 },
 ];
 
 function universeOffers(mpn: string, usd: number): AdapterOffer[] {

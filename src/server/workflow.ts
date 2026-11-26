@@ -8,6 +8,7 @@ import { placementFit, type BoardFit } from "@/lib/board/placement-fit";
 import { copperPads, type CopperPads } from "@/lib/board/copper-pads";
 import { bodyFromFootprint, mountFromFootprint } from "@/lib/board/find-parts";
 import { findMismatches, mismatchNote, type Mismatches } from "@/lib/bom/mismatch";
+import { silkRunOf } from "@/server/placement-silk";
 
 /**
  * Where the board's Gerber drawing sits in the placements' own frame, without loading the drawing itself (it is
@@ -42,7 +43,7 @@ export const boardFitFor = cache(async (revisionId: string): Promise<BoardFit | 
         (SELECT jsonb_agg(jsonb_build_object('type', l->>'type', 'side', l->>'side', 'svg', l->>'svg')) FROM jsonb_array_elements(artwork->'layers') l
           WHERE (l->>'type' IN ('copper', 'soldermask') AND l->>'side' IN ('top', 'bottom')) OR l->>'type' = 'drill') AS copper
       FROM "BoardModel" WHERE "revisionId" = ${revisionId} LIMIT 1`,
-    db.placement.findMany({ where: { revisionId }, select: { refDes: true, footprint: true, x: true, y: true, side: true } }),
+    db.placement.findMany({ where: { revisionId }, select: { refDes: true, footprint: true, x: true, y: true, side: true, padLength: true, padWidth: true, copper: true } }),
   ]);
   const b = rows[0];
   if (!b || b.source !== "gerber" || !placements.length) return null;
@@ -58,8 +59,10 @@ export const boardFitFor = cache(async (revisionId: string): Promise<BoardFit | 
       // Its own pads lie within about half the body's diagonal of the placement point. A footprint name we cannot size
       // (the generic 3 × 3 mm guess: "Module", "BERG_4PIN…") may be a large module or connector: look further.
       const unknown = !body || (body.kind === "generic" && body.length === 3 && body.width === 3);
-      const reach = unknown ? 12 : Math.hypot(body.length, body.width) / 2 + 1;
-      return { refDes: p.refDes, x: p.x, y: p.y, side: p.side, reach, tht: mountFromFootprint(p.footprint) === "THT" };
+      // A land read off the copper says how far its own pads reach: a transformer's pins sit far from its centre.
+      const land = p.padLength && p.padWidth ? Math.hypot(p.padLength, p.padWidth) / 2 + 1 : 0;
+      const reach = Math.max(land, unknown ? 12 : Math.hypot(body.length, body.width) / 2 + 1);
+      return { refDes: p.refDes, x: p.x, y: p.y, side: p.side, reach, tht: mountFromFootprint(p.footprint) === "THT" || /through-hole/.test(p.copper ?? "") };
     }),
   });
 });
@@ -68,9 +71,13 @@ export const boardFitFor = cache(async (revisionId: string): Promise<BoardFit | 
 export const footprintMatchFor = cache(async (revisionId: string): Promise<FootprintMatch> => {
   const [lines, placements] = await Promise.all([
     db.bomLine.findMany({ where: { revisionId }, orderBy: { lineNo: "asc" }, select: { id: true, lineNo: true, refDes: true, rawPackage: true, rawMpn: true, rawValue: true, rawDescription: true, customerPartNumber: true, dnp: true, needsReview: true, partId: true, part: { select: { mpn: true, package: { select: { name: true } } } } } }),
-    db.placement.findMany({ where: { revisionId }, select: { refDes: true, footprint: true, x: true, y: true, side: true, value: true, copper: true } }),
+    db.placement.findMany({ where: { revisionId }, select: { refDes: true, footprint: true, x: true, y: true, side: true, value: true, copper: true, snap: true } }),
   ]);
   const fit = await boardFitFor(revisionId).catch(() => null);
+  // Parts placed from the silkscreen and the pads: what that reading found for each, kept on the board.
+  const silk = placements.some((p) => p.snap === "silk") ? silkRunOf((await db.boardModel.findUnique({ where: { revisionId }, select: { alignment: true } }))?.alignment) : null;
+  const differs = new Set(silk?.mismatches.map((m) => m.refDes) ?? []);
+  const unchecked = new Set(silk?.unchecked ?? []);
   return matchFootprints(
     lines.map((l) => ({
       id: l.id,
@@ -89,7 +96,7 @@ export const footprintMatchFor = cache(async (revisionId: string): Promise<Footp
       catalogConfirmed: !!l.partId && !l.needsReview,
       customerPn: l.customerPartNumber,
     })),
-    placements,
+    placements.map(({ snap, ...p }) => (snap === "silk" ? { ...p, onPads: true, fits: differs.has(p.refDes) ? false : unchecked.has(p.refDes) || !silk ? null : true } : p)),
     fit,
   );
 });
