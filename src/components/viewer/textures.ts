@@ -31,6 +31,35 @@ function palette(data: ViewerData) {
   };
 }
 
+/** Drawings fetched by address, shared by every board on the page (src/server/board-view.ts `artworkFor`). */
+const ART = new Map<string, Promise<string>>();
+
+/** A drawing's SVG: as given, or fetched when the server sent `art:` + its address instead (a large board). */
+export function svgText(svg: string): Promise<string> {
+  if (!svg.startsWith("art:")) return Promise.resolve(svg);
+  const url = svg.slice(4);
+  let hit = ART.get(url);
+  if (!hit) {
+    hit = fetch(url, { credentials: "same-origin" }).then((r) => (r.ok ? r.text() : ""));
+    hit.catch(() => ART.delete(url));
+    ART.set(url, hit);
+  }
+  return hit;
+}
+
+/** The viewer data with every drawing as SVG text, the large ones fetched (in parallel, once each). */
+export async function withArt(data: ViewerData): Promise<ViewerData> {
+  const b = data.board;
+  const marked = (s: string | null) => !!s && s.startsWith("art:");
+  if (!marked(b.top) && !marked(b.bottom) && !b.layers.some((l) => marked(l.svg))) return data;
+  const [top, bottom, layers] = await Promise.all([
+    b.top ? svgText(b.top) : Promise.resolve(null),
+    b.bottom ? svgText(b.bottom) : Promise.resolve(null),
+    Promise.all(b.layers.map(async (l) => ({ ...l, svg: await svgText(l.svg) }))),
+  ]);
+  return { ...data, board: { ...b, top: top || null, bottom: bottom || null, layers } };
+}
+
 function loadSvg(svg: string, color?: string): Promise<HTMLImageElement> {
   // gerber-to-svg draws with currentColor; set it on the root so a single layer can be tinted.
   const tinted = color ? svg.replace("<svg ", `<svg style="color:${color}" `) : svg;

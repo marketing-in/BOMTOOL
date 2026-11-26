@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
   // Loaded with Node's require at runtime instead of being bundled (they use Node built-ins).
   // node-unrar-js reads its WebAssembly file from its own folder.
   serverExternalPackages: ["bullmq", "ioredis", "node-unrar-js"],
+  // The RAR reader's WebAssembly is read from disk at run time, which the file tracer cannot see: ship it with every
+  // server function, or a RAR of Gerbers fails on Vercel ("ENOENT … unrar.wasm").
+  outputFileTracingIncludes: { "/**": ["./node_modules/node-unrar-js/dist/js/unrar.wasm"] },
   typescript: { ignoreBuildErrors: skipChecks },
   eslint: { ignoreDuringBuilds: skipChecks },
   experimental: {

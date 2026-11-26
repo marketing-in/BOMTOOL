@@ -31,6 +31,36 @@ type Spec = { layers?: number; thicknessMm?: number; finish?: string; mask?: str
 const OFF_BOARD = new Set(["enclosure", "fastener", "hookup-wire", "ribbon-cable", "shielded-cable", "harness-component"]);
 
 /** Everything the 3D viewer needs for one BoM revision. */
+/** A drawing larger than this goes to the browser by address, not inside the page. */
+const INLINE_SVG = 256 * 1024;
+
+/**
+ * A board's artwork for the viewer: small drawings as they are, large ones as `art:` + the address the browser loads
+ * them from (src/app/(app)/boms/[id]/art), versioned by the board's last change. Only the small drawings leave the
+ * database, so a board of 40 MB of Gerber drawings costs a page a few hundred kilobytes.
+ */
+async function artworkFor(revisionId: string, updatedAt: Date): Promise<BoardArtwork | null> {
+  const rows = await db.$queryRaw<{ box: BoardArtwork["box"]; top: string | null; top_big: boolean | null; bottom: string | null; bottom_big: boolean | null; layers: (Omit<BoardArtwork["layers"][number], "svg"> & { svg: string | null; big: boolean })[] | null }[]>`
+    SELECT artwork->'box' AS box,
+      CASE WHEN length(artwork->>'top') > ${INLINE_SVG} THEN NULL ELSE artwork->>'top' END AS top,
+      length(artwork->>'top') > ${INLINE_SVG} AS top_big,
+      CASE WHEN length(artwork->>'bottom') > ${INLINE_SVG} THEN NULL ELSE artwork->>'bottom' END AS bottom,
+      length(artwork->>'bottom') > ${INLINE_SVG} AS bottom_big,
+      (SELECT jsonb_agg((l - 'svg') || jsonb_build_object('svg', CASE WHEN length(l->>'svg') > ${INLINE_SVG} THEN NULL ELSE l->>'svg' END, 'big', length(l->>'svg') > ${INLINE_SVG}) ORDER BY n)
+        FROM jsonb_array_elements(artwork->'layers') WITH ORDINALITY AS x(l, n)) AS layers
+    FROM "BoardModel" WHERE "revisionId" = ${revisionId} LIMIT 1`;
+  const a = rows[0];
+  if (!a) return null;
+  const v = new Date(updatedAt).getTime();
+  const at = (q: string) => `art:/boms/${revisionId}/art?${q}&v=${v}`;
+  return {
+    box: a.box,
+    top: a.top_big ? at("part=top") : a.top,
+    bottom: a.bottom_big ? at("part=bottom") : a.bottom,
+    layers: (a.layers ?? []).map(({ big, svg, ...l }, i) => ({ ...l, svg: big ? at(`part=layer&i=${i}`) : (svg ?? "") })),
+  };
+}
+
 export async function getViewerData(revisionId: string, currency: Currency): Promise<ViewerData | null> {
   return (await viewerDataWithAnalysis(revisionId, currency))?.data ?? null;
 }
@@ -55,7 +85,8 @@ export async function viewerDataWithAnalysis(
   // once — the board remembers it was read, so one with nothing to read is not read again on every view.
   else if (!made.length) await placeFromBoard(db, revisionId, { once: true });
   const [board, placements, packages, alternates, lines] = await Promise.all([
-    db.boardModel.findUnique({ where: { revisionId } }),
+    // The drawings separately (artworkFor): a large board's run to tens of megabytes.
+    db.boardModel.findUnique({ where: { revisionId }, omit: { artwork: true } }),
     db.placement.findMany({ where: { revisionId } }),
     db.package.findMany(),
     db.alternate.findMany({
@@ -68,7 +99,7 @@ export async function viewerDataWithAnalysis(
   const spec = (rev.bom.project.boardSpec ?? {}) as Spec;
   const width = board?.widthMm ?? spec.sizeMm?.[0] ?? 100;
   const height = board?.heightMm ?? spec.sizeMm?.[1] ?? 80;
-  const artwork = (board?.artwork ?? null) as BoardArtwork | null;
+  const artwork = board ? await artworkFor(revisionId, board.updatedAt) : null;
   const box = artwork?.box ?? { x: 0, y: 0, w: width, h: height };
   const pkgNames = packages.map((p) => p.name);
   const byLine = new Map(a.lines.map((l) => [l.id, l]));

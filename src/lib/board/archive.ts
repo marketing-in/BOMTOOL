@@ -1,4 +1,17 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { BOARD_LIMITS, unreadableArchive, type UploadFile } from "./upload";
+
+/**
+ * The RAR reader's WebAssembly, read once from where the package keeps it and handed to the reader, so it does not
+ * depend on the package finding its own file (it does not on Vercel). Undefined: let the package load it itself.
+ */
+let wasm: Promise<ArrayBuffer | undefined> | null = null;
+const unrarWasm = () =>
+  (wasm ??= readFile(path.join(process.cwd(), "node_modules", "node-unrar-js", "dist", "js", "unrar.wasm")).then(
+    (b) => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer,
+    () => undefined,
+  ));
 
 /**
  * Customers send Gerbers as .rar about as often as .zip. This opens the RAR archives among the uploaded files and
@@ -17,7 +30,8 @@ export async function openArchives(files: UploadFile[], limits = BOARD_LIMITS): 
     const { createExtractorFromData } = await import("node-unrar-js");
     try {
       const data = f.bytes.buffer.slice(f.bytes.byteOffset, f.bytes.byteOffset + f.bytes.byteLength) as ArrayBuffer;
-      const extractor = await createExtractorFromData({ data });
+      const wasmBinary = await unrarWasm();
+      const extractor = await createExtractorFromData(wasmBinary ? { data, wasmBinary } : { data });
       // The reader's iterators must be run to the end, or it keeps the archive open.
       const headers = [...extractor.getFileList().fileHeaders];
       if (headers.some((h) => h.flags.encrypted)) throw new Error("it is password-protected");

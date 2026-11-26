@@ -9,6 +9,7 @@ import { copperPads, type CopperPads } from "@/lib/board/copper-pads";
 import { bodyFromFootprint, mountFromFootprint } from "@/lib/board/find-parts";
 import { findMismatches, mismatchNote, type Mismatches } from "@/lib/bom/mismatch";
 import { silkRunOf } from "@/server/placement-silk";
+import { getCache } from "@/server/sourcing/cache";
 
 /**
  * Where the board's Gerber drawing sits in the placements' own frame, without loading the drawing itself (it is
@@ -23,13 +24,40 @@ export const boardFrameFor = cache(async (revisionId: string): Promise<{ box: { 
 
 /** A board's pads, kept per board version: reading them walks every pad of both outer layers. */
 const PADS = new Map<string, CopperPads>();
-function padsOf(key: string, layers: { type: string; side: string; svg: string }[]): CopperPads {
-  const hit = PADS.get(key);
-  if (hit) return hit;
-  const pads = copperPads(layers);
-  if (PADS.size > 24) PADS.delete(PADS.keys().next().value!);
-  PADS.set(key, pads);
-  return pads;
+/** How long the pads read off a board version stay in the shared cache: a new upload is a new version anyway. */
+const PADS_TTL = 30 * 86_400;
+
+/**
+ * A board's pads (Gerber boards only), without fetching its drawings when they have been read before: the drawings of
+ * a large board run to tens of megabytes, the pads to a fraction of that. In memory first, then the shared cache (so a
+ * fresh server on Vercel does not start over), then read off the copper, mask and drill layers.
+ */
+async function boardPads(revisionId: string): Promise<{ box: { x: number; y: number; w: number; h: number } | null; pads: CopperPads } | null> {
+  const head = await db.$queryRaw<{ source: string; updated: Date; box: { x: number; y: number; w: number; h: number } | null }[]>`
+    SELECT source, "updatedAt" AS updated, artwork->'box' AS box FROM "BoardModel" WHERE "revisionId" = ${revisionId} LIMIT 1`;
+  const b = head[0];
+  if (!b || b.source !== "gerber") return null;
+  const key = `${revisionId}:${new Date(b.updated).getTime()}`;
+  const remember = (pads: CopperPads) => {
+    if (PADS.size > 24) PADS.delete(PADS.keys().next().value!);
+    PADS.set(key, pads);
+    return { box: b.box, pads };
+  };
+  const mem = PADS.get(key);
+  if (mem) return { box: b.box, pads: mem };
+  const shared = await getCache(db)
+    .then((c) => c.get<CopperPads>(`pads:${key}`))
+    .catch(() => null);
+  if (shared?.top && shared.bottom) return remember(shared);
+  const rows = await db.$queryRaw<{ copper: { type: string; side: string; svg: string }[] | null }[]>`
+    SELECT (SELECT jsonb_agg(jsonb_build_object('type', l->>'type', 'side', l->>'side', 'svg', l->>'svg')) FROM jsonb_array_elements(artwork->'layers') l
+        WHERE (l->>'type' IN ('copper', 'soldermask') AND l->>'side' IN ('top', 'bottom')) OR l->>'type' = 'drill') AS copper
+      FROM "BoardModel" WHERE "revisionId" = ${revisionId} LIMIT 1`;
+  const pads = copperPads(rows[0]?.copper ?? []);
+  await getCache(db)
+    .then((c) => c.set(`pads:${key}`, pads, PADS_TTL))
+    .catch(() => undefined);
+  return remember(pads);
 }
 
 /**
@@ -37,19 +65,12 @@ function padsOf(key: string, layers: { type: string; side: string; svg: string }
  * kept with the board, against every placement. Null when the board was not made from Gerbers (nothing to compare).
  */
 export const boardFitFor = cache(async (revisionId: string): Promise<BoardFit | null> => {
-  const [rows, placements] = await Promise.all([
-    db.$queryRaw<{ source: string; updated: Date; box: { x: number; y: number; w: number; h: number } | null; copper: { type: string; side: string; svg: string }[] | null }[]>`
-      SELECT source, "updatedAt" AS updated, artwork->'box' AS box,
-        (SELECT jsonb_agg(jsonb_build_object('type', l->>'type', 'side', l->>'side', 'svg', l->>'svg')) FROM jsonb_array_elements(artwork->'layers') l
-          WHERE (l->>'type' IN ('copper', 'soldermask') AND l->>'side' IN ('top', 'bottom')) OR l->>'type' = 'drill') AS copper
-      FROM "BoardModel" WHERE "revisionId" = ${revisionId} LIMIT 1`,
-    db.placement.findMany({ where: { revisionId }, select: { refDes: true, footprint: true, x: true, y: true, side: true, padLength: true, padWidth: true, copper: true } }),
-  ]);
-  const b = rows[0];
-  if (!b || b.source !== "gerber" || !placements.length) return null;
-  const copper = b.copper ?? [];
+  const placements = await db.placement.findMany({ where: { revisionId }, select: { refDes: true, footprint: true, x: true, y: true, side: true, padLength: true, padWidth: true, copper: true } });
+  if (!placements.length) return null;
+  const b = await boardPads(revisionId);
+  if (!b) return null;
   // Pads the mask opens over, vias left out: a part beside a via is not on copper.
-  const cu = padsOf(`${revisionId}:${new Date(b.updated).getTime()}`, copper);
+  const cu = b.pads;
   const pads = { top: cu.top.map((p) => ({ x: p.x, y: p.y })), bottom: cu.bottom.map((p) => ({ x: p.x, y: p.y })) };
   return placementFit({
     box: b.box,

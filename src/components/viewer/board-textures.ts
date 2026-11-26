@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 import type { StudioBoard, StudioImage } from "@/vendor/circuitflow/studio/entry";
 import { boardArtwork, type Artwork } from "@/lib/board/artwork";
-import { compositeTexture, gerberFace, layerTexture, specFace, type Face } from "./textures";
+import { compositeTexture, gerberFace, layerTexture, specFace, withArt, type Face } from "./textures";
 import { toCircuitflowBoard } from "./to-circuitflow";
 import type { ViewerData } from "./types";
 
@@ -16,13 +16,16 @@ export function useBoardTextures(data: ViewerData) {
   const [tex, setTex] = useState<{ top: Face; bottom: Face; art: Artwork | null; layers: { key: string; type: string; side: string; index?: number; t: THREE.Texture }[] } | null>(null);
   useEffect(() => {
     let alive = true;
-    const { width: w, height: h, top, bottom, layers, maskColor: mask, silkColor: silk } = data.board;
+    const { width: w, height: h, maskColor: mask, silkColor: silk } = data.board;
     // Without Gerbers the board's copper, vias and silkscreen are generated from the placed parts.
     const art = data.board.source === "gerber" ? null : boardArtwork(data.parts.map((p) => ({ refDes: p.refDes, x: p.x, y: p.y, rotation: p.rotation, side: p.side, body: p.body })), { width: w, height: h }, data.title);
     const spec = (side: "TOP" | "BOTTOM") => specFace(data, side, art ?? boardArtwork([], { width: w, height: h }, data.title), side === "TOP" ? labelText(data) : null);
     (async () => {
+      // A large board's drawings come by address: fetch them (once, in parallel) before drawing.
+      const full = await withArt(data);
+      const { top, bottom, layers } = full.board;
       const face = async (side: "top" | "bottom", svg: string | null) =>
-        art ? spec(side === "top" ? "TOP" : "BOTTOM") : ((await gerberFace(data, side)) ?? (svg ? await compositeTexture(svg, w, h) : spec(side === "top" ? "TOP" : "BOTTOM")));
+        art ? spec(side === "top" ? "TOP" : "BOTTOM") : ((await gerberFace(full, side)) ?? (svg ? await compositeTexture(svg, w, h) : spec(side === "top" ? "TOP" : "BOTTOM")));
       const [t, b, ls] = await Promise.all([
         face("top", top),
         face("bottom", bottom),
